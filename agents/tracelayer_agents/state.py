@@ -12,9 +12,11 @@ from tracelayer_agents.schemas import (
     AuditEvent,
     CaseStatus,
     Decision,
+    DerivedFact,
     DetectorOutput,
     EvidenceBundle,
     GovernanceStatus,
+    LLMMeta,
     Mode,
     NarrativeDraft,
     PolicyAnswer,
@@ -61,15 +63,19 @@ class AnalysisState(_TracedState, total=False):
 
 class CaseState(_TracedState, total=False):
     case_id: str
+    alert_id: str
     alert: Alert
     ingestion_run_id: str
     graph_snapshot_id: str
     feature_schema_version: str
     evidence_bundle: EvidenceBundle | None
+    derived_facts: list[DerivedFact]
     retrieved_sources: list[RetrievedChunk]
     draft_narrative: NarrativeDraft | None
     draft_attempts: int
+    llm_meta: LLMMeta
     verifier_errors: list[VerifierError]
+    flagged_claims: list[int]
     decision: Decision | None
 
 

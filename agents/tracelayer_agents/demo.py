@@ -1,10 +1,11 @@
 """Run the analysis workflow on a mock fixture and print the trace and the top alert.
 
     python -m tracelayer_agents.demo --scenario fan_out [--mode exploratory]
+    python -m tracelayer_agents.demo --scenario fan_out --draft   # + case narrative for top alert
     python -m tracelayer_agents.demo --copilot "What should be documented when escalating ..."
 
-Uses mocks only: no keys. The copilot uses Ollama if it is running, else the template
-(`LLM_PROVIDER=template` skips Ollama).
+Uses mocks only: no keys. The copilot and the narrative drafter use Ollama if it is running, else
+the template (`LLM_PROVIDER=template` skips Ollama).
 """
 
 from __future__ import annotations
@@ -17,9 +18,10 @@ import sys
 
 from tracelayer_agents.mocks import SCENARIOS
 from tracelayer_agents.registry import get_services
-from tracelayer_agents.schemas import CopilotResult, TraceEvent
+from tracelayer_agents.schemas import CaseDraftResult, CopilotResult, TraceEvent
 from tracelayer_agents.state import AnalysisState
 from tracelayer_agents.workflows.analysis import run_analysis
+from tracelayer_agents.workflows.case import start_case
 from tracelayer_agents.workflows.copilot import run_copilot
 from tracelayer_agents.wrappers import NodeError
 
@@ -80,6 +82,42 @@ def _copilot_report(result: CopilotResult) -> None:
         print(f"verifier: claim {err.claim_index} {err.code}: {err.detail}")
 
 
+def _case_report(result: CaseDraftResult) -> None:
+    print(_trace_table(result.trace))
+    print()
+    draft, meta = result.draft, result.llm_meta
+    print(f"case {result.case_id}  alert {result.alert_id}  case_status: {result.case_status}")
+    print(f"provider: {meta.provider}   model: {meta.model}   prompt: {meta.prompt_version}   "
+          f"llm calls: {meta.attempts}   fallback: {meta.fallback_used}\n")
+    print(draft.summary)
+    flagged = set(result.flagged_claims)
+    for i, claim in enumerate(draft.observed_facts):
+        mark = "  ** unverified claim **" if i in flagged else ""
+        print(f"\n  [{i}] ({claim.claim_type}) {claim.text}{mark}")
+        for label, values in (
+            ("tx", claim.transaction_ids),
+            ("accounts", claim.account_ids),
+            ("amounts", [str(a) for a in claim.amounts]),
+            ("dates", [d.isoformat() for d in claim.dates]),
+            ("cites", claim.citation_chunk_ids),
+        ):
+            if values:
+                print(f"      {label}: {', '.join(values)}")
+    if draft.uncertainties:
+        print("\nuncertainties:")
+        for item in draft.uncertainties:
+            print(f"  - {item}")
+    if draft.follow_up_questions:
+        print("\nfollow-up questions:")
+        for item in draft.follow_up_questions:
+            print(f"  - {item}")
+    print()
+    if not result.verifier_errors:
+        print("verifier: all claims verified against the evidence bundle and retrieved sources")
+    for err in result.verifier_errors:
+        print(f"verifier: claim {err.claim_index} {err.code}: {err.detail}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m tracelayer_agents.demo")
     parser.add_argument("--scenario", choices=SCENARIOS, default="fan_out")
@@ -89,6 +127,9 @@ def main(argv: list[str] | None = None) -> int:
         default=os.environ.get("TRACELAYER_MODE", "strict"),
     )
     parser.add_argument("--copilot", metavar="QUESTION", help="ask the policy copilot instead")
+    parser.add_argument(
+        "--draft", action="store_true", help="then draft the case narrative for the top alert"
+    )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.ERROR)  # hide the "uses mock" warnings in the demo
 
@@ -112,6 +153,19 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\nrun failed in {err.node}: {err.trace_event.error}", file=sys.stderr)
         return 1
     _report(state, services)
+    alerts = state.get("alerts", [])
+    if not args.draft or not alerts:
+        return 0
+
+    top = min(alerts, key=lambda a: a.rank or 0)
+    print(f"\n=== case narrative for {top.alert_id} ===\n")
+    try:
+        case = asyncio.run(start_case(top.alert_id, services=services))
+    except NodeError as err:
+        print(_trace_table((err.state or {}).get("trace_events", [err.trace_event])))
+        print(f"\ncase drafting failed in {err.node}: {err.trace_event.error}", file=sys.stderr)
+        return 1
+    _case_report(case)
     return 0
 
 

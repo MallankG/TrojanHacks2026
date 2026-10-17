@@ -371,6 +371,30 @@ class NarrativeDraft(Contract):
     fallback_used: bool = False
 
 
+class DerivedFact(Contract):
+    """A number computed in Python from an `EvidenceBundle` (`nodes.derive`), so the narrative can
+    quote totals without the LLM doing arithmetic. `value` is canonical text: an amount with two
+    decimals ("9950.00"), an integer count, hours with two decimals, or an ISO UTC timestamp."""
+
+    fact_id: str = Field(pattern=r"^DF-\d+$")
+    label: str
+    kind: Literal["amount", "count", "duration_hours", "timestamp"]
+    value: str
+    currency: CurrencyCode | None = None
+    transaction_ids: list[str] = Field(min_length=1)
+    account_ids: list[str] = Field(default_factory=list)
+
+
+class NarrativeOutput(Contract):
+    """What the `narrative` prompt (or its template) returns. `draft_narrative` adds the derived
+    citation/evidence lists and provenance to make a `NarrativeDraft`."""
+
+    summary: NonBlankStr
+    observed_facts: list[NarrativeClaim] = Field(default_factory=list)
+    uncertainties: list[str] = Field(default_factory=list)
+    follow_up_questions: list[str] = Field(default_factory=list)
+
+
 class PolicyClaim(Contract):
     """One statement in a policy answer and the retrieved chunks that support it."""
 
@@ -422,9 +446,11 @@ class LLMMeta(Contract):
 
 class VerifierError(Contract):
     """`claim_index` points into `NarrativeDraft.observed_facts` (case) or into the copilot claims
-    as the LLM returned them, before verification; None means the summary/draft/answer."""
+    as the LLM returned them, before verification. Free text outside a claim is -1 in the case
+    verifier (summary, uncertainties, follow-up questions) and None in the copilot (answer,
+    unknowns). The upper-case codes are the case verifier's (`nodes.verify.verify_evidence`)."""
 
-    claim_index: int | None = Field(default=None, ge=0)
+    claim_index: int | None = Field(default=None, ge=-1)
     code: Literal[
         "unknown_transaction_id",
         "unknown_account_id",
@@ -434,6 +460,14 @@ class VerifierError(Contract):
         "missing_citation",
         "prohibited_language",
         "schema_invalid",
+        "UNKNOWN_TX",
+        "UNKNOWN_ACCOUNT",
+        "UNSUPPORTED_AMOUNT",
+        "UNSUPPORTED_DATE",
+        "MISSING_EVIDENCE",
+        "BAD_CITATION",
+        "UNGROUNDED_TOKEN",
+        "PROHIBITED_LANGUAGE",
     ]
     detail: str
 
@@ -592,6 +626,39 @@ class CopilotAnswerOutput(Contract):
 class VerifyCitationsOutput(Contract):
     answer: PolicyAnswer
     verifier_errors: list[VerifierError]
+
+
+class LoadCaseOutput(Contract):
+    alert: Alert
+    evidence_bundle: EvidenceBundle
+    derived_facts: list[DerivedFact]
+
+
+class DraftNarrativeOutput(Contract):
+    draft_narrative: NarrativeDraft
+    draft_attempts: int = Field(ge=1)
+    llm_meta: LLMMeta
+
+
+class VerifyEvidenceOutput(Contract):
+    verifier_errors: list[VerifierError]
+    flagged_claims: list[int]  # observed_facts indexes with at least one error
+    case_status: CaseStatus
+
+
+class CaseDraftResult(Contract):
+    """What `workflows.case.start_case` returns. With `case_status="needs_revision"` the draft is
+    kept and `flagged_claims` lists the claims the UI must show as unverified."""
+
+    trace_id: str
+    case_id: str
+    alert_id: str
+    draft: NarrativeDraft
+    verifier_errors: list[VerifierError] = Field(default_factory=list)
+    flagged_claims: list[int] = Field(default_factory=list)
+    llm_meta: LLMMeta
+    case_status: CaseStatus
+    trace: list[TraceEvent] = Field(default_factory=list)
 
 
 class CopilotResult(Contract):
