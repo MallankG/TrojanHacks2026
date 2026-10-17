@@ -386,13 +386,44 @@ class DerivedFact(Contract):
 
 
 class NarrativeOutput(Contract):
-    """What the `narrative` prompt (or its template) returns. `draft_narrative` adds the derived
-    citation/evidence lists and provenance to make a `NarrativeDraft`."""
+    """A merged narrative (`llm.templates.build_narrative`: deterministic fact and policy claims
+    plus a `NarrativeSynthesis`). `draft_narrative` adds the derived citation/evidence lists and
+    provenance to make a `NarrativeDraft`."""
 
     summary: NonBlankStr
     observed_facts: list[NarrativeClaim] = Field(default_factory=list)
     uncertainties: list[str] = Field(default_factory=list)
     follow_up_questions: list[str] = Field(default_factory=list)
+
+
+NARRATIVE_MAX_HYPOTHESES = 3
+NARRATIVE_MAX_SYNTHESIS_ITEMS = 5
+
+
+class NarrativeHypothesis(Contract):
+    """One possible interpretation. `fact_refs` are 1-based numbers of the fact claims it rests on;
+    `draft_narrative` maps them back to those claims' transaction and account ids."""
+
+    text: NonBlankStr
+    fact_refs: list[int] = Field(min_length=1)
+
+
+class NarrativeSynthesis(Contract):
+    """What the `narrative` prompt (v2, or its template) returns: only the prose around the fact
+    and policy claims, which are built deterministically. `draft_narrative` validates it against
+    `nodes.draft_narrative.synthesis_model(n)`, which limits `fact_refs` to the real claim
+    numbers."""
+
+    summary: NonBlankStr
+    hypotheses: list[NarrativeHypothesis] = Field(
+        default_factory=list, max_length=NARRATIVE_MAX_HYPOTHESES
+    )
+    uncertainties: list[str] = Field(
+        default_factory=list, max_length=NARRATIVE_MAX_SYNTHESIS_ITEMS
+    )
+    follow_up_questions: list[str] = Field(
+        default_factory=list, max_length=NARRATIVE_MAX_SYNTHESIS_ITEMS
+    )
 
 
 class PolicyClaim(Contract):
