@@ -92,13 +92,16 @@ analysis_workflow  (POST /api/v1/analysis/run → api.run_analysis)
                                          └ detect_behavior ┴→ aggregate → investigate_flows → END
                                          (parallel fan-out, reducer fan-in)
 
-case_workflow      (POST /api/v1/cases/{case_id}/draft-narrative → api.start_case,
-                    POST .../decision → api.resume_case)
-  START → retrieve_policy → draft_narrative → verify ─┬ errors & attempts<2 → draft_narrative
-                                                       └ else → human_decision (interrupt) → record_decision → END
+case_workflow      (POST /api/v1/cases → api.start_case,
+                    POST /api/v1/cases/{case_id}/decision → api.resume_case)
+  START → load_case → retrieve_policy → draft_narrative → verify_evidence → save_draft
+                                              ↑                                  │
+                                              └──── errors & attempts < 2 ───────┤
+                                                                                 └ else
+                  END ← record_decision ← human_decision (interrupt) ←───────────┘
 
 copilot_workflow   (POST /api/v1/copilot/query → api.copilot_query)
-  START → retrieve_policy → answer_with_citations → verify_citations → END
+  START → retrieve_policy → copilot_answer → verify_citations → END
 ```
 
 The case workflow uses a checkpointer (`MemorySaver` for the demo; swap to the Postgres saver if time

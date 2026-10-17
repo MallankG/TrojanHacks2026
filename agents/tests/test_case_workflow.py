@@ -104,6 +104,10 @@ def _clean_draft() -> NarrativeDraft:
     )
 
 
+# A real sentence a local model produced for a structuring case.
+THRESHOLD_INTENT = "splitting large sums into smaller transactions to avoid regulatory thresholds"
+
+
 def _with_claim(index: int, **update) -> NarrativeDraft:
     draft = _clean_draft()
     claims = list(draft.observed_facts)
@@ -157,11 +161,12 @@ def test_clean_draft_passes() -> None:
         (_with_claim(0, text="TX-1 moved $10,000 from ACC-1."), (0, "UNGROUNDED_TOKEN")),
         (_with_claim(0, text="TX-1 went to ACC-9 on 2026-09-01."), (0, "UNGROUNDED_TOKEN")),
         (_with_claim(2, text="ACC-1 committed fraud here."), (2, "PROHIBITED_LANGUAGE")),
+        (_with_claim(2, text=THRESHOLD_INTENT), (2, "PROHIBITED_LANGUAGE")),
     ],
     ids=[
         "fake_tx", "unknown_account", "wrong_amount", "sub_cent_amount", "hallucinated_date",
         "fact_without_tx", "uncited_policy", "fake_citation", "amount_in_text", "account_in_text",
-        "banned_phrase",
+        "banned_phrase", "threshold_intent",
     ],
 )
 def test_bad_claim_is_caught(draft: NarrativeDraft, expected: tuple[int, str]) -> None:
@@ -263,6 +268,11 @@ def test_no_hypotheses_pass() -> None:
         ("transfers intended to conceal the source", ["intended to conceal"]),
         ("moved funds in order to launder them", ["in order to launder"]),
         ("cash deposits were deliberately structured", ["deliberately structured"]),
+        (THRESHOLD_INTENT, ["to avoid regulatory thresholds"]),
+        ("cash was deposited to avoid reporting", ["to avoid reporting"]),
+        ("amounts were kept small to stay below reporting limits", ["to stay below reporting"]),
+        ("transfers routed via ACC-3 to circumvent controls", ["to circumvent"]),
+        ("the bank must avoid reporting delays", []),
     ],
 )
 def test_prohibited_phrases_use_word_boundaries(text: str, hits: list[str]) -> None:
@@ -273,6 +283,7 @@ def test_intent_phrases_only_checked_in_narratives() -> None:
     policy = "activity designed to evade BSA requirements, intended to conceal its source"
     assert find_prohibited(policy) == []  # copilot answers may restate policy definitions
     assert find_prohibited(policy, intent=True) == ["to evade", "intended to conceal"]
+    assert find_prohibited(THRESHOLD_INTENT) == []
 
 
 # --------------------------------------------------------------------------- template
@@ -326,7 +337,7 @@ def test_template_passes_with_quality_caveats_and_no_sources() -> None:
     }
     out = build_narrative(variables, narrative(variables))
     draft = NarrativeDraft(**out.model_dump(), provider="template", model="template",
-                           prompt_version="narrative_v2")
+                           prompt_version="narrative_v3")
     assert verify_evidence(draft, bundle, []) == []
     assert any("amount_positive" in u for u in draft.uncertainties)
 
@@ -450,7 +461,7 @@ async def test_slow_ollama_draft_falls_back_to_template(monkeypatch: pytest.Monk
     assert meta.provider == "template" and meta.fallback_used
     assert "ollama_timeout" in meta.errors
     draft = update["draft_narrative"]
-    assert draft.fallback_used and draft.prompt_version == "narrative_v2"
+    assert draft.fallback_used and draft.prompt_version == "narrative_v3"
     assert update["trace_events"][0].status == "ok"
     assert verify_evidence(draft, BUNDLE, SOURCES) == []
     # only the synthesis fell back: the fact claims are the deterministic ones
@@ -498,7 +509,7 @@ async def test_llm_synthesis_merged_draft_verifies(
                                                monkeypatch)
     draft, meta = update["draft_narrative"], update["llm_meta"]
     assert meta.provider == "ollama" and not draft.fallback_used
-    assert meta.prompt_version == "narrative_v2" and meta.attempts == 1
+    assert meta.prompt_version == "narrative_v3" and meta.attempts == 1
     assert verify_evidence(draft, bundle, chunks) == []
     facts = _template_facts(bundle)
     assert draft.observed_facts[:len(facts)] == facts

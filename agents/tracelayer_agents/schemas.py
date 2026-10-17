@@ -704,37 +704,121 @@ class RecordDecisionOutput(Contract):
     audit_events: list[AuditEvent]
 
 
+ResultStatus = Literal["ok", "error"]
+
+
+def _require_when_ok(model: Any, *names: str) -> None:
+    if model.status == "ok":
+        missing = [n for n in names if getattr(model, n) is None]
+        if missing:
+            raise ValueError(f"status='ok' requires {', '.join(missing)}")
+
+
 class CaseDraftResult(Contract):
     """What `workflows.case.start_case` returns. With `case_status="needs_revision"` the draft is
-    kept and `flagged_claims` lists the claims the UI must show as unverified."""
+    kept and `flagged_claims` lists the claims the UI must show as unverified. The facade returns
+    `status="error"` with a short `error` (and the trace so far) instead of raising."""
 
-    trace_id: str
-    case_id: str
+    status: ResultStatus = "ok"
+    error: str | None = None
+    trace_id: str | None = None
+    case_id: str | None = None
     alert_id: str
-    draft: NarrativeDraft
+    draft: NarrativeDraft | None = None
     verifier_errors: list[VerifierError] = Field(default_factory=list)
     flagged_claims: list[int] = Field(default_factory=list)
-    llm_meta: LLMMeta
-    case_status: CaseStatus
+    llm_meta: LLMMeta | None = None
+    case_status: CaseStatus | None = None
     trace: list[TraceEvent] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _complete_when_ok(self) -> CaseDraftResult:
+        _require_when_ok(self, "trace_id", "case_id", "draft", "llm_meta", "case_status")
+        return self
 
 
 class CaseDecisionResult(Contract):
     """What `workflows.case.resume_case` returns: the case's new status, the `case.decision` audit
-    event and the full node trace of the case run."""
+    event and the full node trace of the case run. The facade returns `status="rejected"` when the
+    decision is invalid or the role may not take it (the case stays paused), and `status="error"`
+    for an unknown or already-decided case."""
 
+    status: Literal["ok", "rejected", "error"] = "ok"
+    error: str | None = None
     case_id: str
-    case_status: CaseStatus
-    audit_event: AuditEvent
+    case_status: CaseStatus | None = None
+    audit_event: AuditEvent | None = None
     trace: list[TraceEvent] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _complete_when_ok(self) -> CaseDecisionResult:
+        _require_when_ok(self, "case_status", "audit_event")
+        return self
 
 
 class CopilotResult(Contract):
     """What `workflows.copilot.run_copilot` returns: the verified answer, the sources it was
     checked against, the verifier's findings and the node trace."""
 
-    trace_id: str
-    answer: PolicyAnswer
+    status: ResultStatus = "ok"
+    error: str | None = None
+    trace_id: str | None = None
+    answer: PolicyAnswer | None = None
     sources: list[RetrievedChunk] = Field(default_factory=list)
     verifier_errors: list[VerifierError] = Field(default_factory=list)
     trace: list[TraceEvent] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _complete_when_ok(self) -> CopilotResult:
+        _require_when_ok(self, "trace_id", "answer")
+        return self
+
+
+class AnalysisResult(Contract):
+    """What `api.run_analysis` returns. `halted` (status `"halted"`) means the strict governance
+    gate stopped the run with `case_status="held_for_data_review"` and no alerts."""
+
+    status: Literal["ok", "halted", "error"]
+    error: str | None = None
+    trace_id: str | None = None
+    governance_status: GovernanceStatus | None = None
+    halted: bool = False
+    alerts: list[Alert] = Field(default_factory=list)
+    trace: list[TraceEvent] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------- alert graph (UI)
+
+
+class CytoscapeNodeData(Contract):
+    id: str  # account_id
+    label: str
+    risk: float | None = None  # the alert's composite score for accounts on an evidence edge
+    quality: GovernanceStatus | None = None  # the alert's governance status
+
+
+class CytoscapeNode(Contract):
+    data: CytoscapeNodeData
+
+
+class CytoscapeEdgeData(Contract):
+    id: str  # transaction_id
+    source: str
+    target: str
+    amount: str  # decimal string, e.g. "9500.00"
+    timestamp: UtcDatetime
+    tx_id: str
+    highlighted: bool  # True for the alert's evidence transactions
+
+
+class CytoscapeEdge(Contract):
+    data: CytoscapeEdgeData
+
+
+class CytoscapeGraph(Contract):
+    """What `api.get_alert_graph` returns: Cytoscape.js elements (`{nodes, edges}`)."""
+
+    status: ResultStatus = "ok"
+    error: str | None = None
+    nodes: list[CytoscapeNode] = Field(default_factory=list)
+    edges: list[CytoscapeEdge] = Field(default_factory=list)

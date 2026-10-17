@@ -36,6 +36,10 @@ INTENT_PHRASES: tuple[str, ...] = (
     "intended to conceal",
     "in order to launder",
     "deliberately structured",
+    "to avoid regulatory thresholds",
+    "to avoid reporting",
+    "to stay below reporting",
+    "to circumvent",
 )
 
 
