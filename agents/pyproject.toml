@@ -24,8 +24,8 @@ dev = [
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["tracelayer_agents"]
+[tool.setuptools.packages.find]
+include = ["tracelayer_agents*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
