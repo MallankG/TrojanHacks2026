@@ -2,6 +2,7 @@ import asyncio
 import time
 
 import pytest
+from pydantic import ValidationError
 
 from tracelayer_agents.config import AgentConfig
 from tracelayer_agents.interfaces import Services
@@ -80,6 +81,39 @@ async def test_timeout_from_config(is_async: bool) -> None:
     with pytest.raises(NodeError) as info:
         await node.bind(CTX)(STATE)
     assert "TimeoutError" in info.value.trace_event.error
+
+
+async def test_llm_node_uses_llm_node_timeout() -> None:
+    ctx = NodeContext(services=Services(),
+                      config=AgentConfig(node_timeout_s=0.05, llm_node_timeout_s=200.0))
+
+    async def slowish(state, ctx):
+        await asyncio.sleep(0.2)  # longer than node_timeout_s, well within llm_node_timeout_s
+        return OUT
+
+    assert (await traced_node("copilot_answer", IngestOutput, llm=True)(slowish).bind(ctx)(STATE))
+    with pytest.raises(NodeError) as info:
+        await traced_node("ingest", IngestOutput)(slowish).bind(ctx)(STATE)
+    assert "exceeded 0.05s" in info.value.trace_event.error
+
+
+def test_llm_node_timeout_must_exceed_llm_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("LLM_TIMEOUT_S", raising=False)
+    monkeypatch.delenv("TRACELAYER_LLM_NODE_TIMEOUT_S", raising=False)
+    assert AgentConfig().llm_node_timeout_s == 150.0  # default LLM_TIMEOUT_S (120) + 30
+    assert AgentConfig().node_timeout_s == 30.0
+    for bad in (120.0, 60.0):
+        with pytest.raises(ValidationError, match="LLM_TIMEOUT_S"):
+            AgentConfig(llm_node_timeout_s=bad)
+    assert AgentConfig(llm_node_timeout_s=120.5).llm_node_timeout_s == 120.5
+
+    monkeypatch.setenv("LLM_TIMEOUT_S", "200")
+    assert AgentConfig().llm_node_timeout_s == 230.0
+    monkeypatch.setenv("TRACELAYER_LLM_NODE_TIMEOUT_S", "150")
+    with pytest.raises(ValidationError):
+        AgentConfig.from_env()  # 150 <= LLM_TIMEOUT_S=200
+    monkeypatch.setenv("TRACELAYER_LLM_NODE_TIMEOUT_S", "240")
+    assert AgentConfig.from_env().llm_node_timeout_s == 240.0
 
 
 async def test_skip_node() -> None:

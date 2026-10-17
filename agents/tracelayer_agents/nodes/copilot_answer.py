@@ -14,7 +14,7 @@ from tracelayer_agents.wrappers import NodeContext, traced_node
 PROMPT_NAME = "policy_qa"
 
 
-@traced_node("copilot_answer", CopilotAnswerOutput)
+@traced_node("copilot_answer", CopilotAnswerOutput, llm=True)
 async def copilot_answer(state: Mapping[str, Any], ctx: NodeContext) -> CopilotAnswerOutput:
     question = state["question"]
     chunks = state.get("retrieved_sources") or []

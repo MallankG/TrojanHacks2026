@@ -3,6 +3,9 @@
 Chain: Ollama → deterministic template. The demo works with no network and Ollama not running:
 - `LLM_PROVIDER=template` skips Ollama entirely.
 - Ollama unreachable / timeout / HTTP error / model not found / no local models → template.
+- `LLM_TIMEOUT_S` bounds the whole Ollama phase of one call (health check, every attempt and the
+  validation retry), not each request, so a slow model always reaches the template in time. LLM
+  nodes run under `AgentConfig.llm_node_timeout_s`, which must be larger.
 - Output that fails `output_model` validation is retried once with the error appended to the
   prompt, then → template.
 - More than `LLM_MAX_CALLS_PER_RUN` Ollama calls for one `trace_id` → template.
@@ -14,6 +17,7 @@ highest N wins) with `$variable` placeholders. Raw prompts and variables are nev
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -30,6 +34,7 @@ from pydantic import BaseModel, ValidationError
 from pydantic_core import to_jsonable_python
 
 from tracelayer_agents.audit import sha256_json
+from tracelayer_agents.config import DEFAULT_LLM_TIMEOUT_S, llm_timeout_s
 from tracelayer_agents.llm.templates import TEMPLATES
 from tracelayer_agents.schemas import LLMMeta, LLMProvider
 
@@ -70,7 +75,7 @@ class LLMSettings:
     provider: LLMProvider = "ollama"
     ollama_host: str = "http://localhost:11434"
     ollama_model: str | None = None  # None → first model listed by GET /api/tags
-    timeout_s: float = 60.0
+    timeout_s: float = DEFAULT_LLM_TIMEOUT_S  # whole Ollama phase of one call
     max_calls_per_run: int = 6
 
     @classmethod
@@ -82,7 +87,7 @@ class LLMSettings:
             provider=provider,  # type: ignore[arg-type]
             ollama_host=os.environ.get("OLLAMA_HOST", "").strip() or cls.ollama_host,
             ollama_model=os.environ.get("OLLAMA_MODEL", "").strip() or None,
-            timeout_s=float(os.environ.get("LLM_TIMEOUT_S", "") or cls.timeout_s),
+            timeout_s=llm_timeout_s(),
             max_calls_per_run=int(
                 os.environ.get("LLM_MAX_CALLS_PER_RUN", "") or cls.max_calls_per_run
             ),
@@ -131,7 +136,13 @@ class LLMClient:
 
         output: T | None = None
         if self.settings.provider == "ollama":
-            output = await self._try_ollama(prompt_name, variables, output_model, run)
+            try:
+                output = await asyncio.wait_for(
+                    self._try_ollama(prompt_name, variables, output_model, run),
+                    timeout=self.settings.timeout_s,
+                )
+            except TimeoutError:
+                run.errors.append("ollama_timeout")
 
         provider: LLMProvider = "ollama" if output is not None else "template"
         if output is None:
@@ -206,7 +217,6 @@ class LLMClient:
         """GET /api/tags once per process; None when Ollama is unreachable."""
         if self._health_checked:
             return self._models
-        self._health_checked = True
         try:
             resp = await http.get("/api/tags", timeout=HEALTH_TIMEOUT_S)
             resp.raise_for_status()
@@ -214,7 +224,10 @@ class LLMClient:
             self._models = [m for m in self._models if m]
         except (httpx.HTTPError, ValueError, AttributeError):
             self._models = None
+            self._health_checked = True
             return None
+        # Set only once the check finished: a check cancelled by the call deadline is retried.
+        self._health_checked = True
         if not self.settings.ollama_model and self._models:
             logger.info("OLLAMA_MODEL unset; using first local Ollama model %r", self._models[0])
         return self._models

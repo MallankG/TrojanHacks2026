@@ -24,7 +24,7 @@ def _feedback(state: Mapping[str, Any]) -> str:
     return "\n".join(lines) or "(none)"
 
 
-@traced_node("draft_narrative", DraftNarrativeOutput)
+@traced_node("draft_narrative", DraftNarrativeOutput, llm=True)
 async def draft_narrative(state: Mapping[str, Any], ctx: NodeContext) -> DraftNarrativeOutput:
     bundle = state["evidence_bundle"]
     chunks = state.get("retrieved_sources") or []

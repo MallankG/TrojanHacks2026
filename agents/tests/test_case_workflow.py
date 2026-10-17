@@ -1,6 +1,7 @@
 """Narrative drafter, evidence verifier and the case workflow. The LLM is either the template
 provider or a `httpx.MockTransport` Ollama; nothing touches the network."""
 
+import asyncio
 import json
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -349,6 +350,40 @@ async def test_always_bad_stops_after_two_needs_revision(monkeypatch: pytest.Mon
     nodes = [e.node for e in result.trace]
     assert nodes.count("draft_narrative") == 2 and nodes.count("verify_evidence") == 2
     assert nodes[-1] == "verify_evidence"
+
+
+async def test_slow_ollama_draft_falls_back_to_template(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A model slower than LLM_TIMEOUT_S ends in a template draft, not a node timeout, even with
+    a node_timeout_s shorter than the LLM budget (LLM nodes use llm_node_timeout_s)."""
+    monkeypatch.setenv("LLM_TIMEOUT_S", "0.3")
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/tags":
+            return httpx.Response(200, json={"models": [{"name": "slow:1b"}]})
+        await asyncio.sleep(5)
+        return httpx.Response(200, json={"message": {"content": "{}"}})
+
+    settings = LLMSettings.from_env()
+    assert settings.timeout_s == 0.3
+    client = LLMClient(
+        LLMSettings(**{**settings.__dict__, "provider": "ollama", "ollama_model": "slow:1b"}),
+        transport=httpx.MockTransport(handler),
+    )
+    monkeypatch.setattr(llm, "_default_client", client)
+    config = AgentConfig(node_timeout_s=0.1)  # llm_node_timeout_s defaults to 0.3 + 30
+    ctx = NodeContext(services=get_services(), config=config)
+
+    update = await draft_narrative.bind(ctx)({
+        "trace_id": "tr_slow", "evidence_bundle": BUNDLE,
+        "derived_facts": compute_derived_facts(BUNDLE), "retrieved_sources": SOURCES,
+    })
+
+    meta = update["llm_meta"]
+    assert meta.provider == "template" and meta.fallback_used
+    assert "ollama_timeout" in meta.errors
+    assert update["draft_narrative"].fallback_used
+    assert update["trace_events"][0].status == "ok"
+    assert verify_evidence(update["draft_narrative"], BUNDLE, SOURCES) == []
 
 
 async def test_unknown_alert_fails_in_load_case(template_llm: None) -> None:

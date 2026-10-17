@@ -5,7 +5,8 @@ config, so nodes stay thin adapters. The decorator returns a `TracedNode`; workf
 `node.bind(ctx)` to get the async LangGraph callable, which:
 
 1. hashes the input state (minus the append-only trace/audit lists),
-2. runs the node under `config.node_timeout_s` (sync nodes in a worker thread),
+2. runs the node under `config.node_timeout_s`, or `config.llm_node_timeout_s` for nodes declared
+   with `llm=True` (sync nodes in a worker thread),
 3. validates the result against the node's output model,
 4. returns the model's non-None fields as a state update plus one `TraceEvent`.
 
@@ -62,10 +63,16 @@ NodeFn = Callable[[Mapping[str, Any], NodeContext], M | Awaitable[M]]
 
 
 class TracedNode(Generic[M]):
-    def __init__(self, name: str, output_model: type[M], fn: NodeFn[M]) -> None:
+    def __init__(
+        self, name: str, output_model: type[M], fn: NodeFn[M], *, llm: bool = False
+    ) -> None:
         self.name = name
         self.output_model = output_model
         self.fn = fn
+        self.llm = llm
+
+    def timeout_s(self, config: AgentConfig) -> float:
+        return config.llm_node_timeout_s if self.llm else config.node_timeout_s
 
     def bind(self, ctx: NodeContext) -> Callable[[Mapping[str, Any]], Awaitable[dict[str, Any]]]:
         async def run(state: Mapping[str, Any]) -> dict[str, Any]:
@@ -97,7 +104,7 @@ class TracedNode(Generic[M]):
                 call = self.fn(state, ctx)
             else:
                 call = asyncio.to_thread(self.fn, state, ctx)
-            result = await asyncio.wait_for(call, timeout=ctx.config.node_timeout_s)
+            result = await asyncio.wait_for(call, timeout=self.timeout_s(ctx.config))
             if not isinstance(result, self.output_model | dict):
                 raise TypeError(
                     f"expected {self.output_model.__name__}, got {type(result).__name__}"
@@ -107,7 +114,7 @@ class TracedNode(Generic[M]):
             return {"trace_events": [event("skipped", error=str(skip) or None)]}
         except Exception as exc:
             if isinstance(exc, TimeoutError):
-                message = f"TimeoutError: exceeded {ctx.config.node_timeout_s}s"
+                message = f"TimeoutError: exceeded {self.timeout_s(ctx.config)}s"
             else:
                 message = f"{type(exc).__name__}: {exc}"
             raise NodeError(self.name, event("error", error=message), message) from exc
@@ -120,8 +127,12 @@ class TracedNode(Generic[M]):
         return {**update, "trace_events": [event("ok", output_hash=sha256_json(output))]}
 
 
-def traced_node(name: str, output_model: type[M]) -> Callable[[NodeFn[M]], TracedNode[M]]:
+def traced_node(
+    name: str, output_model: type[M], *, llm: bool = False
+) -> Callable[[NodeFn[M]], TracedNode[M]]:
+    """`llm=True` for nodes that call the LLM: they run under `config.llm_node_timeout_s`."""
+
     def decorate(fn: NodeFn[M]) -> TracedNode[M]:
-        return TracedNode(name, output_model, fn)
+        return TracedNode(name, output_model, fn, llm=llm)
 
     return decorate

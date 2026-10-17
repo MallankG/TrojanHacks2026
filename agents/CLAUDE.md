@@ -191,7 +191,10 @@ python -m tracelayer_agents.demo --scenario fan_out   # runs analysis + case gra
 ```
 
 Env (see `.env.example`): `LLM_PROVIDER=ollama|template`, `OLLAMA_HOST=http://localhost:11434`,
-`OLLAMA_MODEL` (model not decided yet; unset = first model from `GET /api/tags`), `LLM_TIMEOUT_S=60`,
+`OLLAMA_MODEL` (model not decided yet; unset = first model from `GET /api/tags`), `LLM_TIMEOUT_S=120`
+(budget for the whole Ollama phase of one LLM call, then the template answers),
+`TRACELAYER_LLM_NODE_TIMEOUT_S` (LLM nodes `draft_narrative`/`copilot_answer`; default
+`LLM_TIMEOUT_S + 30`, must exceed `LLM_TIMEOUT_S`; other nodes use `TRACELAYER_NODE_TIMEOUT_S=30`),
 `LLM_MAX_CALLS_PER_RUN=6`, `TRACELAYER_MODE=strict|exploratory`. Opt-in real-Ollama test:
 `RUN_OLLAMA_TESTS=1 pytest -m ollama`.
 

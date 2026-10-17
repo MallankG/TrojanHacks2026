@@ -1,6 +1,8 @@
+import asyncio
 import json
 import logging
 import os
+import time
 from collections.abc import Callable
 
 import httpx
@@ -140,6 +142,30 @@ async def test_unreachable_falls_to_template_and_fails_fast() -> None:
 
     await _echo(client, trace_id="tr_2")
     assert calls == ["/api/tags"]  # health result cached per process
+
+
+async def test_slow_ollama_hits_call_deadline_and_falls_back() -> None:
+    """`timeout_s` bounds the whole Ollama phase: a fast invalid reply then a reply slower than
+    the budget still ends in the template, in about `timeout_s`."""
+    calls: list[int] = []
+
+    async def chat(request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        if len(calls) == 1:
+            return _chat_ok("not json")
+        await asyncio.sleep(5)
+        return _chat_ok(json.dumps({"text": "too late"}))
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return _tags(MODEL) if request.url.path == "/api/tags" else await chat(request)
+
+    settings = LLMSettings(provider="ollama", ollama_model=MODEL, timeout_s=0.3)
+    client = LLMClient(settings, transport=httpx.MockTransport(handler))
+    started = time.perf_counter()
+    out, meta = await _echo(client)
+    assert time.perf_counter() - started < 2
+    assert out.text == SECRET and meta.provider == "template" and meta.fallback_used
+    assert meta.errors == ["invalid_output_attempt_1", "ollama_timeout"]
 
 
 async def test_timeout_falls_to_template() -> None:
