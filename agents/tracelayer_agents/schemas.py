@@ -457,6 +457,7 @@ class TraceEvent(Contract):
     status: NodeStatus
     started_at: UtcDatetime
     ended_at: UtcDatetime
+    duration_ms: float = Field(ge=0)
     input_hash: Sha256Hex
     output_hash: Sha256Hex | None = None
     error: str | None = None
@@ -497,3 +498,48 @@ class AuditEvent(Contract):
             if not isinstance(item, str | int | float | bool | type(None)):
                 raise ValueError(f"metadata[{key!r}] must be a JSON scalar")
         return value
+
+
+# --------------------------------------------------------------------------- node outputs
+#
+# What each analysis node returns. `@traced_node` validates the model and merges every field that
+# is not None into the graph state, so field names must match `state.AnalysisState` keys.
+
+
+class IngestOutput(Contract):
+    ingestion_run_id: str
+    transaction_batch_id: str
+
+
+class GovernanceOutput(Contract):
+    governance_status: GovernanceStatus
+    quality_issues: list[QualityIssue] = Field(default_factory=list)
+    case_status: CaseStatus | None = None  # set only when the gate halts the run
+
+
+class BuildGraphOutput(Contract):
+    graph_snapshot_id: str
+    feature_schema_version: str
+
+
+class DetectorScoresOutput(Contract):
+    """`model_scores` keyed by `detector_name`; parallel detector nodes merge via the reducer."""
+
+    model_scores: dict[str, DetectorOutput]
+
+    @model_validator(mode="after")
+    def _keys_match_names(self) -> DetectorScoresOutput:
+        for key, out in self.model_scores.items():
+            if key != out.detector_name:
+                raise ValueError(f"model_scores key {key!r} != detector_name {out.detector_name!r}")
+        return self
+
+
+class AggregateOutput(Contract):
+    alerts: list[Alert]
+    audit_events: list[AuditEvent] = Field(default_factory=list)
+
+
+class InvestigateOutput(Contract):
+    top_evidence_transaction_ids: list[str]
+    evidence_bundle: EvidenceBundle

@@ -444,6 +444,16 @@ class MockGraphService:
                 )
         raise KeyError(f"no snapshot contains all of {sorted(tx_ids)[:5]}")
 
+    def get_transactions(self, tx_ids: list[str]) -> list[EvidenceTransaction]:
+        """Looks the IDs up across every ingested batch (fixture IDs never collide)."""
+        by_id = {
+            t.transaction_id: t for b in self.store.batches.values() for t in b.transactions
+        }
+        missing = sorted(set(tx_ids) - by_id.keys())
+        if missing:
+            raise KeyError(f"unknown transaction_ids: {missing[:5]}")
+        return [by_id[tx_id].model_copy(deep=True) for tx_id in tx_ids]
+
 
 def to_subgraph_json(snapshot_id: str, graph: nx.MultiDiGraph) -> SubgraphJSON:
     return SubgraphJSON(

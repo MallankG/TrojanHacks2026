@@ -118,6 +118,27 @@ The graph is time-respecting, and the same batch and feature version always give
 }
 ```
 
+### `GraphService.get_transactions(tx_ids: list[str]) -> list[EvidenceTransaction]`
+Returns the full canonical rows for evidence bundles, one per ID in request order, with the real
+`source_row_ref`. It raises `KeyError` on any unknown ID rather than returning partial evidence.
+Added by the agents workstream (see `TEAM_QUESTIONS.md`).
+
+<!-- example: EvidenceTransaction -->
+```json
+{
+  "transaction_id": "T100",
+  "source_row_ref": "row_0017",
+  "timestamp": "2026-09-03T14:12:00Z",
+  "amount": "9500.00",
+  "currency": "USD",
+  "channel": "wire",
+  "direction": "outbound",
+  "origin_account_id": "A1",
+  "destination_account_id": "A2",
+  "transaction_status": "posted"
+}
+```
+
 ### `CaseRepository` and `AuditRepository`
 These store data on Supabase, and agents ship in-memory versions. `CaseRepository` covers `save_alerts`,
 `get_alert`, `save_evidence`, `get_evidence`, `create_case`, `get_case`, `update_case` and `save_draft`

@@ -125,7 +125,7 @@ SAMPLES: list[BaseModel] = [
     ),
     s.TraceEvent(
         trace_id="tr_1", node="ingest", status="ok", started_at=T0,
-        ended_at=T0 + timedelta(seconds=1), input_hash=H0, output_hash=H1,
+        ended_at=T0 + timedelta(seconds=1), duration_ms=1000.0, input_hash=H0, output_hash=H1,
     ),
     s.AuditEvent(
         event_id="evt_1", actor_role="system", action="case.created", object_type="case",
@@ -255,7 +255,8 @@ def test_bundle_findings_must_be_in_transactions() -> None:
 def test_hash_fields_must_be_sha256_hex() -> None:
     with pytest.raises(ValidationError):
         s.TraceEvent(
-            trace_id="t", node="n", status="ok", started_at=T0, ended_at=T0, input_hash="abc"
+            trace_id="t", node="n", status="ok", started_at=T0, ended_at=T0, duration_ms=0,
+            input_hash="abc",
         )
 
 
@@ -263,7 +264,7 @@ def test_trace_event_end_not_before_start() -> None:
     with pytest.raises(ValidationError):
         s.TraceEvent(
             trace_id="t", node="n", status="ok", started_at=T0,
-            ended_at=T0 - timedelta(seconds=1), input_hash=H0,
+            ended_at=T0 - timedelta(seconds=1), duration_ms=0, input_hash=H0,
         )
 
 
@@ -342,7 +343,7 @@ def test_contracts_md_examples_validate() -> None:
     examples = _EXAMPLE_RE.findall(text)
     assert {name for name, _ in examples} == {
         "IngestionResult", "QualityReport", "GraphSnapshot", "SubgraphJSON", "AuditEvent",
-        "DetectorOutput", "FusionResult", "FlowFindings", "RetrievedChunk",
+        "DetectorOutput", "FusionResult", "FlowFindings", "RetrievedChunk", "EvidenceTransaction",
     }
     for name, body in examples:
         getattr(s, name).model_validate(json.loads(body))

@@ -17,6 +17,7 @@ from tracelayer_agents.schemas import (
     CaseRecord,
     DetectorOutput,
     EvidenceBundle,
+    EvidenceTransaction,
     FlowFindings,
     FusionResult,
     GraphSnapshot,
@@ -77,6 +78,16 @@ class GraphService(Protocol):
         Inputs: transaction IDs from the snapshot; `hops` is 1–3 (larger values are rejected).
         Output: nodes are accounts, edges are transactions with real IDs, amounts and timestamps.
         Invariants: bounded query only; no generated SQL/Cypher.
+        """
+        ...
+
+    def get_transactions(self, tx_ids: list[str]) -> list[EvidenceTransaction]:
+        """Full canonical rows (PRD §13 `transactions`) for the given IDs, for evidence bundles.
+
+        Output: one `EvidenceTransaction` per requested ID, in request order, with the real
+        `source_row_ref` so evidence links back to the source file.
+        Invariants: raises `KeyError` if any ID is unknown (never returns partial evidence);
+        read-only; no generated SQL/Cypher.
         """
         ...
 
