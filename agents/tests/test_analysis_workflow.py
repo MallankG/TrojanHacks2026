@@ -1,4 +1,4 @@
-"""End-to-end analysis graph on the mock fixtures."""
+"""End-to-end analysis workflow on the mock fixtures."""
 
 import dataclasses
 
@@ -6,10 +6,15 @@ import pytest
 
 from tests.test_mocks import PLANTED
 from tracelayer_agents.audit import event_hash
-from tracelayer_agents.graphs.analysis import NODES, build_analysis_graph, run_analysis
 from tracelayer_agents.interfaces import Services
 from tracelayer_agents.registry import get_services
 from tracelayer_agents.schemas import CaseStatus
+from tracelayer_agents.workflows.analysis import (
+    NODES,
+    build_analysis_graph,
+    build_analysis_workflow,
+    run_analysis,
+)
 from tracelayer_agents.wrappers import NodeError
 
 ALL_NODES = [n.name for n in NODES]
@@ -119,12 +124,20 @@ async def test_raising_node_records_error_event(services: Services) -> None:
     assert services.audit.list_events()[-1].action == "analysis.run.failed"
 
 
-def test_graph_shape(services: Services) -> None:
-    graph = build_analysis_graph(services).get_graph()
-    edges = {(e.source, e.target) for e in graph.edges}
+def test_workflow_shape(services: Services) -> None:
+    drawable = build_analysis_workflow(services).get_graph()
+    edges = {(e.source, e.target) for e in drawable.edges}
     assert ("build_graph", "detect_graphml") in edges
     assert ("build_graph", "detect_behavior") in edges
     assert ("detect_graphml", "aggregate") in edges
     assert ("detect_behavior", "aggregate") in edges
     assert ("governance", "__end__") in edges
     assert ("governance", "build_graph") in edges
+
+
+def test_build_analysis_graph_is_deprecated_alias(services: Services) -> None:
+    with pytest.warns(DeprecationWarning, match="build_analysis_workflow"):
+        workflow = build_analysis_graph(services)
+    assert set(workflow.get_graph().nodes) == set(
+        build_analysis_workflow(services).get_graph().nodes
+    )

@@ -73,28 +73,33 @@ teammate instead.
 9. **Secrets stay server-side.** `GROQ_API_KEY` only in the backend process env (the agents package runs inside it). Never log raw prompts with PII;
    log the prompt template version + input hash.
 
-## Graphs (three separate LangGraph graphs)
+## Workflows (three separate LangGraph workflows)
+
+Terminology: a **workflow** is one of the LangGraph state machines below (package
+`tracelayer_agents/workflows/`). **Graph** means the transaction graph that the ML and backend teammates build
+(`GraphService`, `graph_snapshot_id`, GraphSAGE, the `build_graph` node). Don't call the workflows "graphs".
+`build_analysis_graph` survives only as a deprecated alias of `build_analysis_workflow`.
 
 The backend routes in parentheses below belong to the backend teammate; each one calls the facade function shown.
 
 ```
-analysis_graph  (POST /api/v1/analysis/run → api.run_analysis)
+analysis_workflow  (POST /api/v1/analysis/run → api.run_analysis)
   START → ingest → governance → [gate]
             ├─ halt (strict + fail) ─────────────────────────────→ END
             └─ continue → build_graph → ┬ detect_graphml  ┐
                                          └ detect_behavior ┴→ aggregate → investigate_flows → END
                                          (parallel fan-out, reducer fan-in)
 
-case_graph      (POST /api/v1/cases/{case_id}/draft-narrative → api.start_case,
-                 POST .../decision → api.resume_case)
+case_workflow      (POST /api/v1/cases/{case_id}/draft-narrative → api.start_case,
+                    POST .../decision → api.resume_case)
   START → retrieve_policy → draft_narrative → verify ─┬ errors & attempts<2 → draft_narrative
                                                        └ else → human_decision (interrupt) → record_decision → END
 
-copilot_graph   (POST /api/v1/copilot/query → api.copilot_query)
+copilot_workflow   (POST /api/v1/copilot/query → api.copilot_query)
   START → retrieve_policy → answer_with_citations → verify_citations → END
 ```
 
-The case graph uses a checkpointer (`MemorySaver` for the demo; swap to the Postgres saver if time
+The case workflow uses a checkpointer (`MemorySaver` for the demo; swap to the Postgres saver if time
 allows) with `thread_id = case_id`, so `human_decision` can pause via `interrupt()` and resume on the
 decision endpoint with `Command(resume=...)`.
 
@@ -161,7 +166,7 @@ agents/                     # flat layout (no src/); import name `tracelayer_age
   pyproject.toml            # distribution "tracelayer-agents"; backend installs with `pip install -e ../agents`
   tracelayer_agents/
     api.py  config.py  state.py  schemas.py  wrappers.py  registry.py  audit.py  demo.py
-    graphs/analysis.py  graphs/case.py  graphs/copilot.py
+    workflows/analysis.py  workflows/case.py  workflows/copilot.py
     nodes/  ingest.py governance.py build_graph.py detect_graphml.py detect_behavior.py
             aggregate.py investigate_flows.py retrieve_policy.py draft_narrative.py
             verify.py human_decision.py copilot_answer.py
@@ -192,6 +197,6 @@ Env: `LLM_PROVIDER=groq|ollama|template`, `GROQ_API_KEY`, `GROQ_MODEL=openai/gpt
 - Python 3.11+, Pydantic v2, type hints everywhere, `ruff` clean.
 - Money is `decimal.Decimal`, never `float`; timestamps are timezone-aware UTC (PRD §13).
 - Small commits after each working step: `agents: <what>`. Work on branch `feat/agents`.
-- Each new node gets a unit test that runs it with mocks. Each graph gets one end-to-end test on a fixture.
+- Each new node gets a unit test that runs it with mocks. Each workflow gets one end-to-end test on a fixture.
 - Prefer boring, explicit code over clever abstractions. This is a 24h build: get it running end to end first, polish later.
 - When unsure about a domain rule (BSA/AML, SAR confidentiality), choose the more conservative behavior and leave a `# TODO(review):` comment.

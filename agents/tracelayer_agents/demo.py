@@ -1,4 +1,4 @@
-"""Run the analysis graph on a mock fixture and print the trace and the top alert.
+"""Run the analysis workflow on a mock fixture and print the trace and the top alert.
 
     python -m tracelayer_agents.demo --scenario fan_out [--mode exploratory]
 
@@ -13,11 +13,11 @@ import logging
 import os
 import sys
 
-from tracelayer_agents.graphs.analysis import run_analysis
 from tracelayer_agents.mocks import SCENARIOS
 from tracelayer_agents.registry import get_services
 from tracelayer_agents.schemas import TraceEvent
 from tracelayer_agents.state import AnalysisState
+from tracelayer_agents.workflows.analysis import run_analysis
 from tracelayer_agents.wrappers import NodeError
 
 

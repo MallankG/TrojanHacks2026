@@ -1,4 +1,4 @@
-"""Runtime settings for the agent graphs. The backend passes an `AgentConfig` to the facade;
+"""Runtime settings for the agent workflows. The backend passes an `AgentConfig` to the facade;
 `AgentConfig.from_env()` is the default."""
 
 from __future__ import annotations

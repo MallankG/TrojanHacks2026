@@ -1,4 +1,4 @@
-"""Builds the `Services` bundle the graphs run against.
+"""Builds the `Services` bundle the workflows run against.
 
 Any service the backend doesn't pass in falls back to its mock, and `TRACELAYER_USE_MOCKS=1`
 forces mocks for everything. Each mocked service logs one warning so a half-wired deployment is

@@ -1,4 +1,4 @@
-"""analysis_graph:
+"""analysis_workflow:
 
     START → ingest → governance → [gate]
               ├─ halt (strict + fail) ───────────────────────────→ END
@@ -12,6 +12,7 @@ reducer on `model_scores` combines their outputs.
 from __future__ import annotations
 
 import uuid
+import warnings
 from dataclasses import fields
 from typing import Any, Literal
 
@@ -51,7 +52,7 @@ def gate(state: AnalysisState) -> Literal["halt", "continue"]:
     return "continue"
 
 
-def build_analysis_graph(
+def build_analysis_workflow(
     services: Services, config: AgentConfig | None = None
 ) -> CompiledStateGraph:
     """`services` must be fully resolved (see `registry.get_services`)."""
@@ -72,13 +73,25 @@ def build_analysis_graph(
     return builder.compile(checkpointer=MemorySaver())
 
 
+def build_analysis_graph(
+    services: Services, config: AgentConfig | None = None
+) -> CompiledStateGraph:
+    """Deprecated alias for `build_analysis_workflow`."""
+    warnings.warn(
+        "build_analysis_graph is deprecated; use build_analysis_workflow",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return build_analysis_workflow(services, config)
+
+
 async def run_analysis(
     batch_ref: str,
     mode: Mode,
     services: Services | None = None,
     config: AgentConfig | None = None,
 ) -> AnalysisState:
-    """Run the analysis graph on one batch and return the final state.
+    """Run the analysis workflow on one batch and return the final state.
 
     `services`: a complete bundle is used as-is; None or a partial one is filled in by
     `registry.get_services`.
@@ -90,7 +103,7 @@ async def run_analysis(
     # resolving it again would swap in fresh mocks the caller can't see.
     complete = services is not None and all(getattr(services, f.name) for f in fields(Services))
     resolved = services if complete else get_services(services)
-    graph = build_analysis_graph(resolved, config)
+    workflow = build_analysis_workflow(resolved, config)
     trace_id = f"tr_{uuid.uuid4().hex}"
     run_cfg: dict[str, Any] = {"configurable": {"thread_id": trace_id}}
 
@@ -111,9 +124,9 @@ async def run_analysis(
         "audit_events": [started],
     }
     try:
-        state: AnalysisState = await graph.ainvoke(initial, run_cfg)
+        state: AnalysisState = await workflow.ainvoke(initial, run_cfg)
     except NodeError as err:
-        snapshot = await graph.aget_state(run_cfg)
+        snapshot = await workflow.aget_state(run_cfg)
         partial: AnalysisState = dict(snapshot.values)  # type: ignore[assignment]
         failed = record("analysis.run.failed", node=err.node, error=err.trace_event.error)
         partial["trace_events"] = [*partial.get("trace_events", []), err.trace_event]

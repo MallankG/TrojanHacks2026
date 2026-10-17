@@ -1,4 +1,4 @@
-"""LangGraph state for the three graphs.
+"""LangGraph state for the three workflows.
 
 Keys written by parallel branches carry an `Annotated` reducer; every other key is overwritten by
 the last node that sets it. All states are `total=False`: nodes return partial updates.

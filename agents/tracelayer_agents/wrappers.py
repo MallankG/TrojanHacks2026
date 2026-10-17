@@ -1,7 +1,7 @@
-"""`@traced_node`: the one wrapper every graph node goes through.
+"""`@traced_node`: the one wrapper every workflow node goes through.
 
 A node is `fn(state, ctx) -> OutputModel`, sync or async. `ctx` carries the injected services and
-config, so nodes stay thin adapters. The decorator returns a `TracedNode`; graphs call
+config, so nodes stay thin adapters. The decorator returns a `TracedNode`; workflows call
 `node.bind(ctx)` to get the async LangGraph callable, which:
 
 1. hashes the input state (minus the append-only trace/audit lists),
@@ -45,7 +45,7 @@ class NodeContext:
 
 class NodeError(Exception):
     """A node failed. `trace_event` is its `status="error"` event; `state` is filled in by the
-    graph runner with the last committed state plus that event, when available."""
+    workflow runner with the last committed state plus that event, when available."""
 
     def __init__(self, node: str, trace_event: TraceEvent, message: str) -> None:
         super().__init__(f"node {node!r} failed: {message}")
