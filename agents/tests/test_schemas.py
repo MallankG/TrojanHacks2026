@@ -122,7 +122,7 @@ SAMPLES: list[BaseModel] = [
         attempts=1, fallback_used=False, latency_ms=812.5,
     ),
     s.VerifierError(claim_index=0, code="unknown_amount", detail="9600.00 not in bundle"),
-    s.Decision(action="escalate", actor_role="reviewer", reason="Funnel pattern."),
+    s.Decision(action="escalate", actor_role="analyst", reason="Funnel pattern.", actor_id="u1"),
     s.CaseRecord(
         case_id="case_1", alert_id="alrt_1", title="Funnel into A2",
         status=s.CaseStatus.AWAITING_REVIEW, created_at=T0, updated_at=T0,
@@ -190,12 +190,20 @@ def test_aware_timestamp_normalized_to_utc() -> None:
 @pytest.mark.parametrize("reason", ["", "   "])
 def test_decision_reason_required(reason: str) -> None:
     with pytest.raises(ValidationError):
-        s.Decision(action="escalate", actor_role="reviewer", reason=reason)
+        s.Decision(action="escalate", actor_role="analyst", reason=reason, actor_id="u1")
 
 
-def test_decision_actor_role_required() -> None:
+@pytest.mark.parametrize("role", ["", "reviewer", "Analyst"])
+def test_decision_actor_role_must_be_known(role: str) -> None:
     with pytest.raises(ValidationError):
-        s.Decision(action="dismiss", actor_role="", reason="Benign payroll.")
+        s.Decision(action="dismiss", actor_role=role, reason="Benign payroll.", actor_id="u1")
+
+
+@pytest.mark.parametrize("actor_id", [None, "", "  "])
+def test_decision_actor_id_required(actor_id: str | None) -> None:
+    with pytest.raises(ValidationError):
+        s.Decision(action="dismiss", actor_role="analyst", reason="Benign payroll.",
+                   actor_id=actor_id)
 
 
 def test_decision_actions_map_to_case_status() -> None:
@@ -282,7 +290,8 @@ def test_audit_metadata_must_be_flat() -> None:
 
 def test_unknown_fields_rejected() -> None:
     with pytest.raises(ValidationError):
-        s.Decision(action="escalate", actor_role="r", reason="x", auto_file_sar=True)
+        s.Decision(action="escalate", actor_role="analyst", reason="x", actor_id="u1",
+                   auto_file_sar=True)
 
 
 def test_retrieved_chunk_accepts_prd_column_names_and_ignores_embedding() -> None:

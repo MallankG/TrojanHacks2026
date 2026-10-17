@@ -10,8 +10,9 @@ Rules:
    "the receiving accounts").
 2. Never compute, count or total anything, and do not use outside knowledge.
 3. `summary`: 2-3 plain sentences on what the fact claims show, without numbers or ids.
-4. `hypotheses` (at most 3): possible interpretations, worded as possible, never as established,
-   each noting it may have a legitimate explanation.
+4. `hypotheses` (at most 3): possible interpretations, worded as possible, never as established.
+   Keep them balanced: include at least one legitimate or benign explanation, or end every
+   hypothesis with "It may have a legitimate explanation; this requires reviewer assessment."
 5. `uncertainties` (at most 5): missing evidence and open questions. `follow_up_questions`
    (at most 5): what the reviewer should investigate.
 6. Never say or imply that anyone committed a crime, is laundering money, or is guilty. Never

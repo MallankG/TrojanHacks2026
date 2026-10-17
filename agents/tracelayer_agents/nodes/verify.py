@@ -88,7 +88,7 @@ FREE_TEXT = -1  # claim_index for text outside observed_facts
 
 _CURRENCIES = r"(?:USD|EUR|GBP|CAD|MXN|JPY|CHF|AUD|CNY|INR|HKD|SGD)"
 _NUMBER = r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?"
-ID_RE = re.compile(r"\b(?:TX|ACC)-[A-Za-z0-9]+\b")
+ID_RE = re.compile(r"\b(?:TX|ACC)-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*\b")
 MONEY_RE = re.compile(
     rf"\$\s?(?P<a>{_NUMBER})"
     rf"|\b(?P<b>{_NUMBER})\s?(?P<bcur>{_CURRENCIES})\b"
@@ -96,6 +96,16 @@ MONEY_RE = re.compile(
 )
 ISO_DATE_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})(?!\d)")
 US_DATE_RE = re.compile(r"\b(\d{1,2})/(\d{1,2})/(\d{4})\b")
+# A hypothesis that offers a benign reading, and the neutral caveat that may stand in for one.
+# TODO(review): starter phrase lists; extend with compliance.
+BENIGN_RE = re.compile(
+    r"\b(?:legitimate|benign|lawful|ordinary business|normal business|business purpose|payroll"
+    r"|vendor payments?|supplier payments?|innocent)\b",
+    re.IGNORECASE,
+)
+CAVEAT_RE = re.compile(
+    r"may (?:also )?have a legitimate explanation|requires? reviewer assessment", re.IGNORECASE
+)
 
 
 @dataclass(frozen=True)
@@ -172,12 +182,37 @@ def ungrounded_tokens(text: str, ground: Grounding) -> list[str]:
     return bad
 
 
+def check_balanced_hypotheses(draft: NarrativeDraft) -> list[VerifierError]:
+    """Hypotheses must not all point one way: at least one offers a legitimate/benign reading, or
+    every one carries a neutral caveat. A draft with no hypotheses passes."""
+    texts = [c.text for c in draft.observed_facts if c.claim_type == "hypothesis"]
+    if not texts or all(CAVEAT_RE.search(t) for t in texts):
+        return []
+    if any(BENIGN_RE.search(t) and not _only_negated(t) for t in texts):
+        return []
+    return [VerifierError(
+        claim_index=FREE_TEXT, code="MISSING_ALTERNATIVE",
+        detail="hypotheses offer no legitimate explanation and are not all caveated "
+               "('may have a legitimate explanation' / 'requires reviewer assessment')",
+    )]
+
+
+def _only_negated(text: str) -> bool:
+    """True if every benign marker in `text` is negated within two words before it ("no
+    legitimate business purpose", "without any apparent legitimate reason")."""
+    return all(
+        re.search(r"\b(?:no|not|without|lacks?|lacking)\s+(?:[\w-]+\s+){0,2}$",
+                  text[: m.start()], re.IGNORECASE)
+        for m in BENIGN_RE.finditer(text)
+    )
+
+
 def verify_evidence(
     draft: NarrativeDraft, bundle: EvidenceBundle, retrieved_sources: list[RetrievedChunk]
 ) -> list[VerifierError]:
     """Every id, amount, date and policy citation in `draft` must come from `bundle` (or its
     derived facts) or `retrieved_sources`; free text is swept for ungrounded tokens and prohibited
-    language. Returns [] for a fully grounded draft."""
+    language, and hypotheses must be balanced. Returns [] for a fully grounded draft."""
     ground = grounding(bundle)
     known_chunks = {c.chunk_id for c in retrieved_sources}
     errors: list[VerifierError] = []
@@ -190,7 +225,7 @@ def verify_evidence(
     def sweep(index: int, text: str) -> None:
         for token in ungrounded_tokens(text, ground):
             err(index, "UNGROUNDED_TOKEN", f"{token!r} is not in the evidence bundle")
-        for phrase in find_prohibited(text):
+        for phrase in find_prohibited(text, intent=True):
             err(index, "PROHIBITED_LANGUAGE", f"prohibited phrase: {phrase!r}")
 
     sweep(FREE_TEXT, draft.summary)
@@ -220,6 +255,7 @@ def verify_evidence(
         sweep(i, claim.text)
     for text in [*draft.uncertainties, *draft.follow_up_questions]:
         sweep(FREE_TEXT, text)
+    errors.extend(check_balanced_hypotheses(draft))
     return errors
 
 

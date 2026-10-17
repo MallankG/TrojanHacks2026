@@ -499,6 +499,7 @@ class VerifierError(Contract):
         "BAD_CITATION",
         "UNGROUNDED_TOKEN",
         "PROHIBITED_LANGUAGE",
+        "MISSING_ALTERNATIVE",
     ]
     detail: str
 
@@ -518,6 +519,7 @@ class CaseStatus(StrEnum):
 
 
 DecisionAction = Literal["escalate", "dismiss", "request_more_data"]
+ActorRole = Literal["analyst", "supervisor"]
 
 DECISION_TO_STATUS: dict[str, CaseStatus] = {
     "escalate": CaseStatus.ESCALATED,
@@ -527,12 +529,13 @@ DECISION_TO_STATUS: dict[str, CaseStatus] = {
 
 
 class Decision(Contract):
-    """A human reviewer's decision. Escalation is an internal step, never a filing."""
+    """A human reviewer's decision. Escalation is an internal step, never a filing. Role-based
+    rules (who may take which action) are enforced in `nodes.human_decision`."""
 
     action: DecisionAction
-    actor_role: NonBlankStr
+    actor_role: ActorRole
     reason: NonBlankStr
-    actor_id: str | None = None
+    actor_id: NonBlankStr
     edited_summary: str | None = None
 
 
@@ -599,6 +602,16 @@ class AuditEvent(Contract):
             if not isinstance(item, str | int | float | bool | type(None)):
                 raise ValueError(f"metadata[{key!r}] must be a JSON scalar")
         return value
+
+
+class AuditVerification(Contract):
+    """Result of `audit.verify_chain`. `checked` counts the events that verified before the first
+    bad one (all of them when `ok`); `first_bad_index` is that event's position in the list."""
+
+    ok: bool
+    checked: int = Field(ge=0)
+    first_bad_index: int | None = Field(default=None, ge=0)
+    reason: str | None = None
 
 
 # --------------------------------------------------------------------------- node outputs
@@ -677,6 +690,20 @@ class VerifyEvidenceOutput(Contract):
     case_status: CaseStatus
 
 
+class SaveDraftOutput(Contract):
+    case_status: CaseStatus
+    audit_events: list[AuditEvent]
+
+
+class HumanDecisionOutput(Contract):
+    decision: Decision
+
+
+class RecordDecisionOutput(Contract):
+    case_status: CaseStatus
+    audit_events: list[AuditEvent]
+
+
 class CaseDraftResult(Contract):
     """What `workflows.case.start_case` returns. With `case_status="needs_revision"` the draft is
     kept and `flagged_claims` lists the claims the UI must show as unverified."""
@@ -689,6 +716,16 @@ class CaseDraftResult(Contract):
     flagged_claims: list[int] = Field(default_factory=list)
     llm_meta: LLMMeta
     case_status: CaseStatus
+    trace: list[TraceEvent] = Field(default_factory=list)
+
+
+class CaseDecisionResult(Contract):
+    """What `workflows.case.resume_case` returns: the case's new status, the `case.decision` audit
+    event and the full node trace of the case run."""
+
+    case_id: str
+    case_status: CaseStatus
+    audit_event: AuditEvent
     trace: list[TraceEvent] = Field(default_factory=list)
 
 

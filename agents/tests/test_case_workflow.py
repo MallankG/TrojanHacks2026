@@ -202,6 +202,48 @@ def test_wrong_amount_ten_thousand_vs_real_9950() -> None:
     assert any("10000" in e.detail for e in errors)
 
 
+def _with_hypotheses(*texts: str) -> NarrativeDraft:
+    draft = _clean_draft()
+    facts = [c for c in draft.observed_facts if c.claim_type != "hypothesis"]
+    hyps = [NarrativeClaim(text=t, claim_type="hypothesis", transaction_ids=["TX-1", "TX-2"])
+            for t in texts]
+    return draft.model_copy(update={"observed_facts": [*facts, *hyps]})
+
+
+def test_hypotheses_two_suspicious_one_legitimate_pass() -> None:
+    draft = _with_hypotheses(
+        "The transfers may be a pass-through layering step.",
+        "The rapid onward transfers may indicate funnel activity.",
+        "The transfers may reflect legitimate supplier payments by a business.",
+    )
+    assert _codes(draft) == set()
+
+
+def test_hypotheses_only_suspicious_uncaveated_fail() -> None:
+    draft = _with_hypotheses(
+        "The transfers may be a pass-through layering step.",
+        "The rapid onward transfers may indicate funnel activity.",
+    )
+    assert _codes(draft) == {(-1, "MISSING_ALTERNATIVE")}
+
+
+def test_hypotheses_all_caveated_pass() -> None:
+    draft = _with_hypotheses(
+        "The transfers may be a pass-through step; this requires reviewer assessment.",
+        "The onward transfers may be funnel activity. It may have a legitimate explanation.",
+    )
+    assert _codes(draft) == set()
+
+
+def test_hypothesis_negated_benign_word_is_not_an_alternative() -> None:
+    draft = _with_hypotheses("The transfers have no legitimate business purpose.")
+    assert _codes(draft) == {(-1, "MISSING_ALTERNATIVE")}
+
+
+def test_no_hypotheses_pass() -> None:
+    assert _codes(_with_hypotheses()) == set()
+
+
 @pytest.mark.parametrize(
     ("text", "hits"),
     [
@@ -209,13 +251,28 @@ def test_wrong_amount_ten_thousand_vs_real_9950() -> None:
         ("a known MONEY  LAUNDERER", ["MONEY  LAUNDERER"]),
         ("we will file a SAR on ACC-1", ["file a SAR on"]),
         ("SAR-ready for submission", ["SAR-ready"]),
-        ("the customer is guilty", ["guilty"]),
+        ("the customer is guilty", ["is guilty"]),
+        ("both parties are guilty", ["are guilty"]),
+        ("the owner was found guilty", ["found guilty"]),
+        ("the court found the owner not guilty", []),
+        ("the owner is not guilty", []),
         ("unguilty laundering-adjacent typologies and SARS", []),
         ("anti-money laundering program", []),
+        ("split the deposits to avoid detection", ["to avoid detection"]),
+        ("routed through ACC-2 to evade reporting", ["to evade"]),
+        ("transfers intended to conceal the source", ["intended to conceal"]),
+        ("moved funds in order to launder them", ["in order to launder"]),
+        ("cash deposits were deliberately structured", ["deliberately structured"]),
     ],
 )
 def test_prohibited_phrases_use_word_boundaries(text: str, hits: list[str]) -> None:
-    assert find_prohibited(text) == hits
+    assert find_prohibited(text, intent=True) == hits
+
+
+def test_intent_phrases_only_checked_in_narratives() -> None:
+    policy = "activity designed to evade BSA requirements, intended to conceal its source"
+    assert find_prohibited(policy) == []  # copilot answers may restate policy definitions
+    assert find_prohibited(policy, intent=True) == ["to evade", "intended to conceal"]
 
 
 # --------------------------------------------------------------------------- template
@@ -282,10 +339,11 @@ async def test_start_case_template_is_drafted(template_llm: None) -> None:
     await run_analysis("fan_out", "strict", services)
     state_alert = min(services.cases.alerts.values(), key=lambda a: a.rank or 0)
     result = await start_case(state_alert.alert_id, services=services)
-    assert result.case_status == CaseStatus.DRAFTED
+    assert result.case_status == CaseStatus.AWAITING_REVIEW
     assert result.verifier_errors == [] and result.flagged_claims == []
     assert result.llm_meta.provider == "template" and result.draft.fallback_used
-    assert [e.node for e in result.trace] == [n.name for n in NODES]
+    # paused before human_decision: the trace ends at save_draft
+    assert [e.node for e in result.trace] == [n.name for n in NODES][:5]
     assert all(e.status == "ok" and e.trace_id == result.trace_id for e in result.trace)
 
 
@@ -304,6 +362,10 @@ def _synthesis(
     }
 
 
+# Balanced (caveated), but cites an id that isn't in the bundle.
+BAD_HYPOTHESIS = "TX-FAKE-1 may be a pass-through leg; it may have a legitimate explanation."
+
+
 def _fact_count(draft: NarrativeDraft) -> int:
     return sum(c.claim_type == "fact" for c in draft.observed_facts)
 
@@ -316,7 +378,7 @@ async def _fan_out_alert(services: Services):
 async def test_retry_bad_then_good_is_drafted(monkeypatch: pytest.MonkeyPatch) -> None:
     services = get_services()
     bundle = await _fan_out_alert(services)
-    replies = iter([_synthesis("TX-FAKE-1 may be a pass-through leg."), _synthesis()])
+    replies = iter([_synthesis(BAD_HYPOTHESIS), _synthesis()])
     seen: list[str] = []
 
     def chat(request: httpx.Request) -> httpx.Response:
@@ -326,13 +388,13 @@ async def test_retry_bad_then_good_is_drafted(monkeypatch: pytest.MonkeyPatch) -
     _use_llm(monkeypatch, chat)
     result = await start_case(bundle.alert_id, services=services)
 
-    assert result.case_status == CaseStatus.DRAFTED
+    assert result.case_status == CaseStatus.AWAITING_REVIEW
     assert result.verifier_errors == [] and result.flagged_claims == []
     assert result.llm_meta.provider == "ollama" and not result.draft.fallback_used
     assert [e.node for e in result.trace].count("draft_narrative") == 2
     assert len(seen) == 2
     assert "(none)" in seen[0].split("previous draft")[1]
-    assert "UNGROUNDED_TOKEN in a hypothesis claim" in seen[1] and "TX-FAKE" in seen[1]
+    assert "UNGROUNDED_TOKEN in a hypothesis claim" in seen[1] and "TX-FAKE-1" in seen[1]
     # source titles reach the model wrapped and labelled as untrusted; excerpts never do
     assert '<source id="' in seen[0] and "untrusted" in seen[0]
     assert all(c.excerpt not in seen[0] for c in MockPolicyRetriever().search("fan out", {}, 5))
@@ -342,7 +404,7 @@ async def test_retry_bad_then_good_is_drafted(monkeypatch: pytest.MonkeyPatch) -
 async def test_always_bad_stops_after_two_needs_revision(monkeypatch: pytest.MonkeyPatch) -> None:
     services = get_services()
     bundle = await _fan_out_alert(services)
-    _use_llm(monkeypatch, _reply(_synthesis("TX-FAKE-1 may be a pass-through leg.")))
+    _use_llm(monkeypatch, _reply(_synthesis(BAD_HYPOTHESIS)))
 
     result = await start_case(bundle.alert_id, services=services)
 
@@ -355,7 +417,7 @@ async def test_always_bad_stops_after_two_needs_revision(monkeypatch: pytest.Mon
     assert "TX-FAKE-1" in result.draft.observed_facts[hyp].text  # draft kept
     nodes = [e.node for e in result.trace]
     assert nodes.count("draft_narrative") == 2 and nodes.count("verify_evidence") == 2
-    assert nodes[-1] == "verify_evidence"
+    assert nodes.count("save_draft") == 2 and nodes[-1] == "save_draft"
 
 
 async def test_slow_ollama_draft_falls_back_to_template(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -36,9 +36,10 @@ the PRD don't already answer. Until we hear back, agents run against the mocks i
 9. **Graph service.** Is `GraphService` yours, or does it belong to ML? What is the `SubgraphJSON` shape
    (nodes/edges keys, edge attributes such as `transaction_id`, `amount`, `timestamp`)?
 10. **Ollama.** Does Ollama run on the same machine as the backend? Which host/port should
-    `OLLAMA_HOST` point to (default `http://localhost:11434`), and who picks the model for
-    `OLLAMA_MODEL`? (Until it is set we use the first model Ollama lists.) Is it OK for the backend
+    `OLLAMA_HOST` point to (default `http://localhost:11434`)? Is it OK for the backend
     process env to own `LLM_PROVIDER` / `OLLAMA_*` (see `agents/.env.example`) and for our package to read them?
+    **Model: answered.** The team model is `qwen3.5:9b` (`OLLAMA_MODEL=qwen3.5:9b`); if it is unset we
+    still use the first model Ollama lists.
 11. **New `GraphService.get_transactions(tx_ids)`.** Evidence bundles need full transaction rows
     (`source_row_ref`, channel, status), and `subgraph()` edges don't carry them. We added
     `get_transactions(tx_ids) -> list[EvidenceTransaction]` to the Protocol (see CONTRACTS.md). Can

@@ -2,6 +2,8 @@
 
     python -m tracelayer_agents.demo --scenario fan_out [--mode exploratory]
     python -m tracelayer_agents.demo --scenario fan_out --draft   # + case narrative for top alert
+    python -m tracelayer_agents.demo --scenario fan_out --draft --decide escalate --role analyst \
+        --reason "..."                                            # + reviewer decision, audit chain
     python -m tracelayer_agents.demo --copilot "What should be documented when escalating ..."
 
 Uses mocks only: no keys. The copilot and the narrative drafter use Ollama if it is running, else
@@ -16,12 +18,20 @@ import logging
 import os
 import sys
 
+from tracelayer_agents.audit import verify_chain
 from tracelayer_agents.mocks import SCENARIOS
+from tracelayer_agents.nodes.human_decision import DecisionRejected
 from tracelayer_agents.registry import get_services
-from tracelayer_agents.schemas import CaseDraftResult, CopilotResult, TraceEvent
+from tracelayer_agents.schemas import (
+    AuditEvent,
+    CaseDecisionResult,
+    CaseDraftResult,
+    CopilotResult,
+    TraceEvent,
+)
 from tracelayer_agents.state import AnalysisState
 from tracelayer_agents.workflows.analysis import run_analysis
-from tracelayer_agents.workflows.case import start_case
+from tracelayer_agents.workflows.case import resume_case, start_case
 from tracelayer_agents.workflows.copilot import run_copilot
 from tracelayer_agents.wrappers import NodeError
 
@@ -118,6 +128,29 @@ def _case_report(result: CaseDraftResult) -> None:
         print(f"verifier: claim {err.claim_index} {err.code}: {err.detail}")
 
 
+def _short(h: str | None) -> str:
+    return h[:10] if h else "-"
+
+
+def _decision_report(result: CaseDecisionResult, events: list[AuditEvent]) -> None:
+    event = result.audit_event
+    print(_trace_table(result.trace[-2:]))
+    print()
+    print(f"decision: {event.metadata.get('action')} by {event.actor_id} ({event.actor_role})")
+    print(f"  reason: {event.reason}")
+    print(f"final case_status: {result.case_status}")
+    print("\naudit chain:")
+    rows = [("#", "action", "hash", "prev_hash")] + [
+        (str(i), e.action, _short(e.hash), _short(e.prev_hash)) for i, e in enumerate(events)
+    ]
+    widths = [max(len(r[c]) for r in rows) for c in range(3)]
+    for r in rows:
+        print(f"  {r[0]:>{widths[0]}}  {r[1]:<{widths[1]}}  {r[2]:<{widths[2]}}  {r[3]}")
+    check = verify_chain(events)
+    print("\nchain verified: ok" if check.ok else
+          f"\nchain verified: FAILED at event {check.first_bad_index}: {check.reason}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m tracelayer_agents.demo")
     parser.add_argument("--scenario", choices=SCENARIOS, default="fan_out")
@@ -130,7 +163,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--draft", action="store_true", help="then draft the case narrative for the top alert"
     )
+    parser.add_argument(
+        "--decide", choices=("escalate", "dismiss", "request_more_data"),
+        help="with --draft: then record this reviewer decision and print the audit chain",
+    )
+    parser.add_argument("--role", choices=("analyst", "supervisor"), default="analyst")
+    parser.add_argument("--reason", help="why the reviewer decided (required with --decide)")
+    parser.add_argument("--actor-id", default="demo_user")
     args = parser.parse_args(argv)
+    if args.decide and not args.draft:
+        parser.error("--decide needs --draft")
+    if args.decide and not (args.reason or "").strip():
+        parser.error("--decide needs a non-empty --reason")
     logging.basicConfig(level=logging.ERROR)  # hide the "uses mock" warnings in the demo
 
     services = get_services()
@@ -166,6 +210,22 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\ncase drafting failed in {err.node}: {err.trace_event.error}", file=sys.stderr)
         return 1
     _case_report(case)
+    if not args.decide:
+        return 0
+
+    print(f"\n=== reviewer decision for {case.case_id} ===\n")
+    decision = {"action": args.decide, "actor_role": args.role, "actor_id": args.actor_id,
+                "reason": args.reason}
+    try:
+        result = asyncio.run(resume_case(case.case_id, decision, services=services))
+    except DecisionRejected as err:
+        print(f"decision rejected: {err}", file=sys.stderr)
+        return 1
+    except NodeError as err:
+        print(f"recording the decision failed in {err.node}: {err.trace_event.error}",
+              file=sys.stderr)
+        return 1
+    _decision_report(result, services.audit.list_events())
     return 0
 
 

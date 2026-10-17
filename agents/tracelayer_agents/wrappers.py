@@ -12,7 +12,8 @@ config, so nodes stay thin adapters. The decorator returns a `TracedNode`; workf
 
 On failure it builds an `error` TraceEvent and raises `NodeError` carrying the node name and that
 event (LangGraph drops a failing node's state update, so the caller has to append it).
-A node raises `SkipNode` to record `status="skipped"` and leave the state unchanged.
+A node raises `SkipNode` to record `status="skipped"` and leave the state unchanged. LangGraph's
+own control-flow exceptions (`interrupt()`) pass through untouched.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Generic, TypeVar
 
+from langgraph.errors import GraphBubbleUp
 from pydantic import BaseModel
 
 from tracelayer_agents.audit import sha256_json
@@ -112,6 +114,8 @@ class TracedNode(Generic[M]):
             output = self.output_model.model_validate(result)
         except SkipNode as skip:
             return {"trace_events": [event("skipped", error=str(skip) or None)]}
+        except GraphBubbleUp:
+            raise  # LangGraph control flow (e.g. `interrupt()` pausing for a human), not a failure
         except Exception as exc:
             if isinstance(exc, TimeoutError):
                 message = f"TimeoutError: exceeded {self.timeout_s(ctx.config)}s"
