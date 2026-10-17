@@ -117,6 +117,10 @@ SAMPLES: list[BaseModel] = [
         question="What is a CTR?", answer="See cited passage.", citations=["c1"],
         provider="template", model="template", prompt_version="policy_qa_v1",
     ),
+    s.LLMMeta(
+        provider="ollama", model="example-model", prompt_version="narrative_v1", input_hash=H0,
+        attempts=1, fallback_used=False, latency_ms=812.5,
+    ),
     s.VerifierError(claim_index=0, code="unknown_amount", detail="9600.00 not in bundle"),
     s.Decision(action="escalate", actor_role="reviewer", reason="Funnel pattern."),
     s.CaseRecord(

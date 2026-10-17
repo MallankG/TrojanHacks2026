@@ -77,7 +77,7 @@ Severity = Literal["critical", "warning", "info"]
 RemediationStatus = Literal["open", "in_progress", "resolved", "accepted_risk"]
 AlertTier = Literal["high", "medium", "low"]
 ClaimType = Literal["fact", "hypothesis", "policy"]
-LLMProvider = Literal["groq", "ollama", "template"]
+LLMProvider = Literal["ollama", "template"]
 NodeStatus = Literal["ok", "error", "skipped"]
 
 
@@ -383,6 +383,21 @@ class PolicyAnswer(Contract):
     model: str
     prompt_version: str
     fallback_used: bool = False
+
+
+class LLMMeta(Contract):
+    """How one `llm.client.generate_structured` call was answered. `errors` are short codes, never
+    prompt text; `input_hash` is sha256 of the canonical JSON of prompt_version + variables.
+    `fallback_used` is True whenever the deterministic template produced the output."""
+
+    provider: LLMProvider
+    model: str
+    prompt_version: str
+    input_hash: Sha256Hex
+    attempts: int = Field(ge=0)  # LLM HTTP calls made (0 when the template answered directly)
+    fallback_used: bool
+    latency_ms: float = Field(ge=0)
+    errors: list[str] = Field(default_factory=list)
 
 
 class VerifierError(Contract):

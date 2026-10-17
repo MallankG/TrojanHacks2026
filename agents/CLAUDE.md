@@ -3,7 +3,8 @@
 TraceLayer is a 24-hour hackathon prototype: a governed transaction-intelligence layer for
 U.S. BSA/AML investigations on **synthetic data only** (AMLSim). Stack: Next.js frontend, FastAPI +
 Pydantic backend, LangGraph orchestration, PyTorch/PyG GraphSAGE + XGBoost + Isolation Forest,
-Supabase (PostgreSQL + pgvector + Auth/RLS + Storage), Groq (hosted LLM) with Ollama fallback.
+Supabase (PostgreSQL + pgvector + Auth/RLS + Storage), Ollama (local LLM) with a deterministic
+template fallback.
 
 The full PRD is at `../docs/trace_layer_prd.md` (repo root). Relevant sections: §6 product workflow,
 §11 multi-agent and RAG architecture, §12 Supabase architecture, §13 data model (tables), §15 security.
@@ -68,10 +69,11 @@ teammate instead.
 7. **Everything is replayable.** State carries `trace_id`, `ingestion_run_id`, `graph_snapshot_id`,
    `feature_schema_version`, model versions, `prompt_version`, and RAG `chunk_id`s. Audit events are
    append-only and hash-chained (`hash = sha256(prev_hash + canonical_json(event))`).
-8. **Graceful degradation.** LLM chain: Groq → Ollama → deterministic template. Retry LLM JSON once
-   with the validation error, then fall back. The demo must work with no API keys and no network.
-9. **Secrets stay server-side.** `GROQ_API_KEY` only in the backend process env (the agents package runs inside it). Never log raw prompts with PII;
-   log the prompt template version + input hash.
+8. **Graceful degradation.** LLM chain: Ollama → deterministic template (`tracelayer_agents/llm/client.py`).
+   Retry LLM JSON once with the validation error, then fall back. The demo must work with no network
+   and with Ollama not running.
+9. **Config stays server-side.** LLM settings live only in the backend process env (the agents package
+   runs inside it). Never log raw prompts or prompt variables; log the prompt template version + input hash.
 
 ## Workflows (three separate LangGraph workflows)
 
@@ -183,14 +185,15 @@ agents/                     # flat layout (no src/); import name `tracelayer_age
 ```bash
 cd agents
 python3.12 -m venv .venv && source .venv/bin/activate   # local venv, gitignored
-pip install -e ".[dev]"                    # langgraph, langchain-core, pydantic>=2, httpx, groq, networkx, pandas, pytest
+pip install -e ".[dev]"                    # langgraph, langchain-core, pydantic>=2, httpx, networkx, pandas, pytest
 TRACELAYER_USE_MOCKS=1 pytest -q
 python -m tracelayer_agents.demo --scenario fan_out   # runs analysis + case graph end-to-end, prints trace
 ```
 
-Env: `LLM_PROVIDER=groq|ollama|template`, `GROQ_API_KEY`, `GROQ_MODEL=openai/gpt-oss-20b`,
-`OLLAMA_HOST=http://localhost:11434`, `OLLAMA_MODEL=qwen3:8b`, `LLM_MAX_CALLS_PER_RUN=6`,
-`TRACELAYER_MODE=strict|exploratory`.
+Env (see `.env.example`): `LLM_PROVIDER=ollama|template`, `OLLAMA_HOST=http://localhost:11434`,
+`OLLAMA_MODEL` (model not decided yet; unset = first model from `GET /api/tags`), `LLM_TIMEOUT_S=60`,
+`LLM_MAX_CALLS_PER_RUN=6`, `TRACELAYER_MODE=strict|exploratory`. Opt-in real-Ollama test:
+`RUN_OLLAMA_TESTS=1 pytest -m ollama`.
 
 ## Conventions
 
