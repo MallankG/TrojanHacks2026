@@ -152,17 +152,32 @@ after you tell the owner. The first group is implemented by the backend teammate
 
 ## Public facade (`tracelayer_agents/api.py`)
 
-This is the only module the backend imports. Every function is async, takes and returns Pydantic
-models from `schemas.py`, and never raises raw exceptions to the caller: failures come back as a
-result with `status="error"` and the trace so far.
+This is the only module the backend imports (its public names are re-exported from
+`tracelayer_agents`). It returns Pydantic models from `schemas.py` and never raises: `NodeError`,
+`DecisionRejected`, `KeyError` and unexpected exceptions come back as a result with a `status` and
+a short `error` (no stack traces, no prompt text), plus the trace so far. Every result works as a
+FastAPI `response_model` (money as decimal strings). Integration guide: `docs/INTEGRATION.md`.
 
-- `configure(services: Services | None = None, config: AgentConfig | None = None) -> None`
-- `run_analysis(batch_ref, mode) -> AnalysisResult` (trace_id, governance_status, halted, alerts, trace)
-- `start_case(alert_id) -> CaseDraftResult` (draft, verifier_errors, flagged_claims, llm_meta, case_status)
-- `resume_case(case_id, decision: Decision) -> CaseDecisionResult` (case_status, audit_event)
-- `copilot_query(question, alert_id=None) -> PolicyAnswer`
-- `get_trace(trace_id) -> list[TraceEvent]`
-- `verify_audit_chain() -> AuditVerification`
+- `configure(services: Services | None = None, config: AgentConfig | None = None) -> None`:
+  resolves the services once (missing ones fall back to mocks, one warning each) and keeps them
+  module-level, so `start_case`/`resume_case` share repositories and the case checkpointer.
+  Re-callable (replaces both); every other call configures lazily if it was never called.
+- `async run_analysis(batch_ref: str, mode: Mode = "strict") -> AnalysisResult`:
+  status `ok | halted | error`; trace_id, governance_status, halted, alerts, trace, error
+- `async start_case(alert_id: str) -> CaseDraftResult`: status `ok | error`; trace_id, case_id,
+  alert_id, draft, verifier_errors, flagged_claims, llm_meta, case_status, trace, error
+- `async resume_case(case_id: str, decision: Decision | dict) -> CaseDecisionResult`:
+  status `ok | rejected | error` (`rejected` = invalid decision or role not allowed; the case stays
+  paused); case_id, case_status, audit_event, trace, error
+- `async copilot_query(question: str, alert_id: str | None = None) -> CopilotResult`:
+  status `ok | error`; trace_id, answer (`PolicyAnswer`), sources, verifier_errors, trace, error
+- `async get_alert_graph(alert_id: str, hops: int = 1) -> CytoscapeGraph`: status `ok | error`;
+  Cytoscape `{nodes: [{data: {id, label, risk, quality}}], edges: [{data: {id, source, target,
+  amount, timestamp, tx_id, highlighted}}]}` from `GraphService.subgraph` on the alert's evidence
+  tx ids; evidence edges `highlighted=true`; `hops` 1–3
+- `get_trace(trace_id: str) -> list[TraceEvent]`: sync; last `TRACE_HISTORY` (50) runs kept in
+  memory, `[]` if unknown or evicted
+- `verify_audit_chain() -> AuditVerification`: sync; re-verifies the whole audit hash chain
 
 ## Layout
 
