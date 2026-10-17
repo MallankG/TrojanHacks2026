@@ -1,0 +1,39 @@
+[project]
+name = "tracelayer-agents"
+version = "0.1.0"
+description = "TraceLayer multi-agent orchestration layer (LangGraph)"
+requires-python = ">=3.11"
+dependencies = [
+    "langgraph>=1.0,<2",
+    "langchain-core>=1.0,<2",
+    "pydantic>=2.7,<3",
+    "httpx>=0.27,<1",
+    "groq>=0.30",
+    "networkx>=3.3,<4",
+    "pandas>=2.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["tracelayer_agents"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
