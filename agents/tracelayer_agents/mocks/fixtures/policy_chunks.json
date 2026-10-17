@@ -1,0 +1,180 @@
+[
+  {
+    "chunk_id": "mock_ffiec_sar_program_001",
+    "doc_title": "FFIEC BSA/AML Examination Manual",
+    "section": "Suspicious Activity Reporting: program overview",
+    "source_uri": "https://bsaaml.ffiec.gov/manual",
+    "source_type": "regulatory_guidance",
+    "excerpt": "Paraphrase for mock retrieval, not source text: a bank's suspicious activity monitoring is expected to cover the whole lifecycle, from identifying unusual activity (through employee referrals, manual review or automated monitoring) to managing alerts, researching them, deciding whether a SAR is warranted, and documenting that decision. Examiners look at whether alert thresholds and filtering criteria are reasonable for the bank's risk profile and whether decisions not to file are documented.",
+    "keywords": [
+      "suspicious",
+      "activity",
+      "monitoring",
+      "alert",
+      "alerts",
+      "sar",
+      "decision",
+      "documentation",
+      "threshold",
+      "program",
+      "investigation"
+    ]
+  },
+  {
+    "chunk_id": "mock_ffiec_sar_timing_002",
+    "doc_title": "FFIEC BSA/AML Examination Manual",
+    "section": "Suspicious Activity Reporting: timing and continuing activity",
+    "source_uri": "https://bsaaml.ffiec.gov/manual",
+    "source_type": "regulatory_guidance",
+    "excerpt": "Paraphrase for mock retrieval, not source text: the filing clock generally starts when the bank first detects facts that may form the basis for a SAR, with a 30-calendar-day deadline that can stretch to 60 days when no suspect has been identified. For activity that continues after a filing, the manual describes periodic review (about every 90 days) with a continuing report filed within the following 30 days. A reasonable review period before the clock starts is acceptable, but it should not be unduly long.",
+    "keywords": [
+      "sar",
+      "deadline",
+      "timing",
+      "30",
+      "60",
+      "days",
+      "continuing",
+      "activity",
+      "review",
+      "filing",
+      "detection",
+      "clock"
+    ]
+  },
+  {
+    "chunk_id": "mock_ffiec_red_flags_003",
+    "doc_title": "FFIEC BSA/AML Examination Manual",
+    "section": "Appendix: money laundering and terrorist financing red flags",
+    "source_uri": "https://bsaaml.ffiec.gov/manual",
+    "source_type": "regulatory_guidance",
+    "excerpt": "Paraphrase for mock retrieval, not source text: red flags for funds transfers include many transfers sent from one account to numerous recipients (or received from numerous senders) in a short period, funds that arrive and are moved out again quickly in similar amounts with little or no balance left behind, and circular movement of funds among a group of related accounts. A red flag is a reason to look closer, not proof of wrongdoing.",
+    "keywords": [
+      "red",
+      "flags",
+      "fan-out",
+      "fan-in",
+      "funnel",
+      "pass-through",
+      "rapid",
+      "movement",
+      "in-out",
+      "cycle",
+      "circular",
+      "round-trip",
+      "transfers",
+      "wire",
+      "layering"
+    ]
+  },
+  {
+    "chunk_id": "mock_cfr_sar_thresholds_004",
+    "doc_title": "31 CFR 1020.320, Reports by banks of suspicious transactions",
+    "section": "Paragraph (a): transactions requiring a report",
+    "source_uri": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1020/subpart-C/section-1020.320",
+    "source_type": "regulation",
+    "excerpt": "Paraphrase for mock retrieval, not source text: banks must report transactions conducted by, at or through the bank that involve at least $5,000 in funds or other assets when the bank knows, suspects or has reason to suspect the transaction involves funds from illegal activity, is designed to evade BSA requirements (for example through structuring), has no apparent business or lawful purpose, or uses the bank to facilitate criminal activity.",
+    "keywords": [
+      "sar",
+      "threshold",
+      "5000",
+      "$5,000",
+      "requirement",
+      "report",
+      "suspicious",
+      "structuring",
+      "evade",
+      "lawful",
+      "purpose",
+      "bank"
+    ]
+  },
+  {
+    "chunk_id": "mock_cfr_sar_confidentiality_005",
+    "doc_title": "31 CFR 1020.320, Reports by banks of suspicious transactions",
+    "section": "Paragraph (e): confidentiality of SARs",
+    "source_uri": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1020/subpart-C/section-1020.320",
+    "source_type": "regulation",
+    "excerpt": "Paraphrase for mock retrieval, not source text: a SAR, and any information that would reveal that a SAR exists, is confidential. The bank and its staff may not disclose it, including to the person involved in the transaction, except in the narrow cases the rule allows, such as sharing with FinCEN, law enforcement or the bank's supervisors.",
+    "keywords": [
+      "confidentiality",
+      "confidential",
+      "disclose",
+      "disclosure",
+      "tipping",
+      "tip-off",
+      "customer",
+      "subject",
+      "sar",
+      "existence"
+    ]
+  },
+  {
+    "chunk_id": "mock_fincen_narrative_006",
+    "doc_title": "FinCEN Guidance on Preparing a Complete & Sufficient Suspicious Activity Report Narrative (Nov. 2003)",
+    "section": "Narrative content",
+    "source_uri": "https://www.fincen.gov/sites/default/files/shared/sarnarrcompletguidfinal_112003.pdf",
+    "source_type": "regulatory_guidance",
+    "excerpt": "Paraphrase for mock retrieval, not source text: the narrative is the most important part of a SAR for investigators. It should clearly and concisely explain who conducted the activity, what instruments and accounts were involved, when and where it happened, why it appears suspicious, and how it was carried out, in chronological order and without unsupported conclusions. Supporting documents are kept on file rather than attached.",
+    "keywords": [
+      "narrative",
+      "who",
+      "what",
+      "when",
+      "where",
+      "why",
+      "how",
+      "chronological",
+      "concise",
+      "complete",
+      "sufficient",
+      "draft",
+      "writing",
+      "sar"
+    ]
+  },
+  {
+    "chunk_id": "mock_fictional_triage_007",
+    "doc_title": "FICTIONAL: Example Community Bank Alert Triage Procedure v1 (synthetic, not a real institution)",
+    "section": "Triage and escalation",
+    "source_uri": "urn:tracelayer:fictional:example-bank:alert-triage-v1",
+    "source_type": "fictional_internal_procedure",
+    "excerpt": "FICTIONAL PROCEDURE FOR DEMO USE ONLY. At the made-up Example Community Bank, an investigator reviews each model alert within 5 business days, records the evidence reviewed and a written rationale, and either dismisses it, requests more data, or escalates it to a second-level reviewer. Escalation is an internal step; only the BSA Officer decides whether to file. Investigators do not contact the customer about an open alert.",
+    "keywords": [
+      "triage",
+      "escalate",
+      "escalation",
+      "dismiss",
+      "reviewer",
+      "investigator",
+      "rationale",
+      "procedure",
+      "internal",
+      "bsa",
+      "officer",
+      "alert",
+      "decision"
+    ]
+  },
+  {
+    "chunk_id": "mock_fictional_data_quality_008",
+    "doc_title": "FICTIONAL: Example Community Bank Data Quality Hold Procedure v1 (synthetic, not a real institution)",
+    "section": "Alerts on incomplete data",
+    "source_uri": "urn:tracelayer:fictional:example-bank:data-quality-hold-v1",
+    "source_type": "fictional_internal_procedure",
+    "excerpt": "FICTIONAL PROCEDURE FOR DEMO USE ONLY. At the made-up Example Community Bank, when a source batch fails its data contract, alerts generated from it are marked as based on incomplete data and routed to the data steward before any case decision. A data-quality failure is never treated as evidence of suspicious activity.",
+    "keywords": [
+      "data",
+      "quality",
+      "incomplete",
+      "governance",
+      "steward",
+      "contract",
+      "batch",
+      "hold",
+      "missing",
+      "duplicate",
+      "caveat"
+    ]
+  }
+]
