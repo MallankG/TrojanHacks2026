@@ -371,14 +371,34 @@ class NarrativeDraft(Contract):
     fallback_used: bool = False
 
 
+class PolicyClaim(Contract):
+    """One statement in a policy answer and the retrieved chunks that support it."""
+
+    text: NonBlankStr
+    citation_chunk_ids: list[str] = Field(default_factory=list)
+
+
+class PolicyQAOutput(Contract):
+    """What the `policy_qa` prompt (or its template) returns. The node adds provenance to make a
+    `PolicyAnswer`."""
+
+    answer: str
+    claims: list[PolicyClaim] = Field(default_factory=list)
+    unknowns: list[str] = Field(default_factory=list)
+    no_answer: bool = False
+
+
 class PolicyAnswer(Contract):
-    """Copilot answer. Every claim should be `claim_type="policy"` with citations."""
+    """Copilot answer. After `verify_citations`, every claim cites only retrieved chunk_ids and
+    `citations` is the ordered union of those ids. `no_answer=True` means the retrieved sources
+    don't cover the question."""
 
     question: NonBlankStr
     answer: str
-    claims: list[NarrativeClaim] = Field(default_factory=list)
+    claims: list[PolicyClaim] = Field(default_factory=list)
+    unknowns: list[str] = Field(default_factory=list)
     citations: list[str] = Field(default_factory=list)
-    unanswerable: bool = False
+    no_answer: bool = False
     provider: LLMProvider
     model: str
     prompt_version: str
@@ -401,7 +421,8 @@ class LLMMeta(Contract):
 
 
 class VerifierError(Contract):
-    """`claim_index` points into `NarrativeDraft.observed_facts`; None means the summary/draft."""
+    """`claim_index` points into `NarrativeDraft.observed_facts` (case) or into the copilot claims
+    as the LLM returned them, before verification; None means the summary/draft/answer."""
 
     claim_index: int | None = Field(default=None, ge=0)
     code: Literal[
@@ -558,3 +579,27 @@ class AggregateOutput(Contract):
 class InvestigateOutput(Contract):
     top_evidence_transaction_ids: list[str]
     evidence_bundle: EvidenceBundle
+
+
+class RetrievePolicyOutput(Contract):
+    retrieved_sources: list[RetrievedChunk]
+
+
+class CopilotAnswerOutput(Contract):
+    answer: PolicyAnswer
+
+
+class VerifyCitationsOutput(Contract):
+    answer: PolicyAnswer
+    verifier_errors: list[VerifierError]
+
+
+class CopilotResult(Contract):
+    """What `workflows.copilot.run_copilot` returns: the verified answer, the sources it was
+    checked against, the verifier's findings and the node trace."""
+
+    trace_id: str
+    answer: PolicyAnswer
+    sources: list[RetrievedChunk] = Field(default_factory=list)
+    verifier_errors: list[VerifierError] = Field(default_factory=list)
+    trace: list[TraceEvent] = Field(default_factory=list)

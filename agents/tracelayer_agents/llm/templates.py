@@ -13,7 +13,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from tracelayer_agents.schemas import Contract
+from tracelayer_agents.schemas import Contract, PolicyClaim, PolicyQAOutput
 
 TemplateFn = Callable[[dict[str, Any]], BaseModel]
 
@@ -42,3 +42,37 @@ class EchoOutput(Contract):
 @template("echo")
 def echo(variables: dict[str, Any]) -> EchoOutput:
     return EchoOutput(text=str(variables.get("message", "")))
+
+
+# --------------------------------------------------------------------------- policy_qa
+
+POLICY_QA_TOP_CHUNKS = 3
+POLICY_NO_ANSWER = "The retrieved policy sources do not cover this question."
+
+
+@template("policy_qa")
+def policy_qa(variables: dict[str, Any]) -> PolicyQAOutput:
+    """Quote the top retrieved excerpts as claims, each citing its own chunk. Reads the
+    `chunks` variable (list of `RetrievedChunk` dicts, best first); `sources` is for the LLM."""
+    chunks = [
+        c for c in variables.get("chunks") or []
+        if isinstance(c, dict) and str(c.get("chunk_id", "")).strip()
+        and str(c.get("excerpt", "")).strip()
+    ][:POLICY_QA_TOP_CHUNKS]
+    if not chunks:
+        return PolicyQAOutput(answer=POLICY_NO_ANSWER, no_answer=True)
+    claims = [
+        PolicyClaim(
+            text=f"{c.get('doc_title') or 'Policy source'}: {str(c['excerpt']).strip()}",
+            citation_chunk_ids=[str(c["chunk_id"])],
+        )
+        for c in chunks
+    ]
+    return PolicyQAOutput(
+        answer=(
+            f"Deterministic fallback (no model synthesis): the {len(claims)} most relevant "
+            "retrieved policy passages are quoted below. Read them against the question."
+        ),
+        claims=claims,
+        unknowns=["Excerpts were not checked for relevance by a model; confirm they apply."],
+    )

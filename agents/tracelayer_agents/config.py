@@ -23,6 +23,9 @@ class AgentConfig(BaseModel):
     investigate_top_n: int = Field(default=3, ge=1)
     max_investigations: int = Field(default=10, ge=1)
 
+    # retrieve_policy: chunks requested from PolicyRetriever.search.
+    policy_top_k: int = Field(default=5, ge=1)
+
     source_asset_id: str = "amlsim_transactions_v1"
 
     @model_validator(mode="after")
