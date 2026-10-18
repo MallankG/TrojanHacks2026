@@ -26,8 +26,14 @@ ART = Path(__file__).parent.parent / "artifacts" / "ibm"
 
 
 def pct(ref_sorted, s):
-    """Fraction of reference (val) scores <= s."""
-    return np.searchsorted(ref_sorted, s, side="right") / len(ref_sorted)
+    """Fraction of reference (val) scores <= s, plus a raw-score tie-break.
+
+    Scores beyond the val extremes would otherwise all map to exactly 0 or 1 and tie right where the
+    operating threshold sits. Adding 0.5/len(ref) * s keeps the order of raw scores, and never reorders rows
+    across distinct percentiles (they are >= 1/len(ref) apart). Inputs are cast to the ref dtype so
+    float64 callers don't get off-by-one ranks on boundary ties."""
+    s = np.asarray(s, dtype=ref_sorted.dtype)
+    return np.searchsorted(ref_sorted, s, side="right") / len(ref_sorted) + (0.5 / len(ref_sorted)) * s.astype(np.float64)
 
 
 class EnsembleScorer:
@@ -39,7 +45,7 @@ class EnsembleScorer:
         self.threshold = res["val"]["best_threshold"]
 
     def blend(self, s_a, s_b):
-        return self.w * pct(self.ref_a, np.asarray(s_a)) + (1 - self.w) * pct(self.ref_b, np.asarray(s_b))
+        return self.w * pct(self.ref_a, s_a) + (1 - self.w) * pct(self.ref_b, s_b)
 
 
 if __name__ == "__main__":

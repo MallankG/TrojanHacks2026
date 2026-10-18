@@ -25,7 +25,7 @@ def test_each_target_sees_only_edges_before_its_own_timestamp():
     for b, s in enumerate(seeds.tolist()):
         mine = past[owner == b]
         assert (mine < caps[b]).all() and (TS[mine.numpy()] < TS[s]).all()  # strictly earlier time, not just id
-    # the earliest target still gets context of its own: caps differ per target
+    # every target gets its own cap (no shared batch cap)
     assert len(set(caps.tolist())) == len(seeds)
 
 

@@ -162,7 +162,7 @@ class Data:
         self.node_x, self.edge_x = torch.as_tensor(node_x, device=device), torch.as_tensor(edge_x, device=device)
         self.n_nodes, self.device, self.fanout, self.ego, self.temporal = len(node_x), device, fanout, ego, temporal
         self.sample_seed = None  # set by predict(): deterministic per-target sampling in eval/serve
-        # temporal cap = first edge id sharing the earliest target's timestamp, so same-minute edges are excluded too
+        # per-target temporal cap = first edge id sharing that target's timestamp, so same-minute edges are excluded too
         self.first_same_ts = None if ts is None else torch.as_tensor(np.searchsorted(ts, ts, side="left"), device=device)
 
     def batch(self, g, seeds, gen):
@@ -192,7 +192,7 @@ class Data:
         Each target b gets its own copy of every node it touches (key = b * n_nodes + node), and every edge
         sampled for it has id < its own cap (first edge sharing its timestamp). A target's score therefore
         depends only on strictly earlier edges, never on its batch-mates. Returns
-        (node_keys, past_eids, past_owner, caps)."""
+        (frontier node keys before the last hop, past_eids, past_owner, caps)."""
         caps = seeds if self.first_same_ts is None else self.first_same_ts[seeds]
         n, B = self.n_nodes, len(seeds)
         b = torch.arange(B, device=seeds.device)
@@ -206,7 +206,8 @@ class Data:
             eids, row = g.sample_rows(node, k, gen, caps[owner], salt)
             own = owner[row]
             pairs.append(own * g.n_edges + eids)
-            keys = torch.unique(torch.cat([keys, own * n + self.src[eids], own * n + self.dst[eids]]))
+            if hop < len(self.fanout) - 1:  # the last hop's frontier is never sampled from
+                keys = torch.unique(torch.cat([keys, own * n + self.src[eids], own * n + self.dst[eids]]))
         pairs = torch.unique(torch.cat(pairs)) if pairs else seeds[:0]
         return keys, pairs % g.n_edges, pairs // g.n_edges, caps
 
