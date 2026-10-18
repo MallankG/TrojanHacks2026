@@ -63,10 +63,18 @@ const DETECTORS: Detector[] = [
 
 const PLACEHOLDER: Record<PiiKind, string> = { email: "[EMAIL]", ssn: "[SSN]", card: "[CARD]", iban: "[IBAN]", phone: "[PHONE]" };
 
-/** Replace emails, SSNs, card numbers, IBANs and phone numbers with typed placeholders. */
-export function redactText(text: string): string {
+const NUMERIC_KINDS = new Set<PiiKind>(["card", "phone"]);
+
+/**
+ * Replace emails, SSNs, card numbers, IBANs and phone numbers with typed placeholders.
+ * With `display`, a value without letters (an ID, a timestamp, an amount) is data, not prose, so it
+ * is not read as a card or phone number; text leaving the browser is always checked strictly.
+ */
+export function redactText(text: string, { display = false }: { display?: boolean } = {}): string {
+  const skipNumeric = display && !/[A-Za-z]/.test(text);
   let out = text;
   for (const { kind, pattern, valid } of DETECTORS) {
+    if (skipNumeric && NUMERIC_KINDS.has(kind)) continue;
     out = out.replace(pattern, (match) => (!valid || valid(match) ? PLACEHOLDER[kind] : match));
   }
   return out;
@@ -94,33 +102,40 @@ export function describePii(found: Array<{ kind: PiiKind; count: number }>): str
   return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : (parts[0] ?? "");
 }
 
+/** Two base-36 characters from an FNV-1a hash: tells masked values apart without revealing them. */
+function tag(value: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < value.length; i++) hash = Math.imul(hash ^ value.charCodeAt(i), 0x01000193) >>> 0;
+  return (hash % 1296).toString(36).padStart(2, "0");
+}
+
 /**
- * Mask an account-style reference, keeping a short alphabetic prefix and the last two characters:
- * `ACC-7001` → `ACC-••01`, `CUST-011` → `CUST-•11`, `8f2a91c3` → `••••••c3`.
+ * Mask an account-style reference, keeping a short alphabetic prefix, the last two characters and a
+ * two-character tag so different accounts stay distinguishable: `ACC-7001` → `ACC-••01·ut`,
+ * `ACC-8001` → `ACC-••01·oa`. At least two mask characters are shown so short bodies are not revealed.
  */
 export function maskRef(ref: string | null | undefined): string {
   if (!ref) return "Not recorded";
   if (ref.includes(MASK)) return ref;
   const prefix = /^[A-Za-z]{1,8}-/.exec(ref)?.[0] ?? "";
   const body = ref.slice(prefix.length);
-  if (!body) return MASK.repeat(ref.length);
   const keep = body.length > 2 ? 2 : 0;
-  return prefix + MASK.repeat(body.length - keep) + body.slice(body.length - keep);
+  return `${prefix}${MASK.repeat(Math.max(body.length - keep, 2))}${body.slice(body.length - keep)}·${tag(ref)}`;
 }
 
 // Account-style tokens embedded in sentences. Case, alert, transaction and batch IDs are not personal data.
 const REF_IN_TEXT = /\b(?:ACC|CUST|MER|CASHDESK|L|R|ST)-[A-Z0-9][A-Z0-9-]*\b/g;
 
-/** Mask account references embedded in free text such as narratives and search descriptions. */
-export function maskRefsInText(text: string): string {
-  return text.replace(REF_IN_TEXT, (match) => maskRef(match));
+/** Mask account references embedded in free text, except those in `revealed`. */
+export function maskRefsInText(text: string, revealed?: ReadonlySet<string>): string {
+  return text.replace(REF_IN_TEXT, (match) => (revealed?.has(match) ? match : maskRef(match)));
 }
 
-/** Everything the UI shows from free text: PII redacted and account references masked. */
-export function safeText(text: string | null | undefined, masked = true): string {
+/** Everything the UI shows from free text: PII redacted and account references masked (unless revealed). */
+export function safeText(text: string | null | undefined, masked = true, revealed?: ReadonlySet<string>): string {
   if (!text) return "";
-  const redacted = redactText(text);
-  return masked ? maskRefsInText(redacted) : redacted;
+  const redacted = redactText(text, { display: true });
+  return masked ? maskRefsInText(redacted, revealed) : redacted;
 }
 
 /** Keep each word's first character: `Synthetic Customer 011` → `S•••••••• C••••••• 0••`. */
@@ -130,7 +145,7 @@ export function maskName(name: string | null | undefined): string {
 }
 
 // Column names in raw source rows, checked in this order (IBM's nameOrig/nameDest are account IDs).
-const CONTACT_KEY = /e-?mail|phone|mobile|address|ssn|social|tax.?id|passport|birth|dob/i;
+const CONTACT_KEY = /e-?mail|phone|mobile|address|ssn|social|tax.?id|passport|birth|dob|card|\bpan\b/i;
 const ACCOUNT_KEY = /account|acct|iban|customer|sender|receiver|beneficiary|nameorig|namedest|^(from|to)$/i;
 const NAME_KEY = /name/i;
 const FREE_TEXT_KEY = /desc|memo|narrative|remittance|note|comment|reference/i;
@@ -143,12 +158,13 @@ export function maskRecord(record: Record<string, unknown> | null | undefined, m
   const out: Record<string, string> = {};
   for (const [key, raw] of Object.entries(record ?? {})) {
     const value = raw === null || raw === undefined ? "" : String(raw);
-    if (!value || !masked) out[key] = redactText(value);
+    if (!value) out[key] = value;
+    else if (!masked) out[key] = redactText(value, { display: !CONTACT_KEY.test(key) });
     else if (CONTACT_KEY.test(key)) out[key] = MASK.repeat(8);
     else if (ACCOUNT_KEY.test(key)) out[key] = maskRef(value);
     else if (NAME_KEY.test(key)) out[key] = maskName(value);
     else if (FREE_TEXT_KEY.test(key)) out[key] = safeText(value);
-    else out[key] = redactText(value);
+    else out[key] = redactText(value, { display: true });
   }
   return out;
 }
@@ -162,15 +178,16 @@ export const SENSITIVE_FIELDS: Record<string, string> = {
   description: "Free text, may contain PII",
 };
 
-const DATABASE_MESSAGE = /invalid input syntax|violates|duplicate key|null value in column|relation "|column "|syntax error|permission denied|PGRST|JWT|stack|Traceback/i;
+// Postgres/PostgREST wording; these messages can echo the submitted values.
+const DATABASE_MESSAGE = /invalid input syntax|violates .* constraint|duplicate key value|null value in column|relation ".*" does not exist|column ".*" (does not exist|of relation)|syntax error at or near|permission denied for|PGRST\d|Traceback \(most recent call last\)/i;
 
 export const GENERIC_ERROR = "The server could not complete this request.";
 
 /**
- * Error text that is safe to show: server faults and raw database messages (which can echo the
- * submitted values) become a generic message; anything else has PII and account references removed.
+ * Error text that is safe to show: raw database messages and long server faults become a generic
+ * message; short, actionable messages are kept with PII and account references removed.
  */
 export function redactError(message: string, status: number): string {
-  if (status >= 500 || DATABASE_MESSAGE.test(message)) return GENERIC_ERROR;
+  if (DATABASE_MESSAGE.test(message) || (status >= 500 && message.length > 160)) return GENERIC_ERROR;
   return safeText(message).slice(0, 300);
 }

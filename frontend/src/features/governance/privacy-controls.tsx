@@ -16,11 +16,12 @@ export function PrivacyControls() {
   const controls: Array<[string, string, boolean]> = [
     ["Account identifiers masked by default", masked ? `On. ${revealed.size} value${revealed.size === 1 ? "" : "s"} revealed right now; each reveal ends after ${REVEAL_MS / 1000} seconds.` : "Off for this page session. Reloading or signing in masks again.", masked],
     ["Reveal limited by role", canReveal ? "Your role can reveal single values." : "Your role sees masked values only.", true],
-    ["Free text filtered for PII", "Emails, SSNs, card numbers (Luhn-checked), IBANs (checksum-validated) and phone numbers are replaced with placeholders wherever narratives, notes, memos and raw rows are shown.", true],
+    ["Free text filtered for PII", "Emails, SSNs, card numbers (Luhn-checked), IBANs (checksum-validated) and phone numbers are replaced with placeholders wherever narratives, notes, memos and raw rows are shown. Digit-only values such as IDs are left alone.", true],
+    ["Evidence keeps real identifiers", "Masking is display-only: paths and patterns pinned to a case are saved with the real account references.", true],
     ["Personal data held back before it leaves the browser", "Copilot questions and collaborator notes containing PII are not sent until the user edits them or sends a redacted copy.", true],
     ["Raw source rows masked", "Party names become initials, account columns are masked and contact columns are hidden.", true],
-    ["Session kept out of persistent storage", live ? "Tokens are in sessionStorage for this tab only; your email is not stored." : "Tokens, when signed in, are kept in sessionStorage for one tab; the email is never stored.", true],
-    ["Error messages sanitized", "Server faults and database messages, which can echo submitted values, are replaced with a generic message and a request ID.", true],
+    ["Email never stored in the browser", live ? "Your session is shared across tabs so tokens rotate safely; the stored copy has no email." : "When signed in, the stored session has no email; it is held in memory only.", true],
+    ["Error messages sanitized", "Database messages, which can echo submitted values, and long server faults are replaced with a generic message and a request ID; short messages are kept with PII removed.", true],
     ["No referrer leakage", "Referrer-Policy: no-referrer, so case and account URLs are never sent to other sites.", true],
   ];
   return (

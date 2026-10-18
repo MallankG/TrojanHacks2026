@@ -20,17 +20,19 @@ The live state of each browser control is shown under **Governance → Settings 
 
 All rules live in one module, `pii.ts`. It has no dependencies and is unit-tested with `npm test`.
 
-1. **Account identifiers are masked by default.** Every account reference in the app is shown with only its prefix and last two characters, for example `ACC-7001` → `ACC-••01`. This covers live and demo views, graph labels, tables, search results and aria-labels.
-   - Users with case access (not auditors or data stewards) can reveal one value. The value is masked again after 30 seconds.
+1. **Account identifiers are masked by default.** Every account reference in the app is shown with only its prefix, its last two characters and a two-character tag, for example `ACC-7001` → `ACC-••01·ut` and `ACC-8001` → `ACC-••01·oa`. The tag comes from a non-secret hash, so two accounts that end the same way can still be told apart. This covers live and demo views, graph labels, tables, search results, evidence chips and aria-labels.
+   - Users with case access (not auditors or data stewards) can reveal one value. It shows in full everywhere on the screen, and is masked again after 30 seconds.
+   - Masking applies only to what is displayed. Text saved to the backend, such as a graph path pinned to a case as evidence, always uses the real references.
    - The top-bar toggle unmasks everything for the current page session only.
    - Masking state is held in memory, so reloading, signing in or switching identity always starts masked again.
 2. **Free text is filtered for PII.** Shared display components (`Callout`, `KeyValueList`, `CardHeader`, `PageHeader`) and every narrative, note, memo and alert explanation pass through `SensitiveText`.
    - It replaces emails, US SSNs, phone numbers, card numbers and IBANs with placeholders such as `[EMAIL]`.
    - Card numbers must pass a Luhn check and IBANs a mod-97 check, so amounts, dates and transaction IDs are left alone.
+   - On screen, a value with no letters (a numeric ID, a timestamp) is treated as data, not prose, and is not read as a card or phone number. Text leaving the browser is always checked strictly.
 3. **Raw source rows are masked by column meaning.** Party names become initials (`Synthetic Customer 011` → `S•••••••• C••••••• 0••`), account columns are masked, contact columns (email, phone, address, SSN, date of birth) are hidden, and memo columns are filtered. The upload preview masks values the same way and labels sensitive canonical fields.
-4. **Personal data is held back before it leaves the browser.** Copilot questions go to a language model, and collaborator notes are append-only, so both are checked before sending. If PII is found, nothing is sent until the user edits the text or chooses **Send redacted**.
-5. **Sessions are kept out of persistent storage.** Supabase tokens are kept in `sessionStorage` (one tab, cleared when the tab closes) instead of `localStorage`. The stored copy never includes the user's email. Sessions saved in `localStorage` by earlier builds are removed on load.
-6. **Error messages are sanitized.** Server faults (5xx) and raw database messages, which can echo submitted values, are replaced with a generic message. The request ID is kept so an error can still be matched to the audit trail. The error page logs only the error type and digest.
+4. **Personal data is held back before it leaves the browser.** Copilot questions go to a language model, and collaborator notes are append-only, so both are checked when submitted (`usePiiGuard`). If PII is found, nothing is sent until the user edits the text or chooses **Send redacted**. The redacted copy must pass the same checks as typed text: minimum length once placeholders are removed, and sending must still be available.
+5. **The stored session never includes the user's email.** Supabase tokens stay in `localStorage`, as Supabase does by default, so all tabs share one refresh-token chain; per-tab storage would let a duplicated tab reuse a revoked token. The email is kept in memory only after sign-in. Once the page is reloaded, a user without a display name is shown by role.
+6. **Error messages are sanitized.** Raw database messages, which can echo submitted values, and long server faults are replaced with a generic message. Short, actionable messages are kept, with PII and account references removed. The request ID is kept so an error can still be matched to the audit trail. The error page logs only the error type and digest.
 7. **Security headers are set** (`next.config.ts`):
    - `Referrer-Policy: no-referrer`, so case and account URLs are never sent to other sites
    - `X-Content-Type-Options: nosniff`

@@ -63,11 +63,17 @@ export function resetPrivacy(): void {
   emit(INITIAL);
 }
 
-/** Formatters for string-only places (aria-labels, graph labels, titles) that follow the global toggle. */
+/**
+ * Formatters for string-only places (aria-labels, graph labels, titles). They follow the global
+ * toggle and per-value reveals, so a revealed account shows in full everywhere on the screen.
+ */
 export function useMaskers() {
-  const { masked } = usePrivacy();
-  const ref = useCallback((value: string | null | undefined) => (masked ? maskRef(value) : (value ?? "Not recorded")), [masked]);
-  const text = useCallback((value: string | null | undefined) => safeText(value, masked), [masked]);
+  const { masked, revealed } = usePrivacy();
+  const ref = useCallback(
+    (value: string | null | undefined) => (masked && !(value && revealed.has(value)) ? maskRef(value) : (value ?? "Not recorded")),
+    [masked, revealed],
+  );
+  const text = useCallback((value: string | null | undefined) => safeText(value, masked, revealed), [masked, revealed]);
   const record = useCallback((value: Record<string, unknown> | null | undefined) => maskRecord(value, masked), [masked]);
   return { masked, ref, text, record };
 }

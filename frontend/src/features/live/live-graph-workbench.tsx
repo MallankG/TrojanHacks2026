@@ -32,7 +32,7 @@ import { KeyValueList } from "@/components/ui/key-value";
 import { CodeBlock, EmptyState, Skeleton } from "@/components/ui/misc";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
-import { MaskedRef, SensitiveRef } from "@/components/ui/sensitive";
+import { MaskedRef, SensitiveRef, SensitiveText } from "@/components/ui/sensitive";
 import { DataTable, Td, Th, Tr } from "@/components/ui/table";
 import { LiveData } from "./live-state";
 import { LiveGraphCanvas, type GraphSelection } from "./live-graph-canvas";
@@ -68,9 +68,12 @@ function mergeGraphs(base: WorkbenchGraph, extra: WorkbenchGraph | null | undefi
 
 interface Overlay {
   kind: "path" | "pattern";
+  /** Built from real account references: `summary` is saved as case evidence, so it is never masked. */
   title: string;
   transactionIds: string[];
   summary: string;
+  /** Real references used in title and summary, masked only when displayed. */
+  refs: string[];
   graph: WorkbenchGraph | null;
   payload: Record<string, unknown>;
 }
@@ -120,8 +123,9 @@ export function LiveGraphWorkbench() {
   const shown = useMemo(() => (hood.data ? mergeGraphs(hood.data, overlay?.graph) : null), [hood.data, overlay]);
   const highlight = useMemo(() => new Set(overlay?.transactionIds ?? []), [overlay]);
   const toggleRail = (rail: Rail) => setRails((list) => (list.includes(rail) ? list.filter((r) => r !== rail) : [...list, rail]));
-  // Every label below (edges, hops, patterns, inspector) goes through refOf, so masking here covers them.
-  const refOf = (id: string) => mask.ref(shown?.nodes.find((n) => n.id === id)?.account_ref ?? id.slice(0, 8));
+  // Labels on screen go through refOf (masked). Text that is saved as evidence uses rawRefOf.
+  const rawRefOf = (id: string) => shown?.nodes.find((n) => n.id === id)?.account_ref ?? id.slice(0, 8);
+  const refOf = (id: string) => mask.ref(rawRefOf(id));
 
   return (
     <>
@@ -279,11 +283,12 @@ export function LiveGraphWorkbench() {
               preferredTarget={selection?.kind === "node" && selection.id !== focus ? selection.id : null}
               filters={filters}
               refOf={refOf}
+              rawRefOf={rawRefOf}
               active={overlay?.kind === "path" ? overlay.title : null}
               onShow={setOverlay}
             />
           ) : null}
-          {focus ? <PatternSearch key={`patterns:${focus}`} focus={focus} filters={filters} refOf={refOf} active={overlay?.kind === "pattern" ? overlay.title : null} onShow={setOverlay} /> : null}
+          {focus ? <PatternSearch key={`patterns:${focus}`} focus={focus} filters={filters} refOf={refOf} rawRefOf={rawRefOf} active={overlay?.kind === "pattern" ? overlay.title : null} onShow={setOverlay} /> : null}
           {overlay ? <PinToCase overlay={overlay} canPin={role.canInvestigate} onClear={() => setOverlay(null)} /> : null}
         </div>
       </div>
@@ -516,6 +521,7 @@ function PathTracer({
   preferredTarget,
   filters,
   refOf,
+  rawRefOf,
   active,
   onShow,
 }: {
@@ -524,6 +530,7 @@ function PathTracer({
   preferredTarget: string | null;
   filters: GraphFilters;
   refOf: (id: string) => string;
+  rawRefOf: (id: string) => string;
   active: string | null;
   onShow: (overlay: Overlay) => void;
 }) {
@@ -552,14 +559,16 @@ function PathTracer({
     }
   };
 
-  const title = (i: number) => `Path ${i + 1}: ${refOf(focus)} to ${refOf(chosen)}`;
+  const title = (i: number, ref = rawRefOf) => `Path ${i + 1}: ${ref(focus)} to ${ref(chosen)}`;
   const show = (r: PathResult, i: number) => {
     const p = r.paths[i];
+    const ids = [p.hops[0]?.from ?? focus, ...p.hops.map((h) => h.to)];
     onShow({
       kind: "path",
       title: title(i),
       transactionIds: p.hops.map((h) => h.transaction_id),
-      summary: `${p.length}-hop time-respecting path ${p.hops.map((h) => refOf(h.from)).join(" → ")} → ${refOf(p.hops[p.hops.length - 1].to)}; ${duration(p.elapsed_hours)} elapsed, largest gap ${duration(p.max_gap_hours)}, ${money(p.start_amount_usd)} entered, ${money(p.end_amount_usd)} on the last hop (difference ${money(p.amount_delta_usd)}).`,
+      refs: [focus, chosen, ...ids].map(rawRefOf),
+      summary: `${p.length}-hop time-respecting path ${p.hops.map((h) => rawRefOf(h.from)).join(" → ")} → ${rawRefOf(p.hops[p.hops.length - 1].to)}; ${duration(p.elapsed_hours)} elapsed, largest gap ${duration(p.max_gap_hours)}, ${money(p.start_amount_usd)} entered, ${money(p.end_amount_usd)} on the last hop (difference ${money(p.amount_delta_usd)}).`,
       graph: r.graph,
       payload: { kind: "time_respecting_path", source_account_id: focus, target_account_id: chosen, parameters: r.parameters, hops: p.hops, elapsed_hours: p.elapsed_hours, amount_delta_usd: p.amount_delta_usd, caveat: r.caveat },
     });
@@ -617,7 +626,7 @@ function PathTracer({
             {result.paths.map((p, i) => (
               <li key={p.hops.map((h) => h.transaction_id).join("-")} className="flex flex-col gap-1.5 rounded-xl border border-line p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <b className="text-[13px]">{title(i)}</b>
+                  <b className="text-[13px]">{title(i, refOf)}</b>
                   <Button variant={active === title(i) ? "dark" : "ghost"} size="sm" aria-pressed={active === title(i)} onClick={() => show(result, i)}>
                     {active === title(i) ? "Shown on graph" : "Show on graph"}
                   </Button>
@@ -642,7 +651,7 @@ function PathTracer({
   );
 }
 
-function PatternSearch({ focus, filters, refOf, active, onShow }: { focus: string; filters: GraphFilters; refOf: (id: string) => string; active: string | null; onShow: (overlay: Overlay) => void }) {
+function PatternSearch({ focus, filters, refOf, rawRefOf, active, onShow }: { focus: string; filters: GraphFilters; refOf: (id: string) => string; rawRefOf: (id: string) => string; active: string | null; onShow: (overlay: Overlay) => void }) {
   const [operation, setOperation] = useState<PatternOperation>("cycles");
   const [maxHops, setMaxHops] = useState(6);
   const [busy, setBusy] = useState(false);
@@ -673,13 +682,14 @@ function PatternSearch({ focus, filters, refOf, active, onShow }: { focus: strin
     }
   };
 
-  const title = (r: PatternResult, i: number) => `${PATTERN_LABEL[r.operation]} ${i + 1} around ${refOf(r.account_id)}`;
+  const title = (r: PatternResult, i: number, ref = rawRefOf) => `${PATTERN_LABEL[r.operation]} ${i + 1} around ${ref(r.account_id)}`;
   const show = (r: PatternResult, f: PatternFinding, i: number) =>
     onShow({
       kind: "pattern",
       title: title(r, i),
       transactionIds: f.transaction_ids,
-      summary: `${PATTERN_LABEL[r.operation]} lead: ${f.summary} Accounts: ${f.account_ids.map(refOf).join(" → ")}.`,
+      refs: [r.account_id, ...f.account_ids].map(rawRefOf),
+      summary: `${PATTERN_LABEL[r.operation]} lead: ${f.summary} Accounts: ${f.account_ids.map(rawRefOf).join(" → ")}.`,
       graph: r.graph,
       payload: { kind: f.kind, operation: r.operation, anchor_account_id: f.anchor_account_id, account_ids: f.account_ids, window: r.window, parameters: r.parameters, elapsed_hours: f.elapsed_hours, amount_delta_usd: f.amount_delta_usd ?? null, limitation: r.limitation, caveat: r.caveat },
     });
@@ -723,12 +733,12 @@ function PatternSearch({ focus, filters, refOf, active, onShow }: { focus: strin
           {result.findings.map((f, i) => (
             <div key={f.transaction_ids.join("-")} className="flex flex-col gap-1.5 rounded-xl border border-line p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <b className="text-[13px]">{title(result, i)}</b>
+                <b className="text-[13px]">{title(result, i, refOf)}</b>
                 <Button variant={active === title(result, i) ? "dark" : "ghost"} size="sm" aria-pressed={active === title(result, i)} onClick={() => show(result, f, i)}>
                   {active === title(result, i) ? "Shown on graph" : "Show on graph"}
                 </Button>
               </div>
-              <p className="text-[13px]">{f.summary}</p>
+              <p className="text-[13px]"><SensitiveText value={f.summary} /></p>
               <span className="font-mono text-xs">{f.account_ids.map(refOf).join(" → ")}</span>
               <HopList hops={f.hops} refOf={refOf} />
             </div>
@@ -748,6 +758,9 @@ function PinToCase({ overlay, canPin, onClear }: { overlay: Overlay; canPin: boo
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pinned, setPinned] = useState<string | null>(null);
+  const mask = useMaskers();
+  // Longest first, so a reference that contains another is replaced whole.
+  const shown = (text: string) => [...new Set(overlay.refs)].sort((a, b) => b.length - a.length).reduce((out, ref) => out.split(ref).join(mask.ref(ref)), mask.text(text));
 
   const pin = async () => {
     if (!caseId) return;
@@ -774,14 +787,14 @@ function PinToCase({ overlay, canPin, onClear }: { overlay: Overlay; canPin: boo
     <Panel>
       <CardHeader
         title="Pin to case"
-        description={overlay.title}
+        description={shown(overlay.title)}
         actions={
           <Button variant="link" onClick={onClear}>
             Clear highlight
           </Button>
         }
       />
-      <p className="text-xs text-muted">{overlay.summary}</p>
+      <p className="text-xs text-muted">{shown(overlay.summary)}</p>
       {!canPin ? (
         <p className="text-xs text-muted">Your role can view the graph but cannot add case evidence.</p>
       ) : (

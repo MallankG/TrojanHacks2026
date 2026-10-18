@@ -44,6 +44,6 @@ export function SensitiveRef({ value, className }: { value: string | null | unde
 
 /** Free text (memos, notes, narratives): PII always redacted; account references follow the mask toggle. */
 export function SensitiveText({ value, className }: { value: string | null | undefined; className?: string }) {
-  const { masked } = usePrivacy();
-  return <span className={className}>{safeText(value, masked)}</span>;
+  const { masked, revealed } = usePrivacy();
+  return <span className={className}>{safeText(value, masked, revealed)}</span>;
 }

@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 import { liveApi, useLive } from "@/lib/live/api";
 import { useDashboardSummary, type DashboardSummary, type FlagStatus } from "@/lib/live/api-command";
 import { BAND_LABEL, BAND_TONE, alertLabel, money, utc, words } from "@/lib/live/format";
-import { LIVE_ROLES } from "@/lib/live/roles";
+import { LIVE_ROLES, profileName } from "@/lib/live/roles";
 import { useLiveProfile } from "@/lib/live/session";
 import { ROUTES } from "@/lib/routes";
 import type { Tone } from "@/lib/types";
@@ -85,7 +85,7 @@ function NextActions({ summary }: { summary: DashboardSummary }) {
   return (
     <section aria-label="Next best actions" className="flex flex-wrap items-start gap-6 rounded-[18px] bg-hero p-7 text-white">
       <div className="flex flex-[1_1_300px] flex-col gap-2">
-        <div className="eyebrow text-brand-light">Signed in as {profile?.display_name ?? profile?.email ?? "you"}</div>
+        <div className="eyebrow text-brand-light">Signed in as {profile ? profileName(profile) : "you"}</div>
         <h1 className="text-[28px] font-semibold leading-tight">{actions.length === 0 ? "Nothing needs you right now" : `${actions.length} thing${actions.length === 1 ? "" : "s"} need you today`}</h1>
         <p className="text-sm text-hero-text">From live tenant data, updated {utc(summary.generated_at)}.</p>
       </div>

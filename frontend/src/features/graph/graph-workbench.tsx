@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { buildGraphModel, edgeFlags, pathSummary } from "@/lib/domain/graph";
 import { formatMoney } from "@/lib/format";
+import { useMaskers } from "@/lib/privacy/store";
 import { ROUTES } from "@/lib/routes";
 import { ENTITIES } from "@/lib/seed/entities";
 import { edgeByKey, NODES, TIMELINE, TIMELINE_MAX } from "@/lib/seed/graph";
@@ -257,6 +258,7 @@ function Inspector({ view, fixed, graphDown }: { view: GraphView; fixed: boolean
 }
 
 export function GraphWorkbench() {
+  const mask = useMaskers();
   const state = useDemoState();
   const view = state.graph;
   const fixed = state.data.driftFixed;
@@ -423,7 +425,7 @@ export function GraphWorkbench() {
                   {view.pinned.map((id) => (
                     <Pill key={id} tone="info" mono>
                       <SensitiveText value={id} />
-                      <button type="button" aria-label={`Unpin ${id}`} onClick={() => togglePin(id)} className="min-h-5 px-0.5 font-bold">
+                      <button type="button" aria-label={`Unpin ${mask.text(id)}`} onClick={() => togglePin(id)} className="min-h-5 px-0.5 font-bold">
                         ×
                       </button>
                     </Pill>

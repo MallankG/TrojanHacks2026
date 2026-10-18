@@ -5,7 +5,7 @@ import sample from "@/lib/seed/enterprise-demo.json";
 import { ApiError, apiRequest } from "@/lib/api/client";
 import { call } from "@/lib/live/api";
 import { getSession, useLiveSession } from "@/lib/live/session";
-import { findPii, redactText } from "@/lib/privacy/pii";
+import { usePiiGuard } from "@/lib/privacy/use-pii-guard";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { CardHeader, Panel } from "@/components/ui/card";
 import { Field, Select, TextArea, TextInput } from "@/components/ui/field";
@@ -40,8 +40,7 @@ function EnterpriseWorkspaceContent({ signedIn }: { signedIn: boolean }) {
   const [kind, setKind] = useState<Kind>("comment");
   const [text, setText] = useState("");
   // Notes are stored in an append-only room, so personal data is caught before it is posted.
-  const [piiHeld, setPiiHeld] = useState(false);
-  const piiFound = findPii(text);
+  const pii = usePiiGuard();
   const [mention, setMention] = useState("");
   const [targetUser, setTargetUser] = useState(sample.reviewer_id);
   const [evidenceId, setEvidenceId] = useState(sample.evidence[0].id);
@@ -101,9 +100,12 @@ function EnterpriseWorkspaceContent({ signedIn }: { signedIn: boolean }) {
       setRoom(r => ({ ...r, revision: r.revision + 1, events: [event, ...r.events] }));
       setMessage("Synthetic action recorded for this page session only.");
     }
-    pending.current = null; setText(""); setBriefing(null); setPiiHeld(false);
+    pending.current = null; setText(""); setBriefing(null); pii.clear();
   }
-  const canPost = writable && !busy && (!(["comment", "hypothesis", "review_request", "conflict", "resolution"] as Kind[]).includes(kind) || text.trim().length >= 5) && (kind !== "bookmark" || Boolean(evidenceId)) && (!["vote", "resolution"].includes(kind) || Boolean(targetEvent)) && (kind !== "assignment" || Boolean(targetUser));
+  const needsText = (["comment", "hypothesis", "review_request", "conflict", "resolution"] as Kind[]).includes(kind);
+  const canPost = writable && !busy && (!needsText || text.trim().length >= 5) && (kind !== "bookmark" || Boolean(evidenceId)) && (!["vote", "resolution"].includes(kind) || Boolean(targetEvent)) && (kind !== "assignment" || Boolean(targetUser));
+  // The redacted copy passes the same checks as a typed note.
+  const redactedBlocked = !canPost ? "Recording is unavailable right now." : pii.held && needsText && pii.held.substance < 5 ? "Too little would be left once redacted; edit the note." : null;
   async function handoff() {
     if (live) {
       setBriefing(await request<Handoff>(`/enterprise/cases/${room.case.id}/handoff`, { method: "POST", headers, body: { recipient_id: targetUser } }));
@@ -130,14 +132,14 @@ function EnterpriseWorkspaceContent({ signedIn }: { signedIn: boolean }) {
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel><CardHeader title="Contribute to the investigation" description="Hypotheses and votes are review input; they never become verified evidence automatically." />
           <Field label="Action">{p => <Select {...p} value={kind} onChange={e => { setKind(e.target.value as Kind); setTargetEvent(""); }}>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>}</Field>
-          <Field label="Note or rationale">{p => <TextArea {...p} rows={4} maxLength={2000} value={text} onChange={e => { setText(e.target.value); setPiiHeld(false); }} />}</Field>
+          <Field label="Note or rationale">{p => <TextArea {...p} rows={4} maxLength={2000} value={text} onChange={e => { setText(e.target.value); pii.clear(); }} />}</Field>
           <Field label="Mention a case collaborator">{p => <Select {...p} value={mention} onChange={e => setMention(e.target.value)}><option value="">No mention</option>{room.members.map(m => <option key={m.user_id} value={m.user_id}>{m.case_role} · {m.user_id}</option>)}</Select>}</Field>
           {kind === "bookmark" && <Field label="Case evidence">{p => <Select {...p} value={evidenceId} onChange={e => setEvidenceId(e.target.value)}><option value="">Choose evidence</option>{room.evidence.map(e => <option key={e.id} value={e.id}>{e.evidence_type} · {e.explanation}</option>)}</Select>}</Field>}
           {kind === "assignment" && <Field label="Assign to collaborator">{p => <Select {...p} value={targetUser} onChange={e => setTargetUser(e.target.value)}><option value="">Choose assignee</option>{room.members.map(m => <option key={m.user_id} value={m.user_id}>{m.case_role} · {m.user_id}</option>)}</Select>}</Field>}
           {["vote", "resolution"].includes(kind) && <Field label={kind === "vote" ? "Hypothesis to vote on" : "Conflict to resolve"}>{p => <Select {...p} value={targetEvent} onChange={e => setTargetEvent(e.target.value)}><option value="">Choose a recorded item</option>{targets.map(e => <option key={e.id} value={e.id}>#{e.revision} · {e.payload.text}</option>)}</Select>}</Field>}
           {kind === "vote" && <Field label="Vote">{p => <Select {...p} value={vote} onChange={e => setVote(e.target.value)}><option value="support">Support</option><option value="challenge">Challenge</option><option value="abstain">Abstain</option></Select>}</Field>}
-          {piiHeld && piiFound.length > 0 && <PiiWarning found={piiFound} onSendRedacted={() => work(() => addEvent(redactText(text)))} onEdit={() => setPiiHeld(false)} />}
-          <Button disabled={!canPost} onClick={() => (piiFound.length > 0 ? setPiiHeld(true) : work(() => addEvent()))}>Record {labels[kind].toLowerCase()}</Button>
+          {pii.held && <PiiWarning held={pii.held} sendBlocked={redactedBlocked} onSendRedacted={() => { if (pii.held && !redactedBlocked) { const note = pii.held.redacted; void work(() => addEvent(note)); } }} onEdit={pii.clear} />}
+          <Button disabled={!canPost} onClick={() => { if (pii.check(text)) void work(() => addEvent()); }}>Record {labels[kind].toLowerCase()}</Button>
         </Panel>
         <Panel><CardHeader title="Case activity and evidence bookmarks" description="Live actions have immutable event IDs, payload hashes and request IDs. This view shows the latest 100 events." />
           {room.events.length === 0 && <p className="text-sm text-muted">No collaboration events yet. Add a comment, bookmark or hypothesis to start.</p>}

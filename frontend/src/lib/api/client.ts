@@ -4,7 +4,7 @@
  * and is the single place to wire real endpoints (alerts, cases, lineage, copilot).
  */
 
-import { redactError, redactText } from "@/lib/privacy/pii";
+import { redactError, safeText } from "@/lib/privacy/pii";
 
 export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
 
@@ -53,7 +53,7 @@ async function errorDetail(response: Response): Promise<string> {
     const data = (await response.json()) as { detail?: unknown };
     if (typeof data.detail === "string") return redactError(data.detail, response.status);
     // FastAPI validation errors: [{loc, msg}, ...]; `input` is never shown.
-    if (Array.isArray(data.detail)) return data.detail.map((d: { msg?: string }) => redactText(d.msg ?? "Invalid input")).join("; ");
+    if (Array.isArray(data.detail)) return data.detail.map((d: { msg?: string }) => safeText(d.msg ?? "Invalid input")).join("; ");
   } catch {
     // Non-JSON body; fall through to the status code.
   }

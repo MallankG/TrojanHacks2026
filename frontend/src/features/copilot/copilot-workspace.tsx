@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 import { CASE_EVIDENCE_IDS, evidenceOrFallback } from "@/lib/domain/evidence";
 import { PROMPT_CHIPS } from "@/lib/domain/copilot";
 import { formatMoney } from "@/lib/format";
-import { findPii, redactText } from "@/lib/privacy/pii";
+import { usePiiGuard } from "@/lib/privacy/use-pii-guard";
 import { ROUTES } from "@/lib/routes";
 import { EDGES, edgeByTx, NODES } from "@/lib/seed/graph";
 import { askCopilot, clearChat, copilotBlockedReason, openModal, setCopilotFocus, switchCopilotCase, updateGraph } from "@/lib/store/actions";
@@ -31,8 +31,7 @@ export function CopilotWorkspace() {
   const role = useRole();
   const registry = useEvidenceRegistry();
   const [draft, setDraft] = useState("");
-  const piiFound = findPii(draft);
-  const [piiHeld, setPiiHeld] = useState(false);
+  const pii = usePiiGuard();
   const endRef = useRef<HTMLDivElement>(null);
   const { messages, focus, contextCase } = state.copilot;
   const fixed = state.data.driftFixed;
@@ -52,18 +51,18 @@ export function CopilotWorkspace() {
     const text = draft.trim();
     if (text.length < MIN_QUESTION_LENGTH) return;
     // Questions go to the language model, so personal data is held back until the user redacts or edits it.
-    if (findPii(text).length > 0) {
-      setPiiHeld(true);
-      return;
-    }
+    if (!pii.check(text)) return;
     askCopilot(text);
     setDraft("");
   };
 
+  // The redacted copy passes the same checks as a typed question.
+  const redactedBlocked = blocked ? "The copilot is unavailable right now." : pii.held && pii.held.substance < MIN_QUESTION_LENGTH ? "Nothing would be left to ask once redacted; edit the question." : null;
   const sendRedacted = () => {
-    askCopilot(redactText(draft.trim()));
+    if (!pii.held || redactedBlocked) return;
+    askCopilot(pii.held.redacted);
     setDraft("");
-    setPiiHeld(false);
+    pii.clear();
   };
 
   const hops = EDGES.filter((e) => !e.cycle);
@@ -185,13 +184,13 @@ export function CopilotWorkspace() {
             <div className="flex gap-2">
               <label className="flex-1">
                 <span className="sr-only">Ask a question about this case</span>
-                <TextInput value={draft} disabled={Boolean(blocked)} onChange={(e) => { setDraft(e.target.value); setPiiHeld(false); }} placeholder="For example: where did the funds go next?" />
+                <TextInput value={draft} disabled={Boolean(blocked)} onChange={(e) => { setDraft(e.target.value); pii.clear(); }} placeholder="For example: where did the funds go next?" />
               </label>
               <Button type="submit" disabled={Boolean(blocked) || draft.trim().length < MIN_QUESTION_LENGTH}>
                 Send
               </Button>
             </div>
-            {piiHeld && piiFound.length > 0 ? <PiiWarning found={piiFound} onSendRedacted={sendRedacted} onEdit={() => setPiiHeld(false)} /> : null}
+            {pii.held ? <PiiWarning held={pii.held} sendBlocked={redactedBlocked} onSendRedacted={sendRedacted} onEdit={pii.clear} /> : null}
             <span className={cn("text-xs text-muted")}>The copilot cannot file reports, freeze accounts or contact customers. Questions outside your case scope are refused and logged. Emails, SSNs, card and phone numbers are never sent.</span>
           </form>
         </Card>
