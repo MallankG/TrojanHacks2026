@@ -6,7 +6,7 @@ Pydantic backend, LangGraph orchestration, PyTorch/PyG GraphSAGE + XGBoost + Iso
 Supabase (PostgreSQL + pgvector + Auth/RLS + Storage), Ollama (local LLM) with a deterministic
 template fallback.
 
-The full PRD is at `../docs/trace_layer_prd.md` (repo root). Relevant sections: §6 product workflow,
+PRD sections referenced here: §6 product workflow,
 §11 multi-agent and RAG architecture, §12 Supabase architecture, §13 data model (tables), §15 security.
 The facade/API contract is defined in this file (below), not in the PRD.
 
@@ -162,7 +162,7 @@ after you tell the owner. The first group is implemented by the backend teammate
 - `CaseRepository` / `AuditRepository`: persistence. The backend implements these on Supabase
   Postgres (PRD §13 tables `cases`, `case_evidence`, `audit_events`); agents ship in-memory versions
   for tests and the demo CLI. Note: the PRD's `audit_events` table has no `prev_hash`/`hash` columns;
-  the hash chain needs them (tracked in `docs/TEAM_QUESTIONS.md`).
+  the hash chain needs them.
 
 ## Public facade (`tracelayer_agents/api.py`)
 
@@ -225,7 +225,7 @@ agents/                     # flat layout (no src/); import name `tracelayer_age
     llm/         client.py  prompts/narrative_v4.md (v1-v3 kept)  prompts/policy_qa_v1.md
                  prompts/chat_plan_v1.md  prompts/chat_answer_v2.md  templates.py
   tests/
-  docs/  CONTRACTS.md  INTEGRATION.md  ARCHITECTURE.md  TEAM_QUESTIONS.md
+  docs/  CONTRACTS.md  INTEGRATION.md  ARCHITECTURE.md
 ```
 
 ## Commands

@@ -1,5 +1,5 @@
 # Hugging Face Space (Docker, free CPU basic: 2 vCPU, 16 GB RAM) running the backend with every model
-# (XGBoost, temporal GNN, ensemble). Step-by-step setup: DEPLOY.md in the repo root.
+# (XGBoost, temporal GNN, ensemble). Needs HF PRO (Docker Spaces on free CPU basic are paid since 2026).
 # Space secrets: GITHUB_TOKEN (read-only token for the private repo, used only at build time), GROQ_API_KEY,
 # SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SERVICE_API_KEY, CORS_ORIGINS. New commits: Settings -> Factory rebuild.
 FROM python:3.11-slim

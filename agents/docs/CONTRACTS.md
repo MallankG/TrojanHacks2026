@@ -121,7 +121,7 @@ The graph is time-respecting, and the same batch and feature version always give
 ### `GraphService.get_transactions(tx_ids: list[str]) -> list[EvidenceTransaction]`
 Returns the full canonical rows for evidence bundles, one per ID in request order, with the real
 `source_row_ref`. It raises `KeyError` on any unknown ID rather than returning partial evidence.
-Added by the agents workstream (see `TEAM_QUESTIONS.md`).
+Added by the agents workstream.
 
 <!-- example: EvidenceTransaction -->
 ```json
@@ -301,7 +301,7 @@ Two chat tools are mocks over fixtures until a real service exists:
   - It never returns another real case's data.
 - `shared_token_search` (`mocks/fixtures/shared_tokens.json`): devices, IP addresses and payment
   tokens shared by at least two of the case's accounts. Accounts outside the case are only
-  counted. A real implementation needs a backend source for these links (TEAM_QUESTIONS).
+  counted. A real implementation needs a backend source for these links.
 
 No chat tool runs model-authored SQL or Cypher. A free-text plan is only a list of allowlisted
 `ToolCall`s, and each one's args must validate against that tool's `extra="forbid"` input model. Chat models (`ChatContext`, `ChatTurn`, `ChatClaim`, `ChatGap`,

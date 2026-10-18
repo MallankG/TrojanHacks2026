@@ -141,9 +141,7 @@ Case collaboration, attribute-based case access, versioned evidence exports, SLO
 Ed25519 release tooling, declared residency boundaries and recipient-filtered handoffs are
 implemented behind `ENTERPRISE_ENABLED`. Apply the enterprise migration and provision user
 attributes/case policies before rollout. Keep `CASE_AUTHORIZATION_ENABLED=true` if the UI is
-later disabled. See [the enterprise runbook](../docs/enterprise_runbook.md) for setup, API
-contracts, tests and prototype boundaries. Model/data monitoring pointers and snapshot formats
-are described in [the drift guide](../docs/drift_monitoring.md).
+later disabled.
 
 Source-contract corrections use `POST /governance/products/{product_id}/replacements`
 with `{ "product": <complete corrected product>, "reason": "reviewed correction reason" }`.
@@ -173,7 +171,7 @@ real PostgreSQL. This checks database behavior without contacting Supabase.
 
 ## Graph engine
 
-The live graph canvas is backed by authenticated `/graph/engine/analysis` operations. See [graph engine HTTP integration](../docs/graph_engine_http.md) for setup, limits and real HTTP verification.
+The live graph canvas is backed by authenticated `/graph/engine/analysis` operations.
 
 
 ## Multi-agent investigation workflows

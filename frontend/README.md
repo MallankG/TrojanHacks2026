@@ -108,5 +108,4 @@ room, operations dashboard, release/residency views and an authenticated backend
 case also links to collaboration. **Drift and health** (`/governance/drift`) now computes example
 input/score drift and labeled model performance instead of displaying fixed PSI numbers. Try
 “Labels still pending” to see unknown performance handled explicitly. Live features require the
-enterprise migration and environment flags. See `docs/enterprise_runbook.md` and
-`docs/drift_monitoring.md` for configuration and monitoring pointers.
+enterprise migration and environment flags (see `backend/README.md`).

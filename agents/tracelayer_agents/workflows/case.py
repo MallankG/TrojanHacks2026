@@ -52,7 +52,7 @@ NODES = (
 MAX_DRAFT_ATTEMPTS = 2
 
 # One checkpointer for every compiled case workflow, so `resume_case` finds the run `start_case`
-# paused. In-memory: paused cases don't survive a restart (TEAM_QUESTIONS backend Q7). The
+# paused. In-memory: paused cases don't survive a restart. The
 # checkpoint may only deserialize our own schema types (plus LangGraph's built-in safe types).
 _SCHEMA_TYPES = [
     obj for obj in vars(schemas).values()

@@ -8,7 +8,7 @@ import { CardHeader, Panel } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
 import { useCanReveal } from "@/components/ui/sensitive";
 
-/** What the UI does with personal data, with each control's live state. Details: docs/PRIVACY.md. */
+/** What the UI does with personal data, with each control's live state. */
 export function PrivacyControls() {
   const { masked, revealed } = usePrivacy();
   const canReveal = useCanReveal();

@@ -2,7 +2,6 @@
 
 Governed financial-crime investigation layer: data quality and lineage → risk models and typology rules →
 money-flow graph → multi-agent case copilot (local LLM) → human review and audit trail.
-Spec: `docs/TraceLayer_PRD_v3_3_Implementation_Playbook.docx`.
 
 | folder | what | runs as |
 |---|---|---|
@@ -10,7 +9,6 @@ Spec: `docs/TraceLayer_PRD_v3_3_Implementation_Playbook.docx`.
 | `backend/` | FastAPI API (`app/`), ML models and engines (`ml/`) | `uvicorn` on :8000 |
 | `agents/` | LangGraph multi-agent workflows (`tracelayer_agents`); see [integration guide](agents/docs/INTEGRATION.md) | imported **in-process** by the backend (`-e ../agents`), not a separate server |
 | `supabase/` | Postgres schema, RLS, storage, pgvector migrations | hosted Supabase project |
-| `docs/` | PRD; [`docs/PRIVACY.md`](docs/PRIVACY.md): how personal data is classified, masked and redacted | — |
 
 ## Architecture
 
@@ -103,12 +101,6 @@ npm run dev                          # http://localhost:3000
 **Checks.** `cd backend && pytest -q` (API, ML features, engine, graph) and
 `cd agents && pip install -e '.[dev]' && pytest -q`. To run the agents with no LLM, set
 `LLM_PROVIDER=template` in `backend/.env`.
-
-## Deploy (free tiers)
-
-Step-by-step guide: **[DEPLOY.md](DEPLOY.md)**. In short: frontend on Vercel, backend on Render's free tier
-(`render.yaml`, without the trained models: 512 MB), LLM on Groq's free tier (`LLM_PROVIDER=groq`), Supabase as
-is. The full model stack needs ≥ 1 GB RAM: a Hugging Face Docker Space (`deploy/huggingface/`, needs HF PRO).
 
 ## ML layout (`backend/ml/`)
 

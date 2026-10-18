@@ -20,7 +20,7 @@ const FORMATS: Array<{ key: "json" | "csv" | "pdf"; label: string }> = [
   { key: "pdf", label: "Readable PDF" },
 ];
 
-// Each check names a control the app enforces (see docs/PRIVACY.md).
+// Each check names a control the app enforces.
 const PRIVACY_CHECKS = [
   "Identifiers are synthetic, and masked in display by default",
   "Emails, SSNs, card and phone numbers redacted from free text",
