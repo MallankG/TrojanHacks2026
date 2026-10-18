@@ -21,6 +21,7 @@ The authenticated API returns a persisted job immediately, while the UI polls it
 | `POST /agents/cases/{case_id}/draft` | Draft and verify an existing authorized case, then pause |
 | `POST /agents/cases/{case_id}/copilot` | Retrieve and verify policy guidance for an authorized case |
 | `GET /agents/runs/{run_id}` | Read authorized results and incremental node traces |
+| `GET /agents/runs/{run_id}/audit-verification` | Verify the complete saved per-run hash chain (up to 1,000 receipts) |
 | `POST /agents/runs/{run_id}/decision` | Resume with a server-authenticated human decision |
 | `POST /agents/runs/{run_id}/recover` | Recover an interrupted case job after its lease expires |
 
@@ -45,7 +46,10 @@ verified transaction facts belong to the case draft.
 
 Use a local Ollama model installed on the backend host. `LLM_PROVIDER=template` selects the explicit
 deterministic fallback. Each draft/answer saves provider, model, prompt version, fallback flag and
-verifier results. Remote Ollama hosts are rejected by the live adapter's environment boundary.
+verifier results. Model-authored narrative prose cannot restate amounts, identifiers, dates or
+counts, including spelled-out quantities; computed fact claims retain their original values. Invalid
+model output uses the recorded deterministic fallback. Remote Ollama hosts are rejected by the live
+adapter's environment boundary.
 
 ## Standalone demo facade
 

@@ -52,7 +52,7 @@ function useAgentRun(initialId?: string) {
         setRun(next); setError(null); failures = 0;
         if (["queued", "running"].includes(next.status)) timer = setTimeout(load, 1500);
         else {
-          for (const key of ["case:", "cases", "alerts", "dashboard", "pipelines"]) invalidateLive(key);
+          for (const key of ["case:", "cases", "alerts", "dashboard", "pipelines", "audit:"]) invalidateLive(key);
         }
       } catch (e) { if (!stopped) { setError(errorMessage(e)); failures++; timer = setTimeout(load, Math.min(1500 * 2 ** failures, 15000)); } }
     };
@@ -63,7 +63,17 @@ function useAgentRun(initialId?: string) {
 }
 
 function RunReceipt({ run }: { run: AgentRun | null }) {
+  const [auditMessage,setAuditMessage]=useState<string | null>(null);
+  const [checking,setChecking]=useState(false);
+  useEffect(()=>setAuditMessage(null),[run?.id,run?.status]);
   if (!run) return null;
+  const verify = async () => {
+    setChecking(true);
+    try {
+      const receipt=await call<{ok:boolean;checked:number;reason:string | null}>(`/agents/runs/${run.id}/audit-verification`);
+      setAuditMessage(receipt.checked===0 && receipt.ok ? "No audit receipts saved." : `${receipt.ok ? "Verified" : "Verification failed"}: ${receipt.checked} receipt(s). ${receipt.reason ?? ""}`);
+    } catch(e){setAuditMessage(errorMessage(e));}finally{setChecking(false);}
+  };
   const r = run.result;
   return <div className="mt-3 flex flex-col gap-3" aria-live="polite">
     <Pill tone={run.status === "failed" ? "warn" : "ok"}>{run.status.replaceAll("_", " ")}</Pill>
@@ -88,6 +98,8 @@ function RunReceipt({ run }: { run: AgentRun | null }) {
     <details><summary className="cursor-pointer text-xs font-semibold">Saved workflow steps ({run.steps.length})</summary>
       <ol className="mt-2 text-xs">{run.steps.map((s,i)=><li key={i}>{s.node.replaceAll("_", " ")} · {s.status} · {Math.round(s.duration_ms)} ms</li>)}</ol>
       <p className="mt-1 break-all text-xs text-muted">Run {run.id}</p>
+      <Button variant="ghost" size="sm" onClick={verify} disabled={checking || ["queued","running"].includes(run.status)}>Verify saved audit chain</Button>
+      {auditMessage ? <p className="mt-2 text-xs" role="status">{auditMessage}</p> : null}
     </details>
   </div>;
 }
@@ -122,7 +134,7 @@ export function CaseAgents({ caseId, initialRunId, closed }: { caseId: string; i
   return <Panel><CardHeader title="Investigation agents" description="Load evidence → retrieve policy → draft → verify → human review. Drafts, receipts and steps are saved with the case." />
     <Button onClick={start} disabled={closed || active || !profile || !["admin","analyst","investigator","reviewer"].includes(profile.role)}>Draft with investigation agents</Button>
     {error ? <Callout tone="bad" role="alert">{error}</Callout> : null}
-    <RunReceipt run={run}/>
+    <RunReceipt key={`${run?.id}:${run?.status}`} run={run}/>
     {run && ["queued","running","failed"].includes(run.status) ? <Button variant="ghost" onClick={recover} disabled={busy}>Recover interrupted run</Button> : null}
     {run?.status === "awaiting_review" && !closed ? <div className="mt-4 flex flex-col gap-3">
       <Field label="Agent review decision">{p=><Select {...p} value={action} onChange={e=>setAction(e.target.value)}>
@@ -153,7 +165,7 @@ export function BatchAgents() {
     <Field label="Analysis batch">{p=><Select {...p} value={chosen} onChange={e=>setBatch(e.target.value)}><option value="">Choose an uploaded batch</option>{batches.data?.items.filter(r=>["completed","completed_with_errors"].includes(r.status)).map(r=><option key={r.id} value={r.id}>{r.source_files?.filename ?? r.id} · {r.accepted_count} accepted</option>)}</Select>}</Field>
     <Field label="Governance mode">{p=><Select {...p} value={mode} onChange={e=>setMode(e.target.value)}><option value="strict">Strict — stop on quality failures</option><option value="exploratory">Exploratory — retain quality caveats</option></Select>}</Field>
     <Button onClick={start} disabled={!chosen || busy || !!run && ["queued","running"].includes(run.status) || !["admin","analyst"].includes(profile.role)}>Run analysis agents</Button>
-    {error || batches.error ? <Callout tone="bad">{error || batches.error}</Callout> : null}<RunReceipt run={run}/>
+    {error || batches.error ? <Callout tone="bad">{error || batches.error}</Callout> : null}<RunReceipt key={`${run?.id}:${run?.status}`} run={run}/>
   </div>;
 }
 
@@ -175,7 +187,7 @@ export function LiveAgentCopilot() {
       <Field label="Copilot case">{p=><Select {...p} value={chosen} onChange={e=>setCid(e.target.value)}><option value="">Choose an open case</option>{cases.data?.items.filter(c=>c.status!=="closed").map(c=><option value={c.id} key={c.id}>{c.title}</option>)}</Select>}</Field>
       <Field label="Policy question">{p=><TextArea {...p} rows={3} value={question} onChange={e=>setQuestion(e.target.value)} placeholder="What should a reviewer document before escalating an alert?"/>}</Field>
       <Button onClick={send} disabled={!chosen || question.trim().length<3 || busy || !!run && ["queued","running"].includes(run.status)}>Ask investigation copilot</Button>
-      {error || cases.error ? <Callout tone="bad">{error || cases.error}</Callout> : null}<RunReceipt run={run}/>
+      {error || cases.error ? <Callout tone="bad">{error || cases.error}</Callout> : null}<RunReceipt key={`${run?.id}:${run?.status}`} run={run}/>
     </div>
   </Panel>;
 }

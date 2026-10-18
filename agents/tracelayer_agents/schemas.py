@@ -27,6 +27,7 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     Field,
+    ValidationInfo,
     field_validator,
     model_validator,
 )
@@ -427,6 +428,19 @@ class NarrativeSynthesis(Contract):
     follow_up_questions: list[str] = Field(
         default_factory=list, max_length=NARRATIVE_MAX_SYNTHESIS_ITEMS
     )
+
+
+    @model_validator(mode="after")
+    def synthesis_cannot_restate_numbers(self, info: ValidationInfo):
+        # Only model-authored prose is restricted. The deterministic template may quote
+        # computed facts; checkpoint deserialization must preserve historical receipts.
+        if (info.context or {}).get("source") == "ollama":
+            prose = [self.summary, *self.uncertainties, *self.follow_up_questions,
+                     *(h.text for h in self.hypotheses)]
+            numeric = r"[\d$€£¥]|\b(?:USD|EUR|GBP|JPY|CAD|AUD|CHF|CNY|INR|dollars?|euros?|pounds?|yen|rupees?|cents?|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundreds?|thousands?|millions?|billions?|trillions?|dozens?|halves|half|quarters?|twice|double|triple|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\b"
+            if any(re.search(numeric, text, re.IGNORECASE) for text in prose):
+                raise ValueError("Model prose must not include amounts, identifiers, dates or counts; use fact_refs only")
+        return self
 
 
 class PolicyClaim(Contract):

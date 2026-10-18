@@ -287,6 +287,10 @@ class Audit:
     def append(self, event):
         # Parallel detector nodes share this adapter; serialize head read + append per run.
         with self.ctx.lock:
+            if event.action.count('.') > 1:
+                namespace, action = event.action.split('.', 1)
+                event = event.model_copy(update={'action':namespace+'.'+action.replace('.', '_'),
+                    'metadata':{**event.metadata,'workflow_action':event.action}})
             prev = self.last_hash()
             event = event.model_copy(update={'prev_hash':prev, 'hash':api.hash_event(event,prev)})
             return C.AuditEvent.model_validate(self.ctx.rpc('append_agent_receipt', p_event=event.model_dump(mode='json')))

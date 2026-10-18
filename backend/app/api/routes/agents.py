@@ -75,3 +75,17 @@ def recover(run_id:UUID,jobs:BackgroundTasks,user:CurrentUser=Depends(CAN_INVEST
     claimed=runs.claim(user,str(run_id),resume=row['status']!='queued')
     jobs.add_task(runs.execute,user,str(run_id),None,claimed,True)
     return runs.read(user,str(run_id))
+
+@router.get('/runs/{run_id}/audit-verification')
+def verify_audit(run_id:UUID,user:CurrentUser=Depends(ANY_USER)):
+    from fastapi import HTTPException
+    from app.core.db import get_db
+    from tracelayer_agents import api
+    runs.read(user,str(run_id))
+    response=get_db().table('agent_chain_receipts').select('event',count='exact').eq('tenant_id',user.tenant_id).eq(
+        'run_id',str(run_id)).order('sequence').limit(1000).execute()
+    if response.count is None:
+        raise HTTPException(502,'The database did not return a complete audit count')
+    if response.count>1000 or len(response.data)!=response.count:
+        raise HTTPException(422,'Audit chain exceeds the interactive verification cap')
+    return api.verify_events([api.contracts.AuditEvent.model_validate(r['event']) for r in response.data]).model_dump(mode='json')
