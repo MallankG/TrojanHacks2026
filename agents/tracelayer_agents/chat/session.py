@@ -6,7 +6,7 @@ around that evidence, clipped to the case time window. Every tool checks its arg
 this `CaseScope` before calling a service and filters what comes back to it, so a chat can never
 read another case's transactions or accounts. Tools receive the scope, never a case_id.
 
-Sessions live in memory (`ChatStore`); the audit trail is the durable record (TEAM_QUESTIONS).
+Sessions live in memory (`ChatStore`); the audit trail is the durable record.
 """
 
 from __future__ import annotations

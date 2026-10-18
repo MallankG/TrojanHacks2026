@@ -10,4 +10,4 @@ pinned: false
 
 TraceLayer FastAPI backend with the full model stack (XGBoost + temporal GNN) on a free CPU Space.
 The Dockerfile clones the private GitHub repo at build time with the `GITHUB_TOKEN` Space secret.
-Setup steps: DEPLOY.md in the main repo.
+Needs HF PRO: Docker Spaces on free CPU basic are paid since 2026.

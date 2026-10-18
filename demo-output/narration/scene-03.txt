@@ -1,1 +1,0 @@
-We audited published benchmarks and discovered a major future data leak. When frozen properly, the paper model crashed from forty-seven to twelve. We engineered strictly causal point-in-time features, achieving forty-five AUPRC on XGBoost and sixty-one on our temporal graph neural network.

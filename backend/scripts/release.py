@@ -15,7 +15,7 @@ PINNED = ["frontend/package-lock.json", "frontend/src/lib/seed/enterprise-demo.j
           "backend/app/services/canonical.py", "backend/app/services/quality.py", "backend/ml/tracelayer/features.py", "backend/ml/ibm/rules.py", "backend/ml/artifacts/tracelayer/model_card.json",
           "backend/ml/artifacts/tracelayer/xgboost.json", "backend/ml/artifacts/tracelayer/gnn.pt",
           "backend/ml/artifacts/tracelayer/isolation_forest.joblib", "backend/ml/artifacts/ibm/ibm_xgb_temporal.json",
-          "docs/trace_layer_prd.md", "backend/ml/data/manifest.json", "backend/policy-manifest.json", "backend/runtime-config-manifest.json"]
+          "backend/ml/data/manifest.json", "backend/policy-manifest.json", "backend/runtime-config-manifest.json"]
 
 
 def digest(path):

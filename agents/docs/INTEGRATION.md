@@ -976,7 +976,7 @@ or version:
 - `narrative_uuid(draft_hash)` gives the stable narrative uuid for a version, so the edit's
   `parent_narrative_id` resolves.
 - Suggested backend change: add `draft_hash text`, `version int` and `sections jsonb` to
-  `case_narratives` (TEAM_QUESTIONS backend).
+  `case_narratives`.
 
 **Where your schema cannot hold our original id** (`UNHOLDABLE_ORIGINAL_IDS`):
 - `CitationIn.policy_chunk_id`: there is no text field, and it is an FK to `policy_chunks`.
@@ -986,7 +986,6 @@ or version:
   the uuid columns are FKs, so a uuid5 only resolves if your ingestion uses the same mapping.
 - Route params `case_id` / `run_id` / `narrative_id`.
 
-See TEAM_QUESTIONS.md, Backend 13–19.
 
 ## 7. Limitations
 
@@ -994,9 +993,9 @@ See TEAM_QUESTIONS.md, Backend 13–19.
   cases, drafts and audit events live in process memory and are lost on restart. Pass real
   `CaseRepository` / `AuditRepository` implementations to fix that.
 - **Paused cases are in memory.** The case checkpointer is LangGraph's `MemorySaver`, so a case
-  drafted before a restart can't be decided after it (TEAM_QUESTIONS backend Q7).
+  drafted before a restart can't be decided after it.
 - **Traces** for `get_trace` are kept in memory for the last 50 runs only.
 - **Chat sessions are in memory** (lost on restart and on `api.configure()`); the case audit trail
-  is the durable record of every turn (TEAM_QUESTIONS backend Q on chat persistence).
+  is the durable record of every turn.
 - **Single process.** Run one uvicorn worker. Multiple workers would each hold their own services,
   checkpointer and traces, and the audit chain doesn't support concurrent writers.
