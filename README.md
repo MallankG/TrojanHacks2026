@@ -106,10 +106,9 @@ npm run dev                          # http://localhost:3000
 
 ## Deploy (free tiers)
 
-Step-by-step guide: **[DEPLOY.md](DEPLOY.md)**. In short: frontend on Vercel, backend with every model on a
-free Hugging Face Docker Space (`deploy/huggingface/`, 16 GB RAM), LLM on Groq's free tier
-(`LLM_PROVIDER=groq`), Supabase as is. Render's free 512 MB tier (`render.yaml`) also works, but without the
-trained models.
+Step-by-step guide: **[DEPLOY.md](DEPLOY.md)**. In short: frontend on Vercel, backend on Render's free tier
+(`render.yaml`, without the trained models: 512 MB), LLM on Groq's free tier (`LLM_PROVIDER=groq`), Supabase as
+is. The full model stack needs ≥ 1 GB RAM: a Hugging Face Docker Space (`deploy/huggingface/`, needs HF PRO).
 
 ## ML layout (`backend/ml/`)
 
