@@ -51,6 +51,24 @@ def gnn_edge_features(e):
     return ef
 
 
+_GOLD = -7046029254386353131  # 0x9E3779B97F4A7C15 as signed int64
+_M1, _M2 = -4658895280553007687, -7723592293110705685  # splitmix64 multipliers as signed int64
+
+
+def _srl(x, k):
+    """Logical right shift on int64 tensors (torch >> is arithmetic)."""
+    return (x >> k) & ((1 << (64 - k)) - 1)
+
+
+def uniform_hash(x):
+    """splitmix64 finaliser -> uniform [0, 1) floats; int64 arithmetic wraps, so this is exact and portable."""
+    x = x + _GOLD
+    x = (x ^ _srl(x, 30)) * _M1
+    x = (x ^ _srl(x, 27)) * _M2
+    x = x ^ _srl(x, 31)
+    return _srl(x, 11).double() / float(1 << 53)
+
+
 class SplitGraph:
     """Edges [0, n_visible) of the time-sorted edge list, with an incident-edge CSR on the device."""
 
@@ -80,20 +98,26 @@ class SplitGraph:
         out = torch.searchsorted(self.key_out, nodes * n + cap) - self.rowptr_out[nodes]
         return torch.stack([torch.log1p((tot - out).float()), torch.log1p(out.float())], 1) / 5
 
-    def sample_rows(self, nodes, k, gen, caps):
+    def sample_rows(self, nodes, k, gen, caps, salt=None):
         """k incident edges per node (with replacement), each node with its own cap (edge id < caps[i]).
+
+        With `salt` (one int64 per node), draws are a pure function of (salt, slot) instead of the shared
+        generator, so a node's sample does not depend on what else is in the batch.
         Returns (edge ids, row index into `nodes` that each edge was sampled for)."""
         start = self.rowptr[nodes]
         deg = torch.searchsorted(self.key, nodes * self.n_edges + caps) - start
         rows = torch.nonzero(deg > 0).flatten()
-        off = (torch.rand(len(rows), k, device=nodes.device, generator=gen) * deg[rows, None]).long()
+        if salt is None:
+            u = torch.rand(len(rows), k, device=nodes.device, generator=gen)
+        else:
+            slots = torch.arange(k, device=nodes.device, dtype=torch.int64)
+            u = uniform_hash(salt[rows, None] ^ (slots * _GOLD))
+        off = (u * deg[rows, None]).long()
         return self.inc[(start[rows, None] + off).flatten()], rows.repeat_interleave(k)
 
-    def sample(self, nodes, k, gen, max_eid=None):
-        """k incident edges per node, with replacement; with max_eid only edges whose id < max_eid (strictly earlier)."""
+    def sample(self, nodes, k, gen):
+        """k incident edges per node, with replacement (non-temporal batches and the explainer)."""
         start, deg = self.rowptr[nodes], self.rowptr[nodes + 1] - self.rowptr[nodes]
-        if max_eid is not None:
-            deg = torch.searchsorted(self.key, nodes * self.n_edges + max_eid) - start
         has = deg > 0
         start, deg = start[has], deg[has]
         off = (torch.rand(len(deg), k, device=deg.device, generator=gen) * deg[:, None]).long()
@@ -137,6 +161,7 @@ class Data:
         self.src, self.dst = torch.as_tensor(src, device=device), torch.as_tensor(dst, device=device)
         self.node_x, self.edge_x = torch.as_tensor(node_x, device=device), torch.as_tensor(edge_x, device=device)
         self.n_nodes, self.device, self.fanout, self.ego, self.temporal = len(node_x), device, fanout, ego, temporal
+        self.sample_seed = None  # set by predict(): deterministic per-target sampling in eval/serve
         # temporal cap = first edge id sharing the earliest target's timestamp, so same-minute edges are excluded too
         self.first_same_ts = None if ts is None else torch.as_tensor(np.searchsorted(ts, ts, side="left"), device=device)
 
@@ -173,9 +198,12 @@ class Data:
         b = torch.arange(B, device=seeds.device)
         keys = torch.unique(torch.cat([b * n + self.src[seeds], b * n + self.dst[seeds]]))
         pairs = []
-        for k in self.fanout:
+        for hop, k in enumerate(self.fanout):
             owner, node = keys // n, keys % n
-            eids, row = g.sample_rows(node, k, gen, caps[owner])
+            salt = None
+            if self.sample_seed is not None:  # eval/serve: draws depend only on (seed, target edge, hop, node, slot)
+                salt = (self.sample_seed ^ (seeds[owner] * _GOLD) ^ (hop << 32)) * _M1 ^ node
+            eids, row = g.sample_rows(node, k, gen, caps[owner], salt)
             own = owner[row]
             pairs.append(own * g.n_edges + eids)
             keys = torch.unique(torch.cat([keys, own * n + self.src[eids], own * n + self.dst[eids]]))
@@ -209,11 +237,15 @@ def predict(model, data, g, rows, bs=4096, seed=0):
     gen = torch.Generator(device=data.device).manual_seed(seed)
     if data.temporal:
         bs = min(bs, 512)  # per-target subgraphs are not shared, so keep batches moderate for memory
+        data.sample_seed = seed
     out = []
-    for i in range(0, len(rows), bs):
-        seeds = torch.as_tensor(rows[i:i + bs], device=data.device)
-        with torch.autocast(data.device.type, dtype=torch.bfloat16, enabled=AMP):
-            out.append(torch.sigmoid(model(*data.batch(g, seeds, gen)).float()).cpu())
+    try:
+        for i in range(0, len(rows), bs):
+            seeds = torch.as_tensor(rows[i:i + bs], device=data.device)
+            with torch.autocast(data.device.type, dtype=torch.bfloat16, enabled=AMP):
+                out.append(torch.sigmoid(model(*data.batch(g, seeds, gen)).float()).cpu())
+    finally:
+        data.sample_seed = None
     return torch.cat(out).numpy()
 
 
@@ -252,11 +284,7 @@ def main(data_dir, out=None, epochs=30, patience=5, bs=2048, neg_frac=0.25, seed
         model.train()
         t1 = time.time()
         rows = rng.permutation(np.r_[pos, rng.choice(neg, int(neg_frac * len(neg)), replace=False)])
-        if temporal:  # time-contiguous batches (the cap is each batch's earliest seed), in shuffled order
-            rows = np.sort(rows)
-            starts = rng.permutation(np.arange(0, len(rows), bs))
-        else:
-            starts = np.arange(0, len(rows), bs)
+        starts = np.arange(0, len(rows), bs)  # per-target caps: batch composition does not matter
         tot = 0.0
         for i in starts:
             seeds = torch.as_tensor(rows[i:i + bs], device=dev)
@@ -323,11 +351,19 @@ class IBMGNNScorer:
 
     def score(self, edges, accounts, rows=None):
         e = edges.reset_index(drop=True).assign(ts=lambda d: pd.to_datetime(d["ts"]))
-        order = np.argsort(e["ts"].to_numpy(), kind="stable")
+        # canonical order (time, then the row's own fields): edge ids, and so the hashed sampling, must not
+        # depend on how the caller ordered same-timestamp rows
+        keys = [c for c in ("ts", "src", "dst", "amt_paid", "amt_recv", "cur_paid", "cur_recv", "fmt") if c in e]
+        order = np.lexsort([e[c].to_numpy() for c in reversed(keys)])
         e = e.iloc[order].reset_index(drop=True)
         sorted_pos = np.empty_like(order)
         sorted_pos[order] = np.arange(len(order))
-        rows = np.arange(len(e)) if rows is None else np.asarray(rows)
+        if rows is None:
+            rows = np.arange(len(e))
+        else:
+            rows = np.asarray(rows)
+            if rows.dtype.kind not in "iu" or rows.ndim != 1 or (len(rows) and (rows.min() < 0 or rows.max() >= len(e))):
+                raise ValueError(f"rows must be integer positions in 0..{len(e) - 1}")
         ids = pd.Index(pd.unique(np.r_[accounts["Account Number"].to_numpy(), e["src"].to_numpy(), e["dst"].to_numpy()]))
         ent = accounts.drop_duplicates("Account Number").set_index("Account Number")["Entity Name"].str.replace(r" #.*", "", regex=True).reindex(ids)
         node_x = np.column_stack([(ent == t).to_numpy(float) for t in self.ck["entity_types"]]).astype(np.float32)
@@ -348,7 +384,7 @@ if __name__ == "__main__":
     ap.add_argument("--hidden", type=int, default=64)
     ap.add_argument("--pos-weight", type=float, default=5.0)
     ap.add_argument("--neg-frac", type=float, default=0.25)
-    ap.add_argument("--bs", type=int, default=2048)
+    ap.add_argument("--bs", type=int, default=None, help="default 2048, or 512 with --temporal (per-target subgraphs)")
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--fanout", type=int, nargs="+", default=[20, 8])
     ap.add_argument("--ego", action="store_true")
@@ -357,5 +393,5 @@ if __name__ == "__main__":
     ap.add_argument("--temporal", action="store_true", help="PRD-strict: message passing only over edges strictly before each batch")
     ap.add_argument("--tag", default="gnn", help="artifact name: ibm_<tag>.pt / _results.json / _scores.npz")
     a = ap.parse_args()
-    main(a.data, a.out, epochs=a.epochs, patience=a.patience, bs=a.bs, neg_frac=a.neg_frac, hidden=a.hidden, lr=a.lr,
+    main(a.data, a.out, epochs=a.epochs, patience=a.patience, bs=a.bs or (512 if a.temporal else 2048), neg_frac=a.neg_frac, hidden=a.hidden, lr=a.lr,
          pos_weight=a.pos_weight, fanout=a.fanout, ego=a.ego, tag=a.tag, seed=a.seed, temporal=a.temporal)

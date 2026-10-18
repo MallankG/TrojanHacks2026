@@ -30,11 +30,28 @@ def test_each_target_sees_only_edges_before_its_own_timestamp():
 
 
 def test_target_context_does_not_depend_on_batch_mates():
+    """Eval/serve sampling is a pure function of (seed, target, hop, node, slot): adding a batch-mate that
+    has its own earlier history must not change the target's sampled edges or its score."""
     D, g = make()
-    alone = D.temporal_parts(g, torch.tensor([3000]), torch.Generator().manual_seed(1))
-    with_early = D.temporal_parts(g, torch.tensor([3000, 10]), torch.Generator().manual_seed(1))
-    cap_alone, cap_batched = alone[3][0], with_early[3][0]
-    assert cap_alone == cap_batched  # old behaviour capped the whole batch at edge 10's time
+    D.sample_seed = 0
+    gen = torch.Generator().manual_seed(1)
+    _, past1, own1, caps1 = D.temporal_parts(g, torch.tensor([3000]), gen)
+    _, past2, own2, caps2 = D.temporal_parts(g, torch.tensor([2000, 3000]), gen)
+    assert len(past2[own2 == 0]) > 0  # the batch-mate really does sample its own earlier edges
+    assert set(past1[own1 == 0].tolist()) == set(past2[own2 == 1].tolist()) and caps1[0] == caps2[1]
+    model = EdgeGATv2(6 + 2 + 1, 16).eval()
+    with torch.no_grad():
+        alone = model(*D.batch(g, torch.tensor([3000]), gen))
+        batched = model(*D.batch(g, torch.tensor([2000, 3000]), gen))
+    assert torch.allclose(alone[0], batched[1], atol=1e-5)
+
+
+def test_uniform_hash_is_uniform_and_deterministic():
+    from ml.ibm.gnn import uniform_hash
+    x = torch.arange(100_000, dtype=torch.int64)
+    u = uniform_hash(x)
+    assert torch.equal(u, uniform_hash(x)) and float(u.min()) >= 0 and float(u.max()) < 1
+    assert abs(float(u.mean()) - 0.5) < 0.01 and abs(float((u < 0.1).float().mean()) - 0.1) < 0.01
 
 
 def test_batch_runs_through_model():

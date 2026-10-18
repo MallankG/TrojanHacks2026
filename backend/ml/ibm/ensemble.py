@@ -5,6 +5,11 @@ Each model's raw score is mapped to its percentile within that model's stored VA
 distributions are frozen at training time, so a single new transaction can be scored (servable, not
 transductive). The weight is chosen on validation AUPRC; test is scored once.
 
+Caveat: the committed ref distributions, weight and threshold were built from gnn_temporal scores evaluated
+with per-BATCH temporal caps (Colab). Live IBMGNNScorer now uses per-TARGET caps with deterministic sampling,
+so EnsembleScorer reproduces the saved test scores only when fed the saved GNN scores. Rebuild
+ref/weight/threshold after the gnn_temporal per-target re-eval (RUNS.md follow-up queue).
+
     python -m ml.ibm.ensemble --models gnn_temporal xgb_temporal --out ml/artifacts/ibm
     # serving:  EnsembleScorer("gnn_temporal", "xgb_temporal").blend(gnn_scores, xgb_scores)
 """

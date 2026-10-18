@@ -30,7 +30,7 @@ Mondrian conformal coverage ≈ 0.90, set size ≈ 1.
 
 Cancelled (Colab work stopped by the user): the pre-fix seed runs gnn_s1, gnn_s2, gnn_v2_s1, gnn_v2_s2 and the post-fix gnn_temporal_s1, gnn_temporal_s2. All GNN results are single-seed (seed 7).
 
-Follow-up queue (needs Colab): re-evaluate gnn_temporal with per-target temporal caps (gnn.py after the PR #6 review) and re-pick its threshold; recompute typology_recall for the servable ensemble.
+Follow-up queue (needs Colab): re-evaluate gnn_temporal with per-target temporal caps and deterministic sampling (gnn.py after the PR #6/#12 reviews) and re-pick its threshold; then rerun `ml.ibm.ensemble --models gnn_temporal xgb_temporal` to rebuild the ensemble ref/weight/threshold, rerun conformal, and recompute typology_recall.
 
 ## Rebuild on fixed code (2026-10-18, fresh T4 runtime; commits b3a4d1e + 3dc030e + 4112bca)
 Runtime recycled during the pause, so earlier artifacts (except gnn v1, tuned xgb, first rules/IF) were lost; numbers above stand under the old code.
