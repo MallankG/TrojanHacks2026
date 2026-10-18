@@ -80,6 +80,15 @@ class SplitGraph:
         out = torch.searchsorted(self.key_out, nodes * n + cap) - self.rowptr_out[nodes]
         return torch.stack([torch.log1p((tot - out).float()), torch.log1p(out.float())], 1) / 5
 
+    def sample_rows(self, nodes, k, gen, caps):
+        """k incident edges per node (with replacement), each node with its own cap (edge id < caps[i]).
+        Returns (edge ids, row index into `nodes` that each edge was sampled for)."""
+        start = self.rowptr[nodes]
+        deg = torch.searchsorted(self.key, nodes * self.n_edges + caps) - start
+        rows = torch.nonzero(deg > 0).flatten()
+        off = (torch.rand(len(rows), k, device=nodes.device, generator=gen) * deg[rows, None]).long()
+        return self.inc[(start[rows, None] + off).flatten()], rows.repeat_interleave(k)
+
     def sample(self, nodes, k, gen, max_eid=None):
         """k incident edges per node, with replacement; with max_eid only edges whose id < max_eid (strictly earlier)."""
         start, deg = self.rowptr[nodes], self.rowptr[nodes + 1] - self.rowptr[nodes]
@@ -152,25 +161,43 @@ class Data:
         return x, ei, self.edge_x[eids], target
 
 
-    def _temporal_batch(self, g, seeds, gen):
-        """PRD-strict: message-passing edges all have id < the batch's earliest target (edges are time-sorted).
-        Targets are appended after them and excluded from message passing via n_mp, so no target sees
-        another target or anything later."""
-        cap = seeds.min() if self.first_same_ts is None else self.first_same_ts[seeds.min()]
-        nodes = torch.unique(torch.cat([self.src[seeds], self.dst[seeds]]))
-        past = []
+    def temporal_parts(self, g, seeds, gen):
+        """Per-target strict subgraphs, built as one disjoint union.
+
+        Each target b gets its own copy of every node it touches (key = b * n_nodes + node), and every edge
+        sampled for it has id < its own cap (first edge sharing its timestamp). A target's score therefore
+        depends only on strictly earlier edges, never on its batch-mates. Returns
+        (node_keys, past_eids, past_owner, caps)."""
+        caps = seeds if self.first_same_ts is None else self.first_same_ts[seeds]
+        n, B = self.n_nodes, len(seeds)
+        b = torch.arange(B, device=seeds.device)
+        keys = torch.unique(torch.cat([b * n + self.src[seeds], b * n + self.dst[seeds]]))
+        pairs = []
         for k in self.fanout:
-            new = g.sample(nodes, k, gen, cap)
-            past.append(new)
-            nodes = torch.unique(torch.cat([nodes, self.src[new], self.dst[new]]))
-        past = torch.unique(torch.cat(past)) if past else seeds[:0]
+            owner, node = keys // n, keys % n
+            eids, row = g.sample_rows(node, k, gen, caps[owner])
+            own = owner[row]
+            pairs.append(own * g.n_edges + eids)
+            keys = torch.unique(torch.cat([keys, own * n + self.src[eids], own * n + self.dst[eids]]))
+        pairs = torch.unique(torch.cat(pairs)) if pairs else seeds[:0]
+        return keys, pairs % g.n_edges, pairs // g.n_edges, caps
+
+    def _temporal_batch(self, g, seeds, gen):
+        """PRD-strict: per-target caps (see temporal_parts). Targets are appended after the past edges and
+        excluded from message passing via n_mp, so no target sees another target or anything at/after its time."""
+        n = self.n_nodes
+        _, past, owner, caps = self.temporal_parts(g, seeds, gen)
+        b = torch.arange(len(seeds), device=seeds.device)
+        e_owner = torch.cat([owner, b])
         eids = torch.cat([past, seeds])
-        nid, local = torch.unique(torch.cat([self.src[eids], self.dst[eids]]), return_inverse=True)
+        ends = torch.cat([e_owner * n + self.src[eids], e_owner * n + self.dst[eids]])
+        nkey, local = torch.unique(ends, return_inverse=True)
         ei = local.view(2, -1)
         target = torch.arange(len(past), len(eids), device=seeds.device)
-        x = torch.cat([self.node_x[nid], g.deg_before(nid, cap)], 1)
+        node, node_owner = nkey % n, nkey // n
+        x = torch.cat([self.node_x[node], g.deg_before(node, caps[node_owner])], 1)
         if self.ego:
-            flag = torch.zeros(len(nid), 1, device=x.device)
+            flag = torch.zeros(len(nkey), 1, device=x.device)
             flag[ei[:, target].flatten()] = 1
             x = torch.cat([x, flag], 1)
         return x, ei, self.edge_x[eids], target, len(past)
@@ -181,7 +208,7 @@ def predict(model, data, g, rows, bs=4096, seed=0):
     model.eval()
     gen = torch.Generator(device=data.device).manual_seed(seed)
     if data.temporal:
-        bs = min(bs, 512)  # the cap is the batch's earliest edge: small batches keep later rows' context fresh
+        bs = min(bs, 512)  # per-target subgraphs are not shared, so keep batches moderate for memory
     out = []
     for i in range(0, len(rows), bs):
         seeds = torch.as_tensor(rows[i:i + bs], device=data.device)
@@ -279,8 +306,11 @@ def main(data_dir, out=None, epochs=30, patience=5, bs=2048, neg_frac=0.25, seed
 class IBMGNNScorer:
     """Serve the trained GNN. `edges` must hold the history the target rows are judged against.
 
-        scorer = IBMGNNScorer()
-        scorer.score(edges, accounts, rows=[...])  # edges: ts, src, dst, amt_paid, amt_recv, cur_paid, cur_recv, fmt
+        scorer = IBMGNNScorer(name="gnn_temporal")
+        scorer.score(edges, accounts, rows=[...])  # rows = positions in `edges`, as in IBMScorer / TraceLayerScorer
+    edges: ts, src, dst, amt_paid, amt_recv, cur_paid, cur_recv, fmt (any order; sorted by time internally).
+    Temporal checkpoints score each row from strictly earlier edges only (per-row cap), so a row's score does
+    not depend on which other rows are scored with it.
     """
 
     def __init__(self, artifact_dir=Path(__file__).parent.parent / "artifacts" / "ibm", device="cpu", name="gnn"):
@@ -292,10 +322,12 @@ class IBMGNNScorer:
         self.threshold = json.loads((d / f"ibm_{name}_results.json").read_text())["operating_threshold"]
 
     def score(self, edges, accounts, rows=None):
-        e = edges.assign(ts=pd.to_datetime(edges["ts"])).sort_values("ts", kind="stable")
-        orig = e.index.to_numpy()
-        e = e.reset_index(drop=True)
-        rows = np.arange(len(e)) if rows is None else np.flatnonzero(np.isin(orig, rows))
+        e = edges.reset_index(drop=True).assign(ts=lambda d: pd.to_datetime(d["ts"]))
+        order = np.argsort(e["ts"].to_numpy(), kind="stable")
+        e = e.iloc[order].reset_index(drop=True)
+        sorted_pos = np.empty_like(order)
+        sorted_pos[order] = np.arange(len(order))
+        rows = np.arange(len(e)) if rows is None else np.asarray(rows)
         ids = pd.Index(pd.unique(np.r_[accounts["Account Number"].to_numpy(), e["src"].to_numpy(), e["dst"].to_numpy()]))
         ent = accounts.drop_duplicates("Account Number").set_index("Account Number")["Entity Name"].str.replace(r" #.*", "", regex=True).reindex(ids)
         node_x = np.column_stack([(ent == t).to_numpy(float) for t in self.ck["entity_types"]]).astype(np.float32)
@@ -304,8 +336,8 @@ class IBMGNNScorer:
         D = Data(ids.get_indexer(e["src"]), ids.get_indexer(e["dst"]), node_x, edge_x, self.device, tuple(self.ck["fanout"]), self.ck.get("ego", False), self.ck.get("temporal", False),
                  e["ts"].to_numpy() if self.ck.get("temporal", False) else None)
         g = SplitGraph(D.src, D.dst, D.n_nodes, np.arange(len(e)), self.device)
-        p = predict(self.model, D, g, rows)
-        return pd.DataFrame({"row": orig[rows], "gnn_score": p, "gnn_flagged": p >= self.threshold}).set_index("row")
+        p = predict(self.model, D, g, sorted_pos[rows])
+        return pd.DataFrame({"gnn_score": p, "gnn_flagged": p >= self.threshold}, index=pd.Index(rows, name="row"))
 
 
 if __name__ == "__main__":
