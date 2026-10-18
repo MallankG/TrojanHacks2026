@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     case_exports_bucket: str = "case-exports"
     model_artifacts_bucket: str = "model-artifacts"
 
+    # Default internal review SLA for new cases (demo setting, not a legal obligation).
+    case_review_sla_hours: int = Field(default=72, ge=1, le=24 * 90)
+
     canonical_schema_version: str = "canonical-txn-v1"
     pipeline_version: str = "ingest-pipeline-1.0.0"
 

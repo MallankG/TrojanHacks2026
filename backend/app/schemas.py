@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 Typology = Literal[
     "rapid_in_out", "layering", "mule_network", "funnel", "fan_out", "cycle", "structuring",
@@ -149,6 +149,12 @@ class CaseUpdate(Body):
     status: Literal["open", "in_review", "pending_review"] | None = None
     priority_band: PriorityBand | None = None
     assigned_to: UUID | None = None
+    # Internal review SLA (a demo setting, not a legal deadline). Must carry a timezone; stored in UTC.
+    due_at: AwareDatetime | None = None
+
+
+class EscalationRequestIn(Body):
+    reason: str = Field(min_length=1, max_length=4000)
 
 
 class CaseAlertsAdd(Body):
