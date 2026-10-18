@@ -154,7 +154,7 @@ def _apply_case_boundary(request: Request, user: CurrentUser) -> CurrentUser:
             if row:
                 case_id = row["case_id"]
     if case_id:
-        action = "export" if request.url.path.endswith("/export-url") else "read" if request.method == "GET" else "write"
+        action = "export" if request.url.path.rstrip("/").endswith(("/export-url", "/evidence-export", "/exports")) else "read" if request.method == "GET" else "write"
         _, policy, _ = require_case(user, case_id, action)
         if action == "export":
             check_egress("supabase", policy["region"], policy["classification"], False)

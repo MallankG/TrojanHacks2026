@@ -185,3 +185,12 @@ create policy "Tenant source reads" on storage.objects for select to authenticat
  using(bucket_id='source-files' and split_part(name,'/',1)=(select private.current_tenant_id())::text);
 create policy "Case scoped export reads" on storage.objects for select to authenticated
  using(bucket_id='case-exports' and private.enterprise_export_visible(name));
+
+-- PR8 stores complete package manifests in evidence_exports. They are protected
+-- exports too; tenant membership must not bypass case/export permissions.
+do $$ begin
+ if to_regclass('public.evidence_exports') is not null then
+  execute 'drop policy if exists "Tenant members can read evidence_exports" on public.evidence_exports';
+  execute 'create policy "Case scoped evidence export reads" on public.evidence_exports for select to authenticated using(private.enterprise_export_visible(storage_prefix))';
+ end if;
+end $$;
