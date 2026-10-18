@@ -36,7 +36,7 @@ export default function Home() {
             <ButtonLink href={ROUTES.signIn} variant="primary" className="px-6">
               Explore the live demo
             </ButtonLink>
-            <span className="text-[13px] text-sidebar-muted">Demo accounts for every role are on the sign-in page.</span>
+            <span className="text-[13px] text-sidebar-muted">Demo accounts for investigator, analyst, reviewer and data steward are on the sign-in page.</span>
           </div>
         </div>
 
