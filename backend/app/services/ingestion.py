@@ -241,10 +241,13 @@ def _process_rows(tenant_id: str, run_id: str, source_file: dict, headers: list[
     if get_settings().governance_contracts_enabled:
         from app.services.governance import Product, check_row
 
-        products = db.table("governance_products").select("definition").eq("tenant_id", tenant_id).eq(
+        products = db.table("governance_products").select("id, definition").eq("tenant_id", tenant_id).eq(
             "source_system", source_file["source_system"]
-        ).limit(1).execute().data
+        ).order("revision", desc=True).limit(1).execute().data
         if products:
+            db.table("ingestion_runs").update({"governance_product_id": products[0]["id"]}).eq(
+                "tenant_id", tenant_id
+            ).eq("id", run_id).execute()
             contract = Product.model_validate(products[0]["definition"]).contract
             now = datetime.now(UTC)
             for result in results:

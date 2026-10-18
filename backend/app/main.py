@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
 
-from app.api.routes import admin, alerts, cases, copilot, data_quality, entities, enterprise, graph, governance, ingestion, lineage, policy, scoring
+from app.api.routes import admin, alerts, cases, copilot, data_quality, entities, enterprise, graph, governance, governance_contracts, ingestion, lineage, policy, scoring
 from app.core.audit import request_id_var
 from app.core.config import get_settings
 from app.core.errors import install_error_handlers
@@ -55,5 +55,5 @@ def health_check() -> dict[str, str]:
     return {"status": "ok"}
 
 
-for module in (admin, ingestion, data_quality, entities, graph, scoring, alerts, cases, copilot, policy, lineage, governance, enterprise):
+for module in (admin, ingestion, data_quality, entities, graph, scoring, alerts, cases, copilot, policy, lineage, governance, governance_contracts, enterprise):
     app.include_router(module.router)

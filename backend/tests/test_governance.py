@@ -197,7 +197,7 @@ def test_ingestion_contract_quarantines_before_canonical_writes():
     raw = request.rows[0]
     raw.update({"origin_account": "ACC-ORIGIN", "channel": "wire", "timestamp": NOW.replace(tzinfo=None).isoformat()})
     db = MagicMock()
-    db.table.return_value.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = [{"definition": product.model_dump(mode="json")}]
+    db.table.return_value.select.return_value.eq.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = [{"id": ID, "definition": product.model_dump(mode="json")}]
     saved = {}
 
     def insert(table, rows):
@@ -206,6 +206,9 @@ def test_ingestion_contract_quarantines_before_canonical_writes():
 
     with patch.object(ingestion, "get_db", return_value=db), patch.object(ingestion, "get_settings", return_value=SimpleNamespace(governance_contracts_enabled=True)), patch.object(ingestion, "_existing_transaction_refs", return_value=set()), patch.object(ingestion, "insert_many", side_effect=insert), patch.object(ingestion, "_resolve_accounts", return_value={}) as accounts, patch.object(ingestion, "summarize_run", return_value={}):
         ingestion._process_rows(TENANT, ID, {"source_system": "demo-payments", "checksum_sha256": "a" * 64}, list(raw), {k: k for k in raw}, [raw], True)
+    product_query = db.table.return_value.select.return_value.eq.return_value.eq.return_value
+    product_query.order.assert_called_once_with("revision", desc=True)
+    db.table.return_value.update.assert_any_call({"governance_product_id": ID})
     assert saved["transactions"] == []
     assert saved["source_rows"][0]["status"] == "rejected"
     assert any(i["rule_id"] == "GOV-CONTRACT-001" for i in saved["data_quality_issues"])

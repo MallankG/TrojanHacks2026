@@ -122,3 +122,11 @@ attributes/case policies before rollout. Keep `CASE_AUTHORIZATION_ENABLED=true` 
 later disabled. See [the enterprise runbook](../docs/enterprise_runbook.md) for setup, API
 contracts, tests and prototype boundaries. Model/data monitoring pointers and snapshot formats
 are described in [the drift guide](../docs/drift_monitoring.md).
+
+Source-contract corrections use `POST /governance/products/{product_id}/replacements`
+with `{ "product": <complete corrected product>, "reason": "reviewed correction reason" }`.
+A steward must supply the same source system and a new contract version. The operation
+atomically appends an immutable revision and remediation receipt; concurrent or stale
+replacements return 409. The highest source revision governs future ingestion, and each
+run pins its exact product ID. Historical products, receipts and run pins remain unchanged.
+Apply `20261018000003_source_contract_versions.sql` before enabling this operation.
