@@ -4,9 +4,24 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+# `agents/.env` (gitignored; see `.env.example`). Loaded once at import, before anything reads the
+# env. Variables already set in the real environment win.
+ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+
+
+def load_env_file(path: Path = ENV_FILE) -> bool:
+    """Load `path` into `os.environ` without overriding variables that are already set. Returns
+    False if the file is missing."""
+    return load_dotenv(path, override=False)
+
+
+load_env_file()
 
 # Ollama budget for one structured LLM call (all attempts). Local models are slow on a laptop.
 DEFAULT_LLM_TIMEOUT_S = 120.0

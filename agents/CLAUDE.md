@@ -208,7 +208,8 @@ TRACELAYER_USE_MOCKS=1 pytest -q
 python -m tracelayer_agents.demo --scenario fan_out   # runs analysis + case graph end-to-end, prints trace
 ```
 
-Env (see `.env.example`): `LLM_PROVIDER=ollama|template`, `OLLAMA_HOST=http://localhost:11434`,
+Env (see `.env.example`; `agents/.env` is loaded at import by `config.py` via python-dotenv,
+never overriding variables already set in the real environment): `LLM_PROVIDER=ollama|template`, `OLLAMA_HOST=http://localhost:11434`,
 `OLLAMA_MODEL=qwen3.5:9b` (team model; unset = first model from `GET /api/tags`), `LLM_TIMEOUT_S=90`
 (code default 120; budget for the whole Ollama phase of one LLM call, then the template answers),
 `TRACELAYER_LLM_NODE_TIMEOUT_S` (LLM nodes `draft_narrative`/`copilot_answer`; default

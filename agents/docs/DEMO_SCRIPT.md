@@ -3,7 +3,7 @@
 Setup, once before going on stage (from `agents/`, venv active):
 
 ```bash
-set -a; source .env; set +a          # LLM_PROVIDER=ollama, OLLAMA_MODEL=qwen3.5:9b
+# agents/.env is loaded automatically (LLM_PROVIDER=ollama, OLLAMA_MODEL=qwen3.5:9b)
 ollama ps                            # model warm? if not: ollama run qwen3.5:9b "hi"
 python -m tracelayer_agents.demo --golden    # dry run; every step should print ok
 ```
