@@ -10,7 +10,7 @@ const { renderToStaticMarkup } = require('react-dom/server');
 function render(live) {
   const source = fs.readFileSync(path.join(__dirname, '../src/components/shell/app-shell.tsx'), 'utf8');
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
-  const module = { exports: {} };
+  const compiledModule = { exports: {} };
   const noop = () => null;
   const mock = {
     'next/navigation': { usePathname: () => '/graph', useRouter: () => ({ replace: noop }) },
@@ -23,8 +23,8 @@ function render(live) {
     './banners': { Banners: () => React.createElement('aside', null, 'seeded data hold'), CaseContextBar: () => React.createElement('aside', null, 'CASE-0412') },
     './sidebar': { Sidebar: noop }, './topbar': { Topbar: noop },
   };
-  new Function('require', 'module', 'exports', js)((id) => mock[id] ?? require(id), module, module.exports);
-  return renderToStaticMarkup(React.createElement(module.exports.AppShell, null, React.createElement('h1', null, 'Live graph')));
+  new Function('require', 'module', 'exports', js)((id) => mock[id] ?? require(id), compiledModule, compiledModule.exports);
+  return renderToStaticMarkup(React.createElement(compiledModule.exports.AppShell, null, React.createElement('h1', null, 'Live graph')));
 }
 
 test('live investigation never displays seeded case or data-hold context', () => {
