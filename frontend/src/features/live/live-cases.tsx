@@ -17,6 +17,7 @@ import { EmptyState, Skeleton } from "@/components/ui/misc";
 import { Pill } from "@/components/ui/pill";
 import { DataTable, Td, Th, Tr } from "@/components/ui/table";
 import { casesApi, sha256Hex } from "@/lib/live/api-cases";
+import { CaseAgents } from "./live-agents";
 import { LiveAudit } from "./live-audit";
 import { LiveData } from "./live-state";
 
@@ -66,7 +67,7 @@ export function LiveCaseEntries({ selectedId }: { selectedId: string }) {
               <Pill tone={CASE_TONE[c.status]} className="self-start">
                 {words(c.status)}
               </Pill>
-              <span className="text-xs text-muted">Owner {c.assignee?.display_name ?? "unassigned"}</span>
+              <span className="text-xs text-muted">Owner {c.assignee?.display_name ?? (c.assigned_to ? c.assigned_to === profile.id ? "You" : "Assigned colleague" : "unassigned")}</span>
             </Link>
           );
         })
@@ -138,7 +139,7 @@ export function LiveCaseDetail({ caseId }: { caseId: string }) {
             <CardHeader
               eyebrow="Live case"
               title={`${caseLabel(c.case_number)} · ${c.title}`}
-              description={`Opened ${utc(c.created_at)} · owner ${c.assignee?.display_name ?? "unassigned"}${c.due_at ? ` · review due ${utc(c.due_at)}` : ""}`}
+              description={`Opened ${utc(c.created_at)} · owner ${c.assignee?.display_name ?? (c.assigned_to ? c.assigned_to === profile.id ? "You" : "Assigned colleague" : "unassigned")}${c.due_at ? ` · review due ${utc(c.due_at)}` : ""}`}
               actions={
                 <>
                   <Pill tone={CASE_TONE[c.status]}>{words(c.status)}</Pill>
@@ -147,6 +148,7 @@ export function LiveCaseDetail({ caseId }: { caseId: string }) {
               }
             />
           </Panel>
+          <CaseAgents key={c.id} caseId={c.id} closed={c.status === "closed"} initialRunId={c.agent_runs.find(r => r.graph_name === "case_workflow" && r.managed)?.id} />
           <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
             <div className="flex flex-col gap-4">
               <Panel>
@@ -172,7 +174,7 @@ export function LiveCaseDetail({ caseId }: { caseId: string }) {
               <Panel>
                 <CardHeader title="Narratives" description="Drafted by the agent service and checked by its verifier before display." />
                 {c.narratives.length === 0 ? (
-                  <EmptyState title="No narrative drafted yet." description="The agent service writes drafts through POST /cases/{id}/narratives." />
+                  <EmptyState title="No narrative drafted yet." description="Use Investigation agents above to draft and verify this case." />
                 ) : (
                   <ul className="flex flex-col gap-1.5 text-[13.5px]">
                     {c.narratives.map((n) => (

@@ -111,6 +111,7 @@ async def draft_narrative(state: Mapping[str, Any], ctx: NodeContext) -> DraftNa
         "derived_facts": [f.model_dump(mode="json") for f in derived],
         "quality_caveats": [q.model_dump(mode="json") for q in bundle.quality_caveats],
         "chunks": [c.model_dump(mode="json") for c in chunks],
+        "limitations": bundle.limitations,
     }
     fact_claims = narrative_fact_claims(variables)
     # Compact prompt inputs.
@@ -124,7 +125,7 @@ async def draft_narrative(state: Mapping[str, Any], ctx: NodeContext) -> DraftNa
         "caveats": "\n".join(
             f"- {q.rule_id} ({q.severity}): {q.affected_rows} rows"
             for q in bundle.quality_caveats
-        ) or "(none)",
+        ) + "\n" + "\n".join(html.escape(x) for x in bundle.limitations) or "(none)",
         "source_titles": _source_titles(chunks),
         "verifier_feedback": _feedback(state),
     }

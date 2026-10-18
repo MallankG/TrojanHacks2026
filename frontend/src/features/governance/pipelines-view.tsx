@@ -16,7 +16,7 @@ export function PipelinesView() {
     <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(340px,1fr))]">
       <Card className="overflow-hidden">
         <div className="px-5 py-4">
-          <CardHeader title="Agent run AR-5521 · CASE-0412" description="Typed steps, persisted outputs, bounded retries. Agents cannot decide guilt or run raw SQL." />
+          <CardHeader title="Sample agent workflow · AR-5521 · CASE-0412" description="Illustrative workflow only. Live jobs appear in Pipeline runs above; open a case or Copilot for its saved steps and receipts." />
         </div>
         <DataTable caption="Agent steps">
           <thead>
@@ -43,7 +43,7 @@ export function PipelinesView() {
       </Card>
       <Card className="self-start overflow-hidden">
         <div className="px-5 py-4">
-          <CardHeader title="Graph sync runs" description="Supabase is the system of record; GraphBase syncs by watermark." />
+          <CardHeader title="Sample graph sync history" description="Illustrative synchronization history. The live graph engine queries canonical transactions from Supabase on request." />
         </div>
         <DataTable caption="Graph sync runs">
           <thead>

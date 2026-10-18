@@ -233,10 +233,10 @@ def pipelines(limit: int = Query(default=50, ge=1, le=RUN_LIMIT), user: CurrentU
         s = stats.get(run["id"], gov.EMPTY_SIGNALS)
         run.update(signal_count=s["signal_count"], triggered_count=s["triggered_count"], alert_count=alerts.get(run["id"], 0))
     agent_runs = get_db().table("agent_runs").select(
-        "id, case_id, graph_name, graph_version, status, current_step, steps, error_message, started_at, completed_at, created_at"
+        "id, case_id, ingestion_run_id, graph_name, graph_version, status, current_step, steps, error_message, started_at, completed_at, created_at"
     ).eq("tenant_id", tid).order("created_at", desc=True).limit(limit).execute().data or []
-    allowed_cases = authorized_case_ids(user, {r["case_id"] for r in agent_runs})
-    agent_runs = [r for r in agent_runs if r["case_id"] in allowed_cases]
+    allowed_cases = authorized_case_ids(user, {r["case_id"] for r in agent_runs if r["case_id"]})
+    agent_runs = [r for r in agent_runs if r["case_id"] in allowed_cases or (not r["case_id"] and r["ingestion_run_id"])]
     for run in agent_runs:
         steps = run.pop("steps", None)
         run["step_count"] = len(steps) if isinstance(steps, list) else 0

@@ -28,11 +28,17 @@ async def record_decision(state: Mapping[str, Any], ctx: NodeContext) -> RecordD
         after = before.model_copy(update={
             "status": status, "disposition": decision.action, "updated_at": datetime.now(UTC),
         })
-        cases.update_case(after)
+        apply_decision = getattr(cases, "apply_decision", None)
+        receipt = None
+        if apply_decision:
+            receipt = apply_decision(case_id, decision)
+        else:
+            cases.update_case(after)
         return audit.record(
             repo, action="case.decision", object_type="case", object_id=case_id,
             actor_id=decision.actor_id, actor_role=decision.actor_role, reason=decision.reason,
-            before_hash=sha256_json(before), after_hash=sha256_json(after),
+            before_hash=receipt["before_hash"] if receipt else sha256_json(before),
+            after_hash=receipt["after_hash"] if receipt else sha256_json(after),
             model_versions=alert.model_versions,
             prompt_version=draft.prompt_version if draft else None,
             metadata={

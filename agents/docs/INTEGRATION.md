@@ -5,6 +5,57 @@ frontend teammate consuming those endpoints. The backend imports **one module**,
 `tracelayer_agents.api` (also re-exported from `tracelayer_agents`). Everything else in the
 package is internal.
 
+## Live web application integration
+
+The web app now uses `api.AgentRuntime` with explicit run-local adapters in
+`backend/app/services/orchestration/`. This is separate from the standalone demo facade below.
+No live request calls global `configure()`, the mock registry, or golden fixtures. Every service
+must be supplied; forced mocks and precomputed execution are rejected.
+
+Apply `supabase/migrations/20261018000004_agent_orchestration.sql` before enabling these routes.
+The authenticated API returns a persisted job immediately, while the UI polls its saved status:
+
+| Route | Purpose |
+|---|---|
+| `POST /agents/analysis` | Analyze one completed ingestion batch; strict or exploratory governance |
+| `POST /agents/cases/{case_id}/draft` | Draft and verify an existing authorized case, then pause |
+| `POST /agents/cases/{case_id}/copilot` | Retrieve and verify policy guidance for an authorized case |
+| `GET /agents/runs/{run_id}` | Read authorized results and incremental node traces |
+| `GET /agents/runs/{run_id}/audit-verification` | Verify the complete saved per-run hash chain (up to 1,000 receipts) |
+| `POST /agents/runs/{run_id}/decision` | Resume with a server-authenticated human decision |
+| `POST /agents/runs/{run_id}/recover` | Recover an interrupted case job after its lease expires |
+
+Creation bodies contain a UUID `request_key`; analysis also takes `ingestion_run_id` and `mode`,
+copilot takes `question`. Decisions accept only `action` and `reason`; identity and role come from
+Supabase Auth. Final dispositions require a reviewer, verified draft and the existing four-eyes rule.
+Requesting more data records an immutable review without closing the case.
+
+Case checkpoints, pending writes, draft receipts, claims, sources, analysis evidence bundles and
+per-run audit chains live in Supabase. Private checkpoint tables are inaccessible to browser roles.
+Leases renew during long model calls; database triggers fence managed detector side effects. Case
+recovery continues saved nodes instead of restarting the draft. Recovery of a pending decision
+requires its original reviewer. Analysis/copilot jobs are bounded one-shot jobs: interrupted analysis
+outputs must be inspected before starting a new request; they are not automatically replayed.
+
+The live scorer reuses the backend's actual rules, robust anomaly baseline, optional XGBoost and
+versioned grouped priority policy. Graph risk returns `unavailable` until a trained graph model is
+served. Case evidence covers all attached canonical transactions, including manually pinned paths,
+and keeps batch-quality caveats. Policy retrieval uses shared/current-tenant curated chunks through
+keyword search; no embedding or model score is fabricated. The copilot provides policy guidance;
+verified transaction facts belong to the case draft.
+
+Use a local Ollama model installed on the backend host. `LLM_PROVIDER=template` selects the explicit
+deterministic fallback. Each draft/answer saves provider, model, prompt version, fallback flag and
+verifier results. Model-authored narrative prose cannot restate amounts, identifiers, dates or
+counts, including spelled-out quantities; computed fact claims retain their original values. Invalid
+model output uses the recorded deterministic fallback. Remote Ollama hosts are rejected by the live
+adapter's environment boundary.
+
+## Standalone demo facade
+
+The remaining examples describe the package's standalone demonstration API. Its default mocks,
+process-local traces and `MemorySaver` do not apply to the live web application runtime above.
+
 ## 1. Install
 
 From `backend/`, in the backend's virtualenv (Python **3.11+**):

@@ -1,8 +1,8 @@
 # TraceLayer backend (FastAPI + Supabase)
 
 Owns ingestion, data quality, lineage, case workflow, audit and the storage/read APIs for the
-model and agent services. It does **not** train models or call LLMs. Those workers write their
-results here through the API.
+model and agent services. It runs bounded detection and LangGraph workflows with a local Ollama
+model. Model training remains separate; workers can also write results through the API.
 
 ## Run
 
@@ -16,7 +16,7 @@ uvicorn main:app --reload
 
 Interactive docs: http://127.0.0.1:8000/docs. Tests: `python -m pytest -q`.
 
-Database schema lives in `../supabase/migrations` (already applied to the project).
+Database schema lives in `../supabase/migrations`; apply pending migrations before starting features that use them.
 
 ### Test the full system with the frontend
 
@@ -174,3 +174,28 @@ real PostgreSQL. This checks database behavior without contacting Supabase.
 ## Graph engine
 
 The live graph canvas is backed by authenticated `/graph/engine/analysis` operations. See [graph engine HTTP integration](../docs/graph_engine_http.md) for setup, limits and real HTTP verification.
+
+
+## Multi-agent investigation workflows
+
+Install requirements from `backend/` so the editable `../agents` dependency resolves. The deployed
+build context must include both folders. Apply migration `20261018000004_agent_orchestration.sql`
+and configure the local Ollama variables in `.env.example`. The backend loads its ignored `.env`;
+keep service-role credentials server-side.
+
+The Risk screen runs batch analysis through `/agents/analysis`; the live case workspace drafts,
+verifies and pauses through `/agents/cases/{id}/draft`; the Copilot screen uses
+`/agents/cases/{id}/copilot` for cited policy guidance. All jobs return immediately and expose
+persisted status at `/agents/runs/{id}`. Draft review uses `/agents/runs/{id}/decision`.
+`/agents/runs/{id}/recover` resumes an interrupted case after its execution lease expires. Original
+reviewer identity is required when recovering an already checkpointed human decision.
+
+Interactive analysis is capped at 500 canonical transactions per batch/case. Strict mode stops at
+critical quality failures; exploratory results retain caveats. Existing grouped priority fusion and
+component scores are preserved. Graph risk is explicitly unavailable until a trained model is served.
+No automatic filing, account action or final disposition occurs.
+
+User-journey verification should cover upload → strict/exploratory analysis → alert → case → draft →
+verifier receipt → restart backend → human decision, plus cited/no-answer copilot paths and role
+rejections. Production frontend builds and backend compilation validate packaging separately from
+browser checks. Automated tests were not run for this integration at the user's request.
