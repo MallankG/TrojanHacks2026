@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import admin, alerts, cases, copilot, data_quality, entities, graph, ingestion, lineage, policy, scoring
+from app.api.routes import entity_profile
 from app.core.audit import request_id_var
 from app.core.config import get_settings
 from app.core.errors import install_error_handlers
@@ -53,3 +54,4 @@ def health_check() -> dict[str, str]:
 
 for module in (admin, ingestion, data_quality, entities, graph, scoring, alerts, cases, copilot, policy, lineage):
     app.include_router(module.router)
+app.include_router(entity_profile.router)
