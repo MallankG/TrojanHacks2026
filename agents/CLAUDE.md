@@ -70,7 +70,8 @@ teammate instead.
 7. **Everything is replayable.** State carries `trace_id`, `ingestion_run_id`, `graph_snapshot_id`,
    `feature_schema_version`, model versions, `prompt_version`, and RAG `chunk_id`s. Audit events are
    append-only and hash-chained (`hash = sha256(prev_hash + canonical_json(event))`).
-8. **Graceful degradation.** LLM chain: Ollama → deterministic template (`tracelayer_agents/llm/client.py`).
+8. **Graceful degradation.** LLM chain: Ollama (local) or Groq (hosted; only when `groq` is in
+   `APPROVED_DATA_DESTINATIONS`) → deterministic template (`tracelayer_agents/llm/client.py`).
    Retry LLM JSON once with the validation error, then fall back. The demo must work with no network
    and with Ollama not running.
 9. **Config stays server-side.** LLM settings live only in the backend process env (the agents package
@@ -239,7 +240,7 @@ python -m tracelayer_agents.demo --scenario fan_out --chat   # case chat: 3 chip
 ```
 
 Env (see `.env.example`; `agents/.env` is loaded at import by `config.py` via python-dotenv,
-never overriding variables already set in the real environment): `LLM_PROVIDER=ollama|template`, `OLLAMA_HOST=http://localhost:11434`,
+never overriding variables already set in the real environment): `LLM_PROVIDER=ollama|groq|template` (groq: `GROQ_API_KEY`, `GROQ_MODEL`), `OLLAMA_HOST=http://localhost:11434`,
 `OLLAMA_MODEL=qwen3.5:9b` (team model; unset = first model from `GET /api/tags`), `LLM_TIMEOUT_S=90`
 (code default 120; budget for the whole Ollama phase of one LLM call, then the template answers),
 `TRACELAYER_LLM_NODE_TIMEOUT_S` (LLM nodes `draft_narrative`/`copilot_answer`; default

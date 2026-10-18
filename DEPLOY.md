@@ -6,7 +6,7 @@ Every service below is on its free tier; none of them needs a card.
 |---|---|---|
 | Frontend (Next.js) | **Vercel** Hobby | unlimited hobby projects |
 | Backend (FastAPI + all models: XGBoost, temporal GNN, ensemble) | **Hugging Face Space** (Docker, CPU basic) | 2 vCPU, 16 GB RAM; sleeps after 48 h without traffic |
-| LLM (case narratives, chat, copilot) | **Groq** API | `openai/gpt-oss-20b`: 30 requests/min, 1,000/day |
+| LLM (case narratives, chat, copilot) | **Groq** API | `openai/gpt-oss-20b`: 30 requests/min, 8K tokens/min, 1,000 requests/day |
 | Database, auth, storage | **Supabase** (already set up) | 500 MB DB; pauses after 7 days idle |
 
 Why Hugging Face for the backend: the model stack (torch + xgboost + artifacts) needs about 1 GB of RAM.
@@ -149,7 +149,13 @@ The repo is private, so the Space needs read access to clone it while it builds.
 - The Space sleeps after 48 hours without traffic. The next request wakes it (about 1–2 minutes).
   Open the `/health` URL a few minutes before a demo.
 - Supabase pauses a free project after 7 days without activity: Dashboard → **Restore project**.
-- Groq: 30 requests/min and 1,000/day on `openai/gpt-oss-20b`. Each narrative or chat answer uses 1–2.
+- Groq: 30 requests/min, 8,000 tokens/min and 1,000 requests/day on `openai/gpt-oss-20b`. A case narrative
+  prompt is several thousand tokens, so expect about one narrative draft per minute; chat answers are smaller.
+  Over a limit, the receipt shows `groq_rate_limited` or `groq_request_too_large` and the template answers.
+- Groq is only called when `APPROVED_DATA_DESTINATIONS` contains `"groq"` (set in `render.yaml` and the
+  Space Dockerfile); otherwise answers come from the template with `groq_not_approved_destination`.
+- The model must not state counts in prose (a verifier guardrail); when it does twice, the narrative
+  falls back to the template, which the verifier still checks.
   Above that, answers fall back to the labelled template until the limit resets.
 - Policy search uses keyword retrieval when deployed (vector embeddings need a local Ollama).
 - Data leaves your infrastructure only to Supabase and Groq. Both are listed in `APPROVED_DATA_DESTINATIONS`.

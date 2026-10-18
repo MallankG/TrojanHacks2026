@@ -40,7 +40,7 @@ from pydantic_core import to_jsonable_python
 from tracelayer_agents.audit import sha256_json
 from tracelayer_agents.config import DEFAULT_LLM_TIMEOUT_S, llm_timeout_s
 from tracelayer_agents.llm.templates import TEMPLATES
-from tracelayer_agents.schemas import LLMMeta, LLMProvider
+from tracelayer_agents.schemas import LLM_SOURCES, LLMMeta, LLMProvider
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +91,9 @@ class LLMSettings:
     groq_api_key: str | None = field(default=None, repr=False)
     groq_model: str = GROQ_DEFAULT_MODEL
     groq_base_url: str = GROQ_BASE_URL
+    # Groq is an external destination: case evidence is sent only when the deployment lists
+    # "groq" in APPROVED_DATA_DESTINATIONS (the backend's egress allowlist); otherwise → template.
+    groq_approved: bool = False
     timeout_s: float = DEFAULT_LLM_TIMEOUT_S  # whole Ollama phase of one call
     max_calls_per_run: int = 6
 
@@ -106,6 +109,8 @@ class LLMSettings:
             ollama_model=os.environ.get("OLLAMA_MODEL", "").strip() or None,
             groq_api_key=os.environ.get("GROQ_API_KEY", "").strip() or None,
             groq_model=os.environ.get("GROQ_MODEL", "").strip() or cls.groq_model,
+            groq_approved="groq" in _destinations(
+                os.environ.get("APPROVED_DATA_DESTINATIONS", "")),
             timeout_s=llm_timeout_s(),
             max_calls_per_run=int(
                 os.environ.get("LLM_MAX_CALLS_PER_RUN", "") or cls.max_calls_per_run
@@ -116,6 +121,15 @@ class LLMSettings:
     def model(self) -> str | None:
         """The configured model of the active provider (None: Ollama's first listed model)."""
         return self.groq_model if self.provider == "groq" else self.ollama_model
+
+
+def _destinations(raw: str) -> set[str]:
+    """APPROVED_DATA_DESTINATIONS as the backend writes it: a JSON list, or comma-separated."""
+    try:
+        values = json.loads(raw)
+    except ValueError:
+        values = raw.split(",")
+    return {str(v).strip().lower() for v in values} if isinstance(values, list) else set()
 
 
 @dataclass
@@ -160,7 +174,7 @@ class LLMClient:
 
         output: T | None = None
         remote = self.settings.provider
-        if remote in ("ollama", "groq"):
+        if remote in LLM_SOURCES:
             attempt = self._try_ollama if remote == "ollama" else self._try_groq
             try:
                 output = await asyncio.wait_for(
@@ -338,6 +352,9 @@ class LLMClient:
         if not self.settings.groq_api_key:
             run.errors.append("groq_no_api_key")
             return None
+        if not self.settings.groq_approved:
+            run.errors.append("groq_not_approved_destination")
+            return None
         try:
             prompt = _render(PROMPTS[prompt_name], variables)
         except (KeyError, ValueError):
@@ -387,7 +404,13 @@ class LLMClient:
             return None
         if resp.status_code == 400 and "json_validate_failed" in resp.text:
             run.errors.append("groq_schema_mismatch")
-            return ""
+            try:  # the rejected reply, so the retry gets the real validation errors
+                return str(resp.json()["error"].get("failed_generation") or "")
+            except (ValueError, KeyError, TypeError, AttributeError):
+                return ""
+        if resp.status_code == 413:
+            run.errors.append("groq_request_too_large")  # over the free tier's tokens-per-minute
+            return None
         if resp.status_code == 429:
             run.errors.append("groq_rate_limited")
             return None
