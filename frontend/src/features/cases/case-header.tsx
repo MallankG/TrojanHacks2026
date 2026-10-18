@@ -68,6 +68,7 @@ export function CaseHeader({ caseId }: { caseId: CaseId }) {
             { href: ROUTES.case(caseId, "narrative"), label: "Narrative" },
             { href: ROUTES.case(caseId, "disposition"), label: "Disposition" },
             { href: ROUTES.case(caseId, "report"), label: "Report builder" },
+            { href: ROUTES.governance("enterprise"), label: "Collaboration" },
           ]}
         />
       ) : null}

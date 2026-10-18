@@ -56,6 +56,10 @@ def list_cases(
         query = query.eq("status", status)
     if assigned_to_me and user.id:
         query = query.eq("assigned_to", user.id)
+    if get_settings().enterprise_enabled or get_settings().case_authorization_enabled:
+        result = get_db().rpc("list_authorized_cases", {"p_tenant": user.tenant_id, "p_actor": user.id,
+            "p_status": status, "p_assigned": assigned_to_me, "p_limit": limit, "p_offset": offset}).execute().data
+        return result
     return page(query, limit, offset)
 
 
@@ -87,6 +91,12 @@ def update_case(case_id: UUID, body: CaseUpdate, user: CurrentUser = Depends(CAN
     changes = body.model_dump(exclude_unset=True)
     if "assigned_to" in changes:
         _check_assignee(user, body.assigned_to)
+        if get_settings().enterprise_enabled or get_settings().case_authorization_enabled:
+            from app.services.enterprise import require_case
+            require_case(user, str(case_id), "manage")
+            if body.assigned_to:
+                profile = get_one("profiles", user.tenant_id, str(body.assigned_to))
+                require_case(CurrentUser(str(body.assigned_to), user.tenant_id, profile["role"]), str(case_id))
     if not changes:
         raise HTTPException(422, "Nothing to update")
     if "due_at" in changes and changes["due_at"] is not None:
@@ -152,8 +162,10 @@ def record_decision(case_id: UUID, body: DecisionIn, user: CurrentUser = Depends
         raise HTTPException(403, "Only reviewers can accept, reject or escalate")
     if body.disposition and user.role not in ("reviewer", "admin"):
         raise HTTPException(403, "Only reviewers can record a disposition")
-    if body.narrative_id and not fetch_by_ids("case_narratives", user.tenant_id, [body.narrative_id], "id"):
-        raise HTTPException(422, "Unknown narrative")
+    if body.narrative_id:
+        narrative = get_one("case_narratives", user.tenant_id, str(body.narrative_id), "id, case_id")
+        if not narrative or narrative["case_id"] != str(case_id):
+            raise HTTPException(422, "Narrative does not belong to this case")
     row = {**body.model_dump(), "tenant_id": user.tenant_id, "case_id": str(case_id), "decided_by": user.id}
     decision = insert_many("case_decisions", [row], actor=user)[0]
     updated = get_one("cases", user.tenant_id, str(case_id), "id, status, disposition, disposed_by, disposed_at")

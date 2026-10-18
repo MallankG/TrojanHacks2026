@@ -12,8 +12,10 @@ export function GovernanceHeader() {
         label="Governance sections"
         tabs={[
           { href: ROUTES.governance(), label: "Lineage" },
+          { href: ROUTES.governance("superpowers"), label: "Data governance" },
           { href: ROUTES.governance("models"), label: "Model registry" },
           { href: ROUTES.governance("drift"), label: "Drift and health" },
+          { href: ROUTES.governance("enterprise"), label: "Enterprise workspace" },
           { href: ROUTES.governance("pipelines"), label: "Pipelines and agents" },
           { href: ROUTES.governance("replay"), label: "Investigation replay" },
           { href: ROUTES.governance("sandbox"), label: "What-if sandbox" },

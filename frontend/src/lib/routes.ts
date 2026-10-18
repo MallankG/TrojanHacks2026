@@ -21,7 +21,7 @@ export const ROUTES = {
 } as const;
 
 export type CaseTab = "overview" | "checklist" | "narrative" | "disposition" | "report";
-export type GovernanceTab = "lineage" | "models" | "drift" | "pipelines" | "replay" | "sandbox" | "audit" | "exports" | "settings";
+export type GovernanceTab = "enterprise" | "superpowers" | "lineage" | "models" | "drift" | "pipelines" | "replay" | "sandbox" | "audit" | "exports" | "settings";
 
 export interface NavItem {
   screen: ScreenKey;

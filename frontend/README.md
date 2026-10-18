@@ -89,3 +89,24 @@ src/
 Design tokens live in `src/app/globals.css` (`@theme`). Status is always written in words; color only supports it.
 
 TraceLayer is decision support for human review. It never files SARs, freezes accounts or decides guilt.
+
+### Data governance (PRD 20.2)
+
+Open **Governance and audit → Data governance** (`/governance/superpowers`). Compare the broken and
+healthy synthetic feeds, download the receipt, explore field dependencies, inspect retention and
+reconciliation, and preview/execute the two supported steward questions. Examples work offline and
+are labeled with their fixed evaluation time. Live mode requires the governance migration, API URL
+(`cp .env.example .env.local`), and a provisioned Supabase user token. Tokens remain in page memory;
+backend roles enforce writes regardless of the prototype's selected demo role. Catalog assessments,
+review records and incident history persist only in authenticated mode. See `backend/README.md` for
+endpoint contracts and prototype limitations.
+
+### Enterprise workspace and monitoring (PRD 20.10)
+
+**Governance → Enterprise workspace** (`/governance/enterprise`) includes a synthetic collaboration
+room, operations dashboard, release/residency views and an authenticated backend mode. The working
+case also links to collaboration. **Drift and health** (`/governance/drift`) now computes example
+input/score drift and labeled model performance instead of displaying fixed PSI numbers. Try
+“Labels still pending” to see unknown performance handled explicitly. Live features require the
+enterprise migration and environment flags. See `docs/enterprise_runbook.md` and
+`docs/drift_monitoring.md` for configuration and monitoring pointers.

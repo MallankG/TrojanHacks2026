@@ -102,3 +102,71 @@ FFIEC's BSA/AML manual site is behind a CAPTCHA, so it can't be scraped. Paste s
 official pages into `POST /policy/documents` with the real `source_url`. FinCEN pages such as
 https://www.fincen.gov/resources/statutes-regulations/guidance/frequently-asked-questions-regarding-suspicious-activity
 can be fetched normally.
+
+## PRD 20.2 — data governance
+
+The workspace at `/governance/superpowers` covers the twelve capabilities with fixed synthetic
+examples and an authenticated catalog mode. Apply
+`supabase/migrations/20261018000001_governance_superpowers.sql` before using catalog persistence.
+This change does not apply the migration to a hosted project automatically.
+
+- `GET /governance/demo?scenario=healthy|drift`: fixed public synthetic examples, no tenant reads or writes.
+- `POST/GET /governance/products`, `GET /governance/products/{id}`: register a documented product and inspect its immutable event history (latest 100). Source-system names are unique within a tenant.
+- `POST /governance/products/{id}/assessments`: evaluate up to 500 rows and 500 baseline rows; provide the registered `purpose`, rows, optional baseline, ledger totals and source checksum. Saves a receipt, component trust scores, quarantine reasons, drift suggestions, registered dependency impact and correlated incidents. Raw values/documents are excluded from the saved receipt.
+- `POST /governance/products/{id}/reviews`: append owner-assigned access requests, exceptions, waivers, mapping/remediation reviews and incident notes/resolutions. Every record expires within 90 days. Only admin/reviewer can approve/reject, referencing a saved `request_id`; expiry cannot be extended and concurrent terminal decisions are constrained by the database.
+- `POST /governance/products/{id}/steward-query`: preview (`execute=false`, default) then execute an allowlisted read. Supported questions: `which alerts depend on amount?` and `why was this row quarantined?` (requires `row` and `assessment_id`). Tenant scoped, capped at 100 results, execution audited; no generated SQL.
+
+Registration/assessment requires admin or data_steward. All live endpoints require a provisioned user.
+The prototype frontend sign-in is separate: expand “Connect a governed catalog” and supply a Supabase
+access token, kept only in page memory. Configure the API URL using `frontend/.env.example`.
+
+Set `GOVERNANCE_CONTRACTS_ENABLED=true` **after applying the migration** to enforce registered
+source contracts in the CSV ingestion path. Checks run on original fields before canonical writes;
+failures retain the source row and create an error DQ issue. Unregistered source systems keep the
+existing canonical checks. Missing timezone, unknown enum, bounds, reference and freshness failures
+are quarantined rather than silently normalized by the canonical parser.
+
+Prototype boundaries: metadata dependencies are explicitly registered, not auto-discovered from the
+whole database. Impact/retention estimates cannot cover unregistered external copies. PII discovery
+is heuristic, receipts mask values, and a supplied checksum is not independently verified. Distribution
+drift uses a median-ratio heuristic (10 observations minimum). Reconciliation compares accepted totals
+per currency with supplied authorized ledger totals; missing legs, reversals and balances require
+additional feeds. Approvals record decisions; they do not automatically grant access, remap fields,
+execute reprocessing, delete records or claim external erasure. Incident notes preserve original
+assessments and root cause remains unconfirmed until reviewed.
+
+## PRD 20.10 — enterprise investigation workspace
+
+Case collaboration, attribute-based case access, versioned evidence exports, SLO telemetry,
+Ed25519 release tooling, declared residency boundaries and recipient-filtered handoffs are
+implemented behind `ENTERPRISE_ENABLED`. Apply the enterprise migration and provision user
+attributes/case policies before rollout. Keep `CASE_AUTHORIZATION_ENABLED=true` if the UI is
+later disabled. See [the enterprise runbook](../docs/enterprise_runbook.md) for setup, API
+contracts, tests and prototype boundaries. Model/data monitoring pointers and snapshot formats
+are described in [the drift guide](../docs/drift_monitoring.md).
+
+Source-contract corrections use `POST /governance/products/{product_id}/replacements`
+with `{ "product": <complete corrected product>, "reason": "reviewed correction reason" }`.
+A steward must supply the same source system and a new contract version. The operation
+atomically appends an immutable revision and remediation receipt; concurrent or stale
+replacements return 409. The highest source revision governs future ingestion, and each
+run pins its exact product ID. Historical products, receipts and run pins remain unchanged.
+Apply `20261018000003_source_contract_versions.sql` before enabling this operation.
+
+Run the contract migration regression suite against disposable PostgreSQL with
+`node scripts/test-contract-db.mjs /path/to/@electric-sql/pglite/dist/index.js`
+from `backend/` (omit the runtime path when PGlite is locally installed). It applies
+the actual tenancy, ingestion, audit and governance SQL,
+and checks replacement/audit atomicity, stale edits, immutable history and pins,
+cross-tenant isolation, and RPC execution grants. The SQL assertions also live in
+`supabase/tests/contract_versions.sql` for disposable migrated databases.
+
+Validate every application migration, including vector indexes and Realtime setup, with
+`node scripts/test-migrations-db.mjs /path/to/node_modules` from `backend/`.
+The runtime directory must contain `@electric-sql/pglite` and
+`@electric-sql/pglite-pgvector` (or omit the argument when both are locally installed).
+The runner applies all migrations in filename order unchanged, then executes the
+enterprise access-control and source-contract SQL regression suites. Only
+Supabase-owned auth/storage schemas, helper functions, roles and platform grants
+are fixtures; all application tables, functions, triggers and both extensions are
+real PostgreSQL. This checks database behavior without contacting Supabase.

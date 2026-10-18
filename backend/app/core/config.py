@@ -23,6 +23,12 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000", "http://127.0.0.1:3000"])
     max_upload_mb: int = 25
+    governance_contracts_enabled: bool = False
+    enterprise_enabled: bool = False
+    case_authorization_enabled: bool = False
+    deployment_region: str = "US"
+    release_public_key_path: str | None = None
+    approved_data_destinations: list[str] = Field(default_factory=lambda: ["local", "supabase"])
     # Internal review SLA for open alerts on the command center (a demo setting, not a regulatory deadline).
     review_sla_days: int = Field(default=5, ge=1, le=90)
 

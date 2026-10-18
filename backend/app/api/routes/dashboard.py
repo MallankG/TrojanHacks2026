@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.security import ANY_USER, CurrentUser
 from app.services import dashboard as dash
+from app.services.case_visibility import authorized_case_ids, authorized_case_rows, case_authorization_enabled
 
 router = APIRouter(tags=["command center"])
 
@@ -46,7 +47,11 @@ def dashboard_summary(
     def case_section() -> dict | None:
         if not can_see_cases:
             return None
-        statuses, case_total = dash.load_case_statuses(tid)
+        if case_authorization_enabled():
+            rows, case_total = authorized_case_rows(user, dash.MAX_SUMMARY_CASES)
+            statuses = [r["status"] for r in rows]
+        else:
+            statuses, case_total = dash.load_case_statuses(tid)
         return {**dash.summarize_cases(statuses), "truncated": case_total > len(statuses)}
 
     alerts, cases, (runs, run_total), dq_open, (freshness, ranker_attempt) = dash.parallel(
@@ -116,9 +121,10 @@ def global_search(
         if pattern:
             for c in db.table("cases").select(cols).eq("tenant_id", tid).ilike("title", pattern).order("updated_at", desc=True).limit(limit).execute().data:
                 found.setdefault(c["id"], c)
+        allowed = authorized_case_ids(user, found)
         return [
             {"type": "case", "id": c["id"], "label": f"CASE-{c['case_number']:04d}", "description": f"Case · {c['status'].replace('_', ' ')} · {c['title']}"}
-            for c in list(found.values())[:limit]
+            for c in list(found.values())[:limit] if c["id"] in allowed
         ]
 
     def search_accounts() -> list[dict]:
@@ -164,6 +170,8 @@ def notifications(user: CurrentUser = Depends(ANY_USER)) -> dict:
     def pending() -> tuple[list[dict], int]:
         if not can_review:
             return [], 0
+        if case_authorization_enabled():
+            return authorized_case_rows(user, dash.NOTIFICATION_LIMIT, "pending_review")
         result = (
             db.table("cases").select("id, case_number, title, updated_at", count="exact").eq("tenant_id", tid)
             .eq("status", "pending_review").order("updated_at", desc=True).limit(dash.NOTIFICATION_LIMIT).execute()

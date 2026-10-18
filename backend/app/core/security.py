@@ -12,7 +12,7 @@ from functools import lru_cache
 from uuid import UUID
 
 import jwt
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import get_settings
@@ -32,6 +32,7 @@ class CurrentUser:
     email: str | None = None
     display_name: str | None = None
     service_name: str | None = None
+    aal: str = "aal1"
 
     @property
     def is_service(self) -> bool:
@@ -81,13 +82,15 @@ def _service_caller(service_key: str, tenant_id: str | None, service_name: str |
 
 
 def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     x_service_key: str | None = Header(default=None),
     x_tenant_id: str | None = Header(default=None),
     x_service_name: str | None = Header(default=None),
 ) -> CurrentUser:
     if x_service_key:
-        return _service_caller(x_service_key, x_tenant_id, x_service_name)
+        user = _service_caller(x_service_key, x_tenant_id, x_service_name)
+        return _apply_case_boundary(request, user)
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Missing bearer token")
     claims = decode_token(credentials.credentials)
@@ -99,10 +102,11 @@ def get_current_user(
     if not rows or not rows[0].get("tenant_id"):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Account is not provisioned for a tenant")
     profile = rows[0]
-    return CurrentUser(
+    user = CurrentUser(
         id=user_id, tenant_id=profile["tenant_id"], role=profile["role"], email=claims.get("email"),
-        display_name=profile.get("display_name"),
+        display_name=profile.get("display_name"), aal=claims.get("aal", "aal1"),
     )
+    return _apply_case_boundary(request, user)
 
 
 def require_roles(*roles: str):
@@ -127,3 +131,31 @@ CAN_INVESTIGATE_OR_SERVICE = require_roles("admin", "investigator", "analyst", "
 CAN_REVIEW = require_roles("admin", "reviewer")
 CAN_MANAGE_POLICY = require_roles("admin", SERVICE_ROLE)
 ADMIN_ONLY = require_roles("admin")
+
+
+def _apply_case_boundary(request: Request, user: CurrentUser) -> CurrentUser:
+    request.state.actor = user
+    if not (get_settings().enterprise_enabled or get_settings().case_authorization_enabled):
+        return user
+    from app.services.enterprise import require_case, check_egress
+    from app.core.db import get_one
+    parts = request.url.path.strip("/").split("/")
+    case_id = None
+    if len(parts) > 1 and parts[0] in ("cases", "agent-runs", "narratives"):
+        try:
+            resource_id = str(UUID(parts[1]))
+        except ValueError:
+            return user  # FastAPI returns the UUID validation error.
+        if parts[0] == "cases":
+            case_id = resource_id
+        else:
+            table = "agent_runs" if parts[0] == "agent-runs" else "case_narratives"
+            row = get_one(table, user.tenant_id, resource_id, "case_id")
+            if row:
+                case_id = row["case_id"]
+    if case_id:
+        action = "export" if request.url.path.rstrip("/").endswith(("/export-url", "/evidence-export", "/exports")) else "read" if request.method == "GET" else "write"
+        _, policy, _ = require_case(user, case_id, action)
+        if action == "export":
+            check_egress("supabase", policy["region"], policy["classification"], False)
+    return user

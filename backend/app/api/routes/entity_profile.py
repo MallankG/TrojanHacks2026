@@ -9,6 +9,7 @@ from app.core.db import get_one, to_json
 from app.core.errors import NotFound
 from app.core.security import ANY_CALLER, CurrentUser
 from app.services import entity_profile
+from app.services.case_visibility import authorized_case_ids
 
 router = APIRouter(tags=["accounts & transactions"])
 
@@ -25,4 +26,8 @@ def account_profile(
     if not account:
         raise NotFound("Account")
     cut_off = entity_profile.parse_ts(as_of) if as_of else datetime.now(UTC)
-    return to_json(entity_profile.account_profile(user.tenant_id, account, cut_off, observed_days, baseline_days))
+    result = entity_profile.account_profile(user.tenant_id, account, cut_off, observed_days, baseline_days)
+    cases = result["related"]["cases"]
+    allowed = authorized_case_ids(user, {c["id"] for c in cases})
+    result["related"]["cases"] = [c for c in cases if c["id"] in allowed]
+    return to_json(result)

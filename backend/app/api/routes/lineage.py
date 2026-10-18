@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 from app.core.db import chunked, fetch_by_ids, get_db, get_one
 from app.core.errors import NotFound
 from app.core.security import ANY_CALLER, CurrentUser
+from app.services.case_visibility import authorized_case_ids
 
 router = APIRouter(prefix="/lineage", tags=["lineage"])
 
@@ -22,8 +23,8 @@ def _batched(ids, query_for_batch, size: int = 100) -> list[dict]:
     return list(rows.values())
 
 
-def _downstream_of_transactions(tenant_id: str, txn_ids: list[str]) -> dict:
-    db = get_db()
+def _downstream_of_transactions(user: CurrentUser, txn_ids: list[str]) -> dict:
+    db, tenant_id = get_db(), user.tenant_id
     signals = _batched(txn_ids, lambda b: db.table("risk_signals")
                        .select("id, signal_name, signal_version, source, typology, score, triggered, model_run_id, feature_id")
                        .eq("tenant_id", tenant_id)
@@ -38,6 +39,8 @@ def _downstream_of_transactions(tenant_id: str, txn_ids: list[str]) -> dict:
                         .select("id, case_id, evidence_type, explanation, added_by_type, created_at")
                         .eq("tenant_id", tenant_id).ov("transaction_ids", b))
     case_ids = {c["case_id"] for c in case_links} | {e["case_id"] for e in evidence}
+    case_ids = authorized_case_ids(user, case_ids)
+    evidence = [e for e in evidence if e["case_id"] in case_ids]
     cases = fetch_by_ids("cases", tenant_id, case_ids, "id, case_number, title, status, disposition, disposed_at")
     claims = _batched(txn_ids, lambda b: db.table("narrative_claims")
                       .select("id, narrative_id, claim_text, claim_kind, verification")
@@ -45,6 +48,8 @@ def _downstream_of_transactions(tenant_id: str, txn_ids: list[str]) -> dict:
     narratives = sorted(_batched(case_ids, lambda b: db.table("case_narratives")
                                  .select("id, case_id, version, author_type, verification_status, created_at")
                                  .eq("tenant_id", tenant_id).in_("case_id", b)), key=lambda n: (n["case_id"], n["version"]))
+    narrative_ids = {n["id"] for n in narratives}
+    claims = [c for c in claims if c["narrative_id"] in narrative_ids]
     decisions = sorted(_batched(case_ids, lambda b: db.table("case_decisions")
                                 .select("id, case_id, narrative_id, decision, disposition, decided_by, decided_at")
                                 .eq("tenant_id", tenant_id).in_("case_id", b)), key=lambda d: d["decided_at"])
@@ -73,7 +78,7 @@ def transaction_lineage(transaction_id: UUID, user: CurrentUser = Depends(ANY_CA
         "transaction": txn,
         "features": db.table("features").select("id, feature_set_version, as_of_timestamp, computed_at")
         .eq("tenant_id", tid).eq("transaction_id", txid).execute().data,
-        **_downstream_of_transactions(tid, [txid]),
+        **_downstream_of_transactions(user, [txid]),
     }
 
 
@@ -95,7 +100,7 @@ def alert_lineage(alert_id: UUID, user: CurrentUser = Depends(ANY_CALLER)) -> di
     for i in range(0, len(row_ids), 150):
         issues += db.table("data_quality_issues").select("id, source_row_id, issue_type, severity, status, message") \
             .eq("tenant_id", tid).in_("source_row_id", row_ids[i : i + 150]).execute().data
-    downstream = _downstream_of_transactions(tid, txn_ids) if txn_ids else {}
+    downstream = _downstream_of_transactions(user, txn_ids) if txn_ids else {}
     return {
         "alert": alert,
         "source": {"ingestion_runs": runs, "source_rows": rows, "data_quality_issues": issues},

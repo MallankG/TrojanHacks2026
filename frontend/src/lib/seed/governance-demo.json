@@ -1,0 +1,1367 @@
+{
+  "healthy": {
+    "product": {
+      "name": "Synthetic payments",
+      "source_system": "demo-payments",
+      "owner": "Payments Operations",
+      "steward": "Data Steward",
+      "purpose": "Synthetic transaction investigation",
+      "classification": "restricted",
+      "retention_days": 30,
+      "review_at": "2026-11-17T05:00:30.573670Z",
+      "access_conditions": "Steward approval required",
+      "example_query": "Which alerts depend on amount?",
+      "contract": {
+        "version": "payments-v1",
+        "fields": {
+          "transaction_id": {
+            "kind": "string",
+            "required": true,
+            "minimum": null,
+            "maximum": null,
+            "allowed": [],
+            "references": [],
+            "timezone_required": true,
+            "sensitive": false
+          },
+          "amount": {
+            "kind": "decimal",
+            "required": true,
+            "minimum": "0.01",
+            "maximum": null,
+            "allowed": [],
+            "references": [],
+            "timezone_required": true,
+            "sensitive": false
+          },
+          "currency": {
+            "kind": "string",
+            "required": true,
+            "minimum": null,
+            "maximum": null,
+            "allowed": [
+              "USD",
+              "EUR"
+            ],
+            "references": [],
+            "timezone_required": true,
+            "sensitive": false
+          },
+          "timestamp": {
+            "kind": "timestamp",
+            "required": true,
+            "minimum": null,
+            "maximum": null,
+            "allowed": [],
+            "references": [],
+            "timezone_required": true,
+            "sensitive": false
+          },
+          "destination_account": {
+            "kind": "string",
+            "required": true,
+            "minimum": null,
+            "maximum": null,
+            "allowed": [],
+            "references": [],
+            "timezone_required": true,
+            "sensitive": true
+          }
+        },
+        "currency_field": "currency",
+        "amount_field": "amount",
+        "timestamp_field": "timestamp",
+        "id_field": "transaction_id",
+        "unit": "major",
+        "freshness_hours": 24,
+        "valid_sla": 0.995
+      },
+      "nodes": [
+        {
+          "id": "field:destination_account",
+          "kind": "field",
+          "label": "Destination account"
+        },
+        {
+          "id": "field:amount",
+          "kind": "field",
+          "label": "Amount"
+        },
+        {
+          "id": "dataset",
+          "kind": "dataset",
+          "label": "Synthetic payments"
+        },
+        {
+          "id": "owner",
+          "kind": "owner",
+          "label": "Payments Operations"
+        },
+        {
+          "id": "steward",
+          "kind": "steward",
+          "label": "Data Steward"
+        },
+        {
+          "id": "contract",
+          "kind": "contract",
+          "label": "payments-v1"
+        },
+        {
+          "id": "pipeline",
+          "kind": "pipeline",
+          "label": "CSV ingestion"
+        },
+        {
+          "id": "transformation",
+          "kind": "transformation",
+          "label": "Canonical mapping"
+        },
+        {
+          "id": "quality_check",
+          "kind": "quality_check",
+          "label": "Contract checks"
+        },
+        {
+          "id": "feature",
+          "kind": "feature",
+          "label": "Fan-in / amount features"
+        },
+        {
+          "id": "model",
+          "kind": "model",
+          "label": "Ranker"
+        },
+        {
+          "id": "policy",
+          "kind": "policy",
+          "label": "Review policy"
+        },
+        {
+          "id": "dashboard",
+          "kind": "dashboard",
+          "label": "Risk queue"
+        },
+        {
+          "id": "alert",
+          "kind": "alert",
+          "label": "DEMO-AL-1"
+        },
+        {
+          "id": "graph_edge",
+          "kind": "graph_edge",
+          "label": "Payment edge"
+        },
+        {
+          "id": "case",
+          "kind": "case",
+          "label": "DEMO-CASE-1"
+        },
+        {
+          "id": "report",
+          "kind": "report",
+          "label": "Investigation report"
+        },
+        {
+          "id": "outcome",
+          "kind": "outcome",
+          "label": "Human review"
+        }
+      ],
+      "edges": [
+        {
+          "source": "dataset",
+          "target": "field:amount"
+        },
+        {
+          "source": "dataset",
+          "target": "field:destination_account"
+        },
+        {
+          "source": "owner",
+          "target": "dataset"
+        },
+        {
+          "source": "steward",
+          "target": "contract"
+        },
+        {
+          "source": "contract",
+          "target": "quality_check"
+        },
+        {
+          "source": "pipeline",
+          "target": "transformation"
+        },
+        {
+          "source": "quality_check",
+          "target": "transformation"
+        },
+        {
+          "source": "field:destination_account",
+          "target": "graph_edge"
+        },
+        {
+          "source": "field:amount",
+          "target": "feature"
+        },
+        {
+          "source": "graph_edge",
+          "target": "feature"
+        },
+        {
+          "source": "transformation",
+          "target": "feature"
+        },
+        {
+          "source": "feature",
+          "target": "model"
+        },
+        {
+          "source": "model",
+          "target": "alert"
+        },
+        {
+          "source": "policy",
+          "target": "alert"
+        },
+        {
+          "source": "alert",
+          "target": "dashboard"
+        },
+        {
+          "source": "alert",
+          "target": "case"
+        },
+        {
+          "source": "case",
+          "target": "report"
+        },
+        {
+          "source": "report",
+          "target": "outcome"
+        }
+      ]
+    },
+    "input": {
+      "rows": [
+        {
+          "transaction_id": "DEMO-0",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-1",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-2",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-3",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-4",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-5",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-6",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-7",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-8",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-9",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-10",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-11",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        }
+      ],
+      "baseline": [
+        {
+          "transaction_id": "DEMO-0",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-1",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-2",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-3",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-4",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-5",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-6",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-7",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-8",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-9",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-10",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-11",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.573670+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        }
+      ],
+      "source_checksum": null,
+      "observed_unit": "major",
+      "ledger_totals": {
+        "USD": "1200"
+      },
+      "document": "Synthetic contact: example@example.invalid"
+    },
+    "assessment": {
+      "rows": [
+        {
+          "row": 1,
+          "status": "accepted",
+          "failures": []
+        },
+        {
+          "row": 2,
+          "status": "accepted",
+          "failures": []
+        },
+        {
+          "row": 3,
+          "status": "accepted",
+          "failures": []
+        },
+        {
+          "row": 4,
+          "status": "accepted",
+          "failures": []
+        },
+        {
+          "row": 5,
+          "status": "accepted",
+          "failures": []
+        },
+        {
+          "row": 6,
+          "status": "accepted",
+          "failures": []
+        },
+        {
+          "row": 7,
+          "status": "accepted",
+          "failures": []
+        },
+        {
+          "row": 8,
+          "status": "accepted",
+          "failures": []
+        },
+        {
+          "row": 9,
+          "status": "accepted",
+          "failures": []
+        },
+        {
+          "row": 10,
+          "status": "accepted",
+          "failures": []
+        },
+        {
+          "row": 11,
+          "status": "accepted",
+          "failures": []
+        },
+        {
+          "row": 12,
+          "status": "accepted",
+          "failures": []
+        }
+      ],
+      "summary": {
+        "total": 12,
+        "accepted": 12,
+        "quarantined": 0
+      },
+      "drift": [],
+      "trust": {
+        "policy": "trust-v1: equal mean of observed components; missing components remain unknown",
+        "components": {
+          "provenance": null,
+          "completeness": 1.0,
+          "validity": 1.0,
+          "freshness": 1.0,
+          "reconciliation": 1.0
+        },
+        "score": 100.0,
+        "coverage": 0.8,
+        "caveats": [
+          "provenance not supplied"
+        ],
+        "contract_version": "payments-v1",
+        "evaluated_at": "2026-10-18T05:00:30.573670+00:00",
+        "provenance_note": "Supplied checksum is a source assertion; it is not independently verified."
+      },
+      "impact": {
+        "nodes": [],
+        "counts": {},
+        "total": 0,
+        "coverage": "Registered dependencies only; unregistered copies and external systems are unknown."
+      },
+      "remediation": {
+        "status": "proposed",
+        "approval_required": true,
+        "steps": [
+          "Review source semantics and proposed mapping",
+          "Repair source or version the contract",
+          "Re-ingest quarantined rows",
+          "Rebuild registered dependencies and verify results"
+        ],
+        "execution": "Planning only; no source writes, deletions or automatic rebuilds."
+      },
+      "sensitive": {
+        "fields": [
+          {
+            "field": "destination_account",
+            "classification": "probable_sensitive",
+            "display": "[REDACTED]"
+          }
+        ],
+        "document_matches": 1,
+        "prompt_warning": true,
+        "policy": "Raw values excluded from receipts and audit logs; discovery is heuristic."
+      },
+      "retention": {
+        "class_days": 30,
+        "new_record_expiry": "2026-11-17T05:00:30.573670+00:00",
+        "downstream": {
+          "nodes": [
+            {
+              "id": "feature",
+              "kind": "feature",
+              "label": "Fan-in / amount features"
+            },
+            {
+              "id": "model",
+              "kind": "model",
+              "label": "Ranker"
+            },
+            {
+              "id": "dashboard",
+              "kind": "dashboard",
+              "label": "Risk queue"
+            },
+            {
+              "id": "alert",
+              "kind": "alert",
+              "label": "DEMO-AL-1"
+            },
+            {
+              "id": "graph_edge",
+              "kind": "graph_edge",
+              "label": "Payment edge"
+            },
+            {
+              "id": "case",
+              "kind": "case",
+              "label": "DEMO-CASE-1"
+            },
+            {
+              "id": "report",
+              "kind": "report",
+              "label": "Investigation report"
+            },
+            {
+              "id": "outcome",
+              "kind": "outcome",
+              "label": "Human review"
+            }
+          ],
+          "counts": {
+            "feature": 1,
+            "model": 1,
+            "dashboard": 1,
+            "alert": 1,
+            "graph_edge": 1,
+            "case": 1,
+            "report": 1,
+            "outcome": 1
+          },
+          "total": 8,
+          "coverage": "Registered dependencies only; unregistered copies and external systems are unknown."
+        },
+        "action": "Review downstream expiry/rebuild obligations; no erasure performed."
+      },
+      "reconciliation": {
+        "rows": [
+          {
+            "currency": "USD",
+            "incoming": "1200",
+            "ledger": "1200",
+            "difference": "0",
+            "status": "matched"
+          }
+        ],
+        "precedence": "Authorized ledger totals take precedence; comparison uses accepted rows only; currencies never mixed.",
+        "caveats": "Missing legs, reversals and balances require rail-specific feeds; no inference from absent feeds."
+      },
+      "incidents": [],
+      "receipt_sha256": "ae8795457af781a7c27d882ea7e4692c52cb6c6e3decb4c06312257b77a68008"
+    },
+    "mode": "synthetic_demo",
+    "persisted": false
+  },
+  "drift": {
+    "product": {
+      "name": "Synthetic payments",
+      "source_system": "demo-payments",
+      "owner": "Payments Operations",
+      "steward": "Data Steward",
+      "purpose": "Synthetic transaction investigation",
+      "classification": "restricted",
+      "retention_days": 30,
+      "review_at": "2026-11-17T05:00:30.574535Z",
+      "access_conditions": "Steward approval required",
+      "example_query": "Which alerts depend on amount?",
+      "contract": {
+        "version": "payments-v1",
+        "fields": {
+          "transaction_id": {
+            "kind": "string",
+            "required": true,
+            "minimum": null,
+            "maximum": null,
+            "allowed": [],
+            "references": [],
+            "timezone_required": true,
+            "sensitive": false
+          },
+          "amount": {
+            "kind": "decimal",
+            "required": true,
+            "minimum": "0.01",
+            "maximum": null,
+            "allowed": [],
+            "references": [],
+            "timezone_required": true,
+            "sensitive": false
+          },
+          "currency": {
+            "kind": "string",
+            "required": true,
+            "minimum": null,
+            "maximum": null,
+            "allowed": [
+              "USD",
+              "EUR"
+            ],
+            "references": [],
+            "timezone_required": true,
+            "sensitive": false
+          },
+          "timestamp": {
+            "kind": "timestamp",
+            "required": true,
+            "minimum": null,
+            "maximum": null,
+            "allowed": [],
+            "references": [],
+            "timezone_required": true,
+            "sensitive": false
+          },
+          "destination_account": {
+            "kind": "string",
+            "required": true,
+            "minimum": null,
+            "maximum": null,
+            "allowed": [],
+            "references": [],
+            "timezone_required": true,
+            "sensitive": true
+          }
+        },
+        "currency_field": "currency",
+        "amount_field": "amount",
+        "timestamp_field": "timestamp",
+        "id_field": "transaction_id",
+        "unit": "major",
+        "freshness_hours": 24,
+        "valid_sla": 0.995
+      },
+      "nodes": [
+        {
+          "id": "field:destination_account",
+          "kind": "field",
+          "label": "Destination account"
+        },
+        {
+          "id": "field:amount",
+          "kind": "field",
+          "label": "Amount"
+        },
+        {
+          "id": "dataset",
+          "kind": "dataset",
+          "label": "Synthetic payments"
+        },
+        {
+          "id": "owner",
+          "kind": "owner",
+          "label": "Payments Operations"
+        },
+        {
+          "id": "steward",
+          "kind": "steward",
+          "label": "Data Steward"
+        },
+        {
+          "id": "contract",
+          "kind": "contract",
+          "label": "payments-v1"
+        },
+        {
+          "id": "pipeline",
+          "kind": "pipeline",
+          "label": "CSV ingestion"
+        },
+        {
+          "id": "transformation",
+          "kind": "transformation",
+          "label": "Canonical mapping"
+        },
+        {
+          "id": "quality_check",
+          "kind": "quality_check",
+          "label": "Contract checks"
+        },
+        {
+          "id": "feature",
+          "kind": "feature",
+          "label": "Fan-in / amount features"
+        },
+        {
+          "id": "model",
+          "kind": "model",
+          "label": "Ranker"
+        },
+        {
+          "id": "policy",
+          "kind": "policy",
+          "label": "Review policy"
+        },
+        {
+          "id": "dashboard",
+          "kind": "dashboard",
+          "label": "Risk queue"
+        },
+        {
+          "id": "alert",
+          "kind": "alert",
+          "label": "DEMO-AL-1"
+        },
+        {
+          "id": "graph_edge",
+          "kind": "graph_edge",
+          "label": "Payment edge"
+        },
+        {
+          "id": "case",
+          "kind": "case",
+          "label": "DEMO-CASE-1"
+        },
+        {
+          "id": "report",
+          "kind": "report",
+          "label": "Investigation report"
+        },
+        {
+          "id": "outcome",
+          "kind": "outcome",
+          "label": "Human review"
+        }
+      ],
+      "edges": [
+        {
+          "source": "dataset",
+          "target": "field:amount"
+        },
+        {
+          "source": "dataset",
+          "target": "field:destination_account"
+        },
+        {
+          "source": "owner",
+          "target": "dataset"
+        },
+        {
+          "source": "steward",
+          "target": "contract"
+        },
+        {
+          "source": "contract",
+          "target": "quality_check"
+        },
+        {
+          "source": "pipeline",
+          "target": "transformation"
+        },
+        {
+          "source": "quality_check",
+          "target": "transformation"
+        },
+        {
+          "source": "field:destination_account",
+          "target": "graph_edge"
+        },
+        {
+          "source": "field:amount",
+          "target": "feature"
+        },
+        {
+          "source": "graph_edge",
+          "target": "feature"
+        },
+        {
+          "source": "transformation",
+          "target": "feature"
+        },
+        {
+          "source": "feature",
+          "target": "model"
+        },
+        {
+          "source": "model",
+          "target": "alert"
+        },
+        {
+          "source": "policy",
+          "target": "alert"
+        },
+        {
+          "source": "alert",
+          "target": "dashboard"
+        },
+        {
+          "source": "alert",
+          "target": "case"
+        },
+        {
+          "source": "case",
+          "target": "report"
+        },
+        {
+          "source": "report",
+          "target": "outcome"
+        }
+      ]
+    },
+    "input": {
+      "rows": [
+        {
+          "transaction_id": "DEMO-0",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "beneficiary_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-1",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "beneficiary_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-2",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "beneficiary_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-3",
+          "amount": "100",
+          "currency": "US cents",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-4",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-6",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-6",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-7",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-8",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-9",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-10",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-11",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        }
+      ],
+      "baseline": [
+        {
+          "transaction_id": "DEMO-0",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-1",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-2",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-3",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-4",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-5",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-6",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-7",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-8",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-9",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-10",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        },
+        {
+          "transaction_id": "DEMO-11",
+          "amount": "100",
+          "currency": "USD",
+          "timestamp": "2026-10-18T05:00:30.574535+00:00",
+          "destination_account": "SYNTHETIC-ACCOUNT"
+        }
+      ],
+      "source_checksum": null,
+      "observed_unit": "major",
+      "ledger_totals": {
+        "USD": "1200"
+      },
+      "document": "Synthetic contact: example@example.invalid"
+    },
+    "assessment": {
+      "rows": [
+        {
+          "row": 1,
+          "status": "quarantined",
+          "failures": [
+            {
+              "field": "destination_account",
+              "code": "required",
+              "action": "quarantine"
+            }
+          ]
+        },
+        {
+          "row": 2,
+          "status": "quarantined",
+          "failures": [
+            {
+              "field": "destination_account",
+              "code": "required",
+              "action": "quarantine"
+            }
+          ]
+        },
+        {
+          "row": 3,
+          "status": "quarantined",
+          "failures": [
+            {
+              "field": "destination_account",
+              "code": "required",
+              "action": "quarantine"
+            }
+          ]
+        },
+        {
+          "row": 4,
+          "status": "quarantined",
+          "failures": [
+            {
+              "field": "currency",
+              "code": "enum",
+              "action": "quarantine"
+            }
+          ]
+        },
+        {
+          "row": 5,
+          "status": "quarantined",
+          "failures": [
+            {
+              "field": "timestamp",
+              "code": "timezone_or_type",
+              "action": "quarantine"
+            }
+          ]
+        },
+        {
+          "row": 6,
+          "status": "accepted",
+          "failures": []
+        },
+        {
+          "row": 7,
+          "status": "quarantined",
+          "failures": [
+            {
+              "field": "transaction_id",
+              "code": "duplicate",
+              "action": "quarantine"
+            }
+          ]
+        },
+        {
+          "row": 8,
+          "status": "accepted",
+          "failures": []
+        },
+        {
+          "row": 9,
+          "status": "accepted",
+          "failures": []
+        },
+        {
+          "row": 10,
+          "status": "accepted",
+          "failures": []
+        },
+        {
+          "row": 11,
+          "status": "accepted",
+          "failures": []
+        },
+        {
+          "row": 12,
+          "status": "accepted",
+          "failures": []
+        }
+      ],
+      "summary": {
+        "total": 12,
+        "accepted": 6,
+        "quarantined": 6
+      },
+      "drift": [
+        {
+          "field": "destination_account",
+          "kind": "possible_rename",
+          "proposed_mapping": "beneficiary_account",
+          "requires_review": true
+        },
+        {
+          "field": "currency",
+          "kind": "enum",
+          "requires_review": true
+        },
+        {
+          "field": "timestamp",
+          "kind": "timezone_or_type",
+          "requires_review": true
+        }
+      ],
+      "trust": {
+        "policy": "trust-v1: equal mean of observed components; missing components remain unknown",
+        "components": {
+          "provenance": null,
+          "completeness": 0.95,
+          "validity": 0.5,
+          "freshness": 0.9166666666666666,
+          "reconciliation": 0.0
+        },
+        "score": 59.2,
+        "coverage": 0.8,
+        "caveats": [
+          "provenance not supplied"
+        ],
+        "contract_version": "payments-v1",
+        "evaluated_at": "2026-10-18T05:00:30.574535+00:00",
+        "provenance_note": "Supplied checksum is a source assertion; it is not independently verified."
+      },
+      "impact": {
+        "nodes": [
+          {
+            "id": "feature",
+            "kind": "feature",
+            "label": "Fan-in / amount features"
+          },
+          {
+            "id": "model",
+            "kind": "model",
+            "label": "Ranker"
+          },
+          {
+            "id": "dashboard",
+            "kind": "dashboard",
+            "label": "Risk queue"
+          },
+          {
+            "id": "alert",
+            "kind": "alert",
+            "label": "DEMO-AL-1"
+          },
+          {
+            "id": "graph_edge",
+            "kind": "graph_edge",
+            "label": "Payment edge"
+          },
+          {
+            "id": "case",
+            "kind": "case",
+            "label": "DEMO-CASE-1"
+          },
+          {
+            "id": "report",
+            "kind": "report",
+            "label": "Investigation report"
+          },
+          {
+            "id": "outcome",
+            "kind": "outcome",
+            "label": "Human review"
+          }
+        ],
+        "counts": {
+          "feature": 1,
+          "model": 1,
+          "dashboard": 1,
+          "alert": 1,
+          "graph_edge": 1,
+          "case": 1,
+          "report": 1,
+          "outcome": 1
+        },
+        "total": 8,
+        "coverage": "Registered dependencies only; unregistered copies and external systems are unknown."
+      },
+      "remediation": {
+        "status": "proposed",
+        "approval_required": true,
+        "steps": [
+          "Review source semantics and proposed mapping",
+          "Repair source or version the contract",
+          "Re-ingest quarantined rows",
+          "Rebuild registered dependencies and verify results"
+        ],
+        "execution": "Planning only; no source writes, deletions or automatic rebuilds."
+      },
+      "sensitive": {
+        "fields": [
+          {
+            "field": "beneficiary_account",
+            "classification": "probable_sensitive",
+            "display": "[REDACTED]"
+          },
+          {
+            "field": "destination_account",
+            "classification": "probable_sensitive",
+            "display": "[REDACTED]"
+          }
+        ],
+        "document_matches": 1,
+        "prompt_warning": true,
+        "policy": "Raw values excluded from receipts and audit logs; discovery is heuristic."
+      },
+      "retention": {
+        "class_days": 30,
+        "new_record_expiry": "2026-11-17T05:00:30.574535+00:00",
+        "downstream": {
+          "nodes": [
+            {
+              "id": "feature",
+              "kind": "feature",
+              "label": "Fan-in / amount features"
+            },
+            {
+              "id": "model",
+              "kind": "model",
+              "label": "Ranker"
+            },
+            {
+              "id": "dashboard",
+              "kind": "dashboard",
+              "label": "Risk queue"
+            },
+            {
+              "id": "alert",
+              "kind": "alert",
+              "label": "DEMO-AL-1"
+            },
+            {
+              "id": "graph_edge",
+              "kind": "graph_edge",
+              "label": "Payment edge"
+            },
+            {
+              "id": "case",
+              "kind": "case",
+              "label": "DEMO-CASE-1"
+            },
+            {
+              "id": "report",
+              "kind": "report",
+              "label": "Investigation report"
+            },
+            {
+              "id": "outcome",
+              "kind": "outcome",
+              "label": "Human review"
+            }
+          ],
+          "counts": {
+            "feature": 1,
+            "model": 1,
+            "dashboard": 1,
+            "alert": 1,
+            "graph_edge": 1,
+            "case": 1,
+            "report": 1,
+            "outcome": 1
+          },
+          "total": 8,
+          "coverage": "Registered dependencies only; unregistered copies and external systems are unknown."
+        },
+        "action": "Review downstream expiry/rebuild obligations; no erasure performed."
+      },
+      "reconciliation": {
+        "rows": [
+          {
+            "currency": "USD",
+            "incoming": "600",
+            "ledger": "1200",
+            "difference": "-600",
+            "status": "unresolved"
+          }
+        ],
+        "precedence": "Authorized ledger totals take precedence; comparison uses accepted rows only; currencies never mixed.",
+        "caveats": "Missing legs, reversals and balances require rail-specific feeds; no inference from absent feeds."
+      },
+      "incidents": [
+        {
+          "title": "Contract, drift and reconciliation incident",
+          "owner": "Data Steward",
+          "status": "open",
+          "due_at": "2026-10-19T05:00:30.574535+00:00",
+          "timeline": [
+            {
+              "at": "2026-10-18T05:00:30.574535+00:00",
+              "event": "Checks correlated",
+              "rejected": 6,
+              "drift_signals": 3,
+              "affected_dependencies": 8
+            }
+          ],
+          "root_cause": "Unconfirmed; review field failures and source changes before assigning cause."
+        }
+      ],
+      "receipt_sha256": "8e1f4a2b7fc65e256ac3ce78e4ae4c1ac4625f8f2deae746625941dfd53b5b7a"
+    },
+    "mode": "synthetic_demo",
+    "persisted": false
+  }
+}

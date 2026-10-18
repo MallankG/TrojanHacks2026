@@ -1,2 +1,8 @@
 .DS_Store
 .claude/
+
+# Local credentials and generated dependencies
+.env
+.env.*
+!.env.example
+node_modules/
