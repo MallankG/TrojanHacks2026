@@ -193,7 +193,7 @@ def golden_hashes(config: AgentConfig) -> tuple[dict[str, str], str]:
     llm = LLMSettings.from_env()
     config_hash = sha256_json({
         "agent_config": config.model_dump(mode="json", exclude={"use_precomputed"}),
-        "llm": {"provider": llm.provider, "model": llm.ollama_model,
+        "llm": {"provider": llm.provider, "model": llm.model,
                 "timeout_s": llm.timeout_s, "max_calls_per_run": llm.max_calls_per_run},
         "prompts": {name: path.stem for name, path in sorted(PROMPTS.items())},
         "seed": GOLDEN_SEED,
@@ -303,7 +303,7 @@ def _golden_report(run: dict[str, Any], config: AgentConfig) -> None:
     llm = LLMSettings.from_env()
     switch = "on" if config.use_precomputed else "off"
     print(f"golden run   seed={GOLDEN_SEED}   precomputed={switch}   LLM_PROVIDER={llm.provider}"
-          f"   OLLAMA_MODEL={llm.ollama_model or '(first listed)'}")
+          f"   model={llm.model or '(first listed)'}")
     print("datasets:  " + "  ".join(f"{k}={v[:10]}" for k, v in datasets.items()))
     print(f"config:    {config_hash[:16]}\n")
 
@@ -402,8 +402,10 @@ def _save_golden(run: dict[str, Any], config: AgentConfig) -> str | None:
         return "chat step failed; nothing saved"
     chat_fallback = any(m.fallback_used for t in turns for m in t.turn.llm_meta)
     if case.llm_meta.fallback_used or copilot.answer.fallback_used or chat_fallback:
-        return ("the template answered (Ollama down or too slow); start Ollama with "
-                f"{os.environ.get('OLLAMA_MODEL') or 'the team model'} and rerun")
+        errors = sorted({e for m in [case.llm_meta, *(m for t in turns for m in t.turn.llm_meta)]
+                         for e in m.errors})
+        return (f"the template answered ({', '.join(errors) or 'LLM unavailable'}); fix the "
+                f"{os.environ.get('LLM_PROVIDER', 'ollama')} provider and rerun")
     datasets, config_hash = golden_hashes(config)
     golden = precomputed.GoldenRun(
         created_at=datetime.now(UTC),

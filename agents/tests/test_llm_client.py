@@ -271,6 +271,9 @@ def test_settings_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "OLLAMA_MODEL",
         "LLM_TIMEOUT_S",
         "LLM_MAX_CALLS_PER_RUN",
+        "GROQ_API_KEY",
+        "GROQ_MODEL",
+        "APPROVED_DATA_DESTINATIONS",
     ):
         monkeypatch.delenv(var, raising=False)
     assert LLMSettings.from_env() == LLMSettings()
@@ -279,6 +282,100 @@ def test_settings_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("LLM_PROVIDER", "bogus")
     with pytest.raises(ValueError):
         LLMSettings.from_env()
+
+
+# --------------------------------------------------------------------------- groq
+
+
+def _groq(handler: Handler, key: str | None = "gsk_test") -> LLMClient:
+    settings = LLMSettings(provider="groq", groq_api_key=key, groq_approved=True)
+    return LLMClient(settings, transport=httpx.MockTransport(handler))
+
+
+def _completion(content: str) -> httpx.Response:
+    return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+
+async def test_groq_ok_sends_schema_and_key() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return _completion(json.dumps({"text": "hosted"}))
+
+    out, meta = await _echo(_groq(handler))
+    body = json.loads(seen[0].content)
+    assert out.text == "hosted" and (meta.provider, meta.model) == ("groq", "openai/gpt-oss-20b")
+    assert seen[0].url.path == "/openai/v1/chat/completions"
+    assert seen[0].headers["authorization"] == "Bearer gsk_test"
+    assert body["response_format"]["type"] == "json_schema" and body["reasoning_effort"] == "low"
+
+
+def _mismatch(generation: str) -> httpx.Response:
+    return httpx.Response(400, json={"error": {"code": "json_validate_failed",
+                                               "failed_generation": generation}})
+
+
+async def test_groq_schema_mismatch_retries_with_the_real_errors() -> None:
+    prompts: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        prompts.append(json.loads(request.content)["messages"][-1]["content"])
+        return _mismatch('{"wrong": 1}') if len(prompts) == 1 else _completion('{"text": "fixed"}')
+
+    out, meta = await _echo(_groq(handler))
+    assert out.text == "fixed" and meta.attempts == 2
+    assert meta.errors == ["groq_schema_mismatch", "invalid_output_attempt_1"]
+    assert "text" in prompts[1] and "missing" in prompts[1]  # pydantic's error, not "EOF"
+
+
+async def test_groq_two_schema_mismatches_fall_back_to_template() -> None:
+    out, meta = await _echo(_groq(lambda r: _mismatch('{"wrong": 1}')))
+    assert out.text == SECRET and meta.provider == "template" and meta.fallback_used
+    assert meta.errors == ["groq_schema_mismatch", "invalid_output_attempt_1",
+                           "groq_schema_mismatch", "invalid_output_attempt_2"]
+
+
+async def test_groq_refused_unless_an_approved_destination() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("evidence must not leave without approval")
+
+    client = LLMClient(LLMSettings(provider="groq", groq_api_key="gsk_test"),
+                       transport=httpx.MockTransport(handler))
+    out, meta = await _echo(client)
+    assert meta.provider == "template" and meta.errors == ["groq_not_approved_destination"]
+
+
+@pytest.mark.parametrize(("handler", "error"), [
+    (lambda r: httpx.Response(429), "groq_rate_limited"),
+    (lambda r: httpx.Response(413), "groq_request_too_large"),
+    (lambda r: httpx.Response(401), "groq_http_401"),
+    (_unreachable, "groq_unreachable"),
+])
+async def test_groq_failures_fall_back_to_template(handler: Handler, error: str) -> None:
+    out, meta = await _echo(_groq(handler))
+    assert out.text == SECRET and meta.fallback_used and meta.errors == [error]
+
+
+async def test_groq_without_key_never_calls_out() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("no request without a key")
+
+    out, meta = await _echo(_groq(handler, key=None))
+    assert meta.provider == "template" and meta.errors == ["groq_no_api_key"]
+    assert "gsk" not in repr(LLMSettings(provider="groq", groq_api_key="gsk_secret"))
+
+
+def test_groq_settings_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LLM_PROVIDER", "groq")
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_x")
+    monkeypatch.delenv("GROQ_MODEL", raising=False)
+    monkeypatch.delenv("APPROVED_DATA_DESTINATIONS", raising=False)
+    s = LLMSettings.from_env()
+    assert (s.provider, s.groq_api_key, s.model) == ("groq", "gsk_x", "openai/gpt-oss-20b")
+    assert not s.groq_approved
+    monkeypatch.setenv("APPROVED_DATA_DESTINATIONS", '["local","supabase","groq"]')
+    assert LLMSettings.from_env().groq_approved
 
 
 # --------------------------------------------------------------------------- opt-in real Ollama

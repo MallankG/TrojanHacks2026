@@ -31,10 +31,12 @@ flowchart LR
   AG -- "HTTP /api/chat, /api/tags" --> OL["Ollama :11434<br/>local LLM (e.g. qwen3.5)"]
 ```
 
-- **LLM path**: only `agents/tracelayer_agents/llm/client.py` calls a model, and only Ollama (`OLLAMA_HOST`).
-  Output is schema-validated JSON; if Ollama is down, slow or returns invalid output, a deterministic
-  template answers and the receipt says `fallback_used=true`. No cloud LLM is called. `LLM_PROVIDER=template`
-  runs with no LLM at all.
+- **LLM path**: only `agents/tracelayer_agents/llm/client.py` calls a model: local Ollama (`LLM_PROVIDER=ollama`,
+  development) or Groq's hosted free tier (`LLM_PROVIDER=groq`, deployments; default `openai/gpt-oss-20b`).
+  Output is schema-validated JSON; if the model is down, slow, rate-limited or returns invalid output, a
+  deterministic template answers and the receipt says `fallback_used=true`. With Groq, case evidence leaves the
+  deployment, so `groq` is listed in `APPROVED_DATA_DESTINATIONS`; all demo data is synthetic.
+  `LLM_PROVIDER=template` runs with no LLM at all.
 - **Agents**: `analysis` (ingest → features → detectors → aggregate → investigate flows), `case`
   (load case → retrieve policy → draft narrative → verify → human decision → record), `copilot`
   (case-scoped Q&A). Details: `agents/docs/ARCHITECTURE.md`, `agents/docs/CONTRACTS.md`.
@@ -102,36 +104,12 @@ npm run dev                          # http://localhost:3000
 `cd agents && pip install -e '.[dev]' && pytest -q`. To run the agents with no LLM, set
 `LLM_PROVIDER=template` in `backend/.env`.
 
-## Deploy: Vercel (frontend) + Render (backend + Ollama)
+## Deploy (free tiers)
 
-Supabase stays the hosted database. Deploy the backend first, because the frontend needs its URL.
-
-**1. Ollama on Render** (a Private Service, reachable only from the backend)
-- New → Private Service → *Deploy an existing image* → `ollama/ollama:latest`.
-- Add a persistent disk mounted at `/root/.ollama` (≥ 10 GB) so pulled models survive restarts.
-- The model must fit in RAM: `qwen3.5:9b` needs roughly 8 GB or more. On smaller instances use a small model
-  (e.g. `qwen3.5:0.8b`), or skip this service and set `LLM_PROVIDER=template` on the backend.
-- After the first deploy, open the service Shell and run `ollama pull <model>`.
-- Note its internal address, e.g. `http://tracelayer-ollama:11434`.
-
-**2. Backend on Render** (Web Service, Python)
-- Root Directory: **leave empty (repo root)**. The build needs `agents/` beside `backend/` for `-e ../agents`.
-- Build Command: `cd backend && pip install -r requirements.txt`
-- Start Command: `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
-- Health Check Path: `/health`
-- Environment: `PYTHON_VERSION=3.11.15`; every key from `backend/.env.example` with real values;
-  `OLLAMA_HOST=<Ollama private URL from step 1>`, `OLLAMA_MODEL=<pulled model>`;
-  `CORS_ORIGINS=["https://<your-app>.vercel.app"]` (fill in once step 3 gives you the URL).
-- Instance: `torch`, `xgboost` and the model artifacts in `backend/ml/artifacts/` need ≥ 2 GB RAM. The free
-  512 MB tier runs out of memory.
-
-**3. Frontend on Vercel**
-- New Project → import the repo → Root Directory: `frontend` (Next.js is auto-detected).
-- Environment variables: `NEXT_PUBLIC_API_BASE_URL=https://<backend>.onrender.com`,
-  `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Never put the service-role key here.
-- Deploy, then put the Vercel URL into the backend's `CORS_ORIGINS` on Render and redeploy the backend.
-
-**4. Supabase**: add the Vercel URL under Authentication → URL Configuration (Site URL and redirect URLs).
+Step-by-step guide: **[DEPLOY.md](DEPLOY.md)**. In short: frontend on Vercel, backend with every model on a
+free Hugging Face Docker Space (`deploy/huggingface/`, 16 GB RAM), LLM on Groq's free tier
+(`LLM_PROVIDER=groq`), Supabase as is. Render's free 512 MB tier (`render.yaml`) also works, but without the
+trained models.
 
 ## ML layout (`backend/ml/`)
 

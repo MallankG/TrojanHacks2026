@@ -104,6 +104,8 @@ def score(ledger, keep_ids, names=('xgb_temporal','gnn_temporal')):
             needed=[f for f in findings if f.transaction_id in keep_ids]
             extra=sorted((f for f in findings if f.transaction_id not in keep_ids),key=lambda f:-f.score)
             results[name]=Result(needed+extra[:max(0,300-len(needed))],card,scored=len(e))
+        except ImportError:  # slim deploy (requirements-slim.txt): no torch/xgboost, not a failure
+            results[name]=Result(skipped_reason=f'{name} unavailable: model stack not installed')
         except Exception as exc:  # optional model: skip it with a reason, keep the run
             log.exception('%s scoring failed', name)
             results[name]=Result(skipped_reason=f'{name} unavailable: {type(exc).__name__}')
