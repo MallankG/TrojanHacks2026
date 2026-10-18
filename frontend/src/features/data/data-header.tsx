@@ -13,8 +13,8 @@ export function DataHeader() {
   const role = useRole();
   const live = useLiveProfile() !== null;
   const open = () => openModal({ kind: "onboard" });
-  // With a live session, uploads go to the backend; onboarding a new source stays a guided mock.
-  const upload = () => openModal(live ? { kind: "liveUpload" } : { kind: "onboard" });
+  // Always open the real CSV upload dialog so users can upload files in both live and prototype mode.
+  const upload = () => openModal({ kind: "liveUpload" });
   return (
     <>
       <PageHeader

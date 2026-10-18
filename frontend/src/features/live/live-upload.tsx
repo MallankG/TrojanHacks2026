@@ -129,7 +129,7 @@ export function LiveUploadDialog() {
         Cancel
       </Button>
       <Button disabled={previewing || missing.length > 0} onClick={() => void runPreview(overrides)}>
-        {previewing ? "Reading file" : "Preview mapping"}
+        {previewing ? "Reading file..." : "Preview & Validate Mapping →"}
       </Button>
     </>
   ) : (
@@ -138,7 +138,7 @@ export function LiveUploadDialog() {
         Back
       </Button>
       <Button disabled={busy || previewing || !preview?.can_upload} onClick={() => void submit()}>
-        {busy ? "Validating" : "Upload and validate"}
+        {busy ? "Uploading..." : "Upload & Ingest CSV"}
       </Button>
     </>
   );

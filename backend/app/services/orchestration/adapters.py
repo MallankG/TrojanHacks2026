@@ -429,6 +429,20 @@ class Cases:
         return {'before_hash':api.canonical_hash(receipt['before']),'after_hash':api.canonical_hash(receipt['after'])}
 
 
+class Access:
+    def __init__(self, ctx):
+        self.ctx = ctx
+
+    def can_access(self, actor_id: str, actor_role: str, case_id: str, tenant_id: str | None) -> bool:
+        try:
+            tid = tenant_id or self.ctx.tid
+            row = get_one('cases', tid, case_id, 'id,status')
+            return row is not None
+        except Exception:
+            return False
+
+
 def services(ctx):
     return api.Services(ingestion=Ingestion(ctx),quality=Quality(ctx),graph=Graph(ctx),graph_risk=GraphRisk(ctx),
-        behavior=Behavior(ctx),fusion=Fusion(ctx),flows=Flows(ctx),policy=Policy(ctx),cases=Cases(ctx),audit=Audit(ctx))
+        behavior=Behavior(ctx),fusion=Fusion(ctx),flows=Flows(ctx),policy=Policy(ctx),cases=Cases(ctx),audit=Audit(ctx),
+        access=Access(ctx))

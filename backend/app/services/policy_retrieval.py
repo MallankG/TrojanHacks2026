@@ -39,10 +39,16 @@ def search(tenant_id: str, query: str, top_k: int = 8) -> dict:
         vector = embed([query], timeout=3)[0]  # interactive: a slow model falls back to keyword quickly
     except (httpx.HTTPError, ValueError, KeyError, TypeError):
         vector = None
-    rows = get_db().rpc('match_policy_chunks', {
-        'query_embedding': _vector(vector) if vector else None, 'query_text': query,
-        'match_count': top_k, 'filter_tenant_id': tenant_id,
-        'filter_embedding_model': model if vector else None}).execute().data or []
+    params = {
+        'filter_tenant_id': tenant_id,
+        'full_text_weight': 1.0,
+        'match_count': top_k,
+        'query_embedding': _vector(vector) if vector else None,
+        'query_text': query,
+        'rrf_k': 60,
+        'semantic_weight': 1.0 if vector else 0.0,
+    }
+    rows = get_db().rpc('match_policy_chunks', params).execute().data or []
     semantic = vector is not None and any(r.get('similarity') is not None for r in rows)
     return {'results': rows, 'mode': 'hybrid' if semantic else 'keyword',
             'embedding_model': model if semantic else None}
