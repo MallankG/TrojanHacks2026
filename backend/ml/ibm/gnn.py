@@ -124,10 +124,12 @@ class EdgeGATv2(nn.Module):
 class Data:
     """All edges on the device; batches = seed edges + sampled 2-hop neighbourhood in a split graph."""
 
-    def __init__(self, src, dst, node_x, edge_x, device, fanout=(20, 8), ego=False, temporal=False):
+    def __init__(self, src, dst, node_x, edge_x, device, fanout=(20, 8), ego=False, temporal=False, ts=None):
         self.src, self.dst = torch.as_tensor(src, device=device), torch.as_tensor(dst, device=device)
         self.node_x, self.edge_x = torch.as_tensor(node_x, device=device), torch.as_tensor(edge_x, device=device)
         self.n_nodes, self.device, self.fanout, self.ego, self.temporal = len(node_x), device, fanout, ego, temporal
+        # temporal cap = first edge id sharing the earliest target's timestamp, so same-minute edges are excluded too
+        self.first_same_ts = None if ts is None else torch.as_tensor(np.searchsorted(ts, ts, side="left"), device=device)
 
     def batch(self, g, seeds, gen):
         if self.temporal:
@@ -154,7 +156,7 @@ class Data:
         """PRD-strict: message-passing edges all have id < the batch's earliest target (edges are time-sorted).
         Targets are appended after them and excluded from message passing via n_mp, so no target sees
         another target or anything later."""
-        cap = seeds.min()
+        cap = seeds.min() if self.first_same_ts is None else self.first_same_ts[seeds.min()]
         nodes = torch.unique(torch.cat([self.src[seeds], self.dst[seeds]]))
         past = []
         for k in self.fanout:
@@ -209,7 +211,7 @@ def main(data_dir, out=None, epochs=30, patience=5, bs=2048, neg_frac=0.25, seed
     src, dst = ids.get_indexer(e["src"]), ids.get_indexer(e["dst"])
     print(f"features ready in {time.time() - t0:.0f}s: node {node_x.shape}, edge {edge_x.shape}")
 
-    D = Data(src, dst, node_x, edge_x, dev, tuple(fanout), ego, temporal)
+    D = Data(src, dst, node_x, edge_x, dev, tuple(fanout), ego, temporal, e["ts"].to_numpy() if temporal else None)
     graphs = {k: SplitGraph(D.src, D.dst, D.n_nodes, np.arange(last + 1), dev) for k, last in (("train", tr.max()), ("val", va.max()), ("test", te.max()))}
     model = EdgeGATv2(node_x.shape[1] + 2 + int(ego), edge_x.shape[1], hidden=hidden).to(dev)
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
@@ -299,7 +301,8 @@ class IBMGNNScorer:
         node_x = np.column_stack([(ent == t).to_numpy(float) for t in self.ck["entity_types"]]).astype(np.float32)
         ef = gnn_edge_features(e)[self.ck["edge_features"]]
         edge_x = ((ef - pd.Series(self.ck["edge_mu"])) / pd.Series(self.ck["edge_sd"])).to_numpy(np.float32)
-        D = Data(ids.get_indexer(e["src"]), ids.get_indexer(e["dst"]), node_x, edge_x, self.device, tuple(self.ck["fanout"]), self.ck.get("ego", False), self.ck.get("temporal", False))
+        D = Data(ids.get_indexer(e["src"]), ids.get_indexer(e["dst"]), node_x, edge_x, self.device, tuple(self.ck["fanout"]), self.ck.get("ego", False), self.ck.get("temporal", False),
+                 e["ts"].to_numpy() if self.ck.get("temporal", False) else None)
         g = SplitGraph(D.src, D.dst, D.n_nodes, np.arange(len(e)), self.device)
         p = predict(self.model, D, g, rows)
         return pd.DataFrame({"row": orig[rows], "gnn_score": p, "gnn_flagged": p >= self.threshold}).set_index("row")
