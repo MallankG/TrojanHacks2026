@@ -1,7 +1,7 @@
 # Render Blueprint: the FastAPI backend on the free plan (512 MB RAM).
 # Free can't hold torch + xgboost, so it installs requirements-slim.txt: the trained IBM models report
 # "unavailable" while rules, anomaly, graph, agents and Groq run. For the full models use the
-# Hugging Face Space in deploy/huggingface/ instead (README: "Deploy").
+# Hugging Face Space in deploy/huggingface/ instead (DEPLOY.md).
 services:
   - type: web
     name: tracelayer-api

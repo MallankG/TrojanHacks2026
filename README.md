@@ -104,49 +104,12 @@ npm run dev                          # http://localhost:3000
 `cd agents && pip install -e '.[dev]' && pytest -q`. To run the agents with no LLM, set
 `LLM_PROVIDER=template` in `backend/.env`.
 
-## Deploy (free tiers): Vercel + Render or Hugging Face + Groq + Supabase
+## Deploy (free tiers)
 
-Supabase stays the hosted database, Groq replaces Ollama, the frontend goes to Vercel. Deploy the backend first,
-because the frontend needs its URL. Pick one backend host:
-
-| backend host | RAM | models served | trade-off |
-|---|---|---|---|
-| **Render free** (`render.yaml`) | 512 MB | rules, anomaly, graph, agents; trained IBM models report "unavailable" | simplest; sleeps after 15 min idle (~1 min cold start) |
-| **Hugging Face Space** (`deploy/huggingface/`) | 16 GB | everything, incl. XGBoost + temporal GNN | Docker build ~10 min; sleeps after 48 h idle |
-
-The full model stack needs ~1 GB, which no 512 MB free tier (Render, Koyeb) can hold; `requirements-slim.txt`
-leaves torch and xgboost out so the rest fits. Fly.io and Railway are no longer free.
-
-**1. Groq key.** https://console.groq.com/keys → Create API key (free, no card). Free-tier limits for
-`openai/gpt-oss-20b`: 30 requests/min, 1,000/day; each case narrative is 1–2 calls. Over the limit, answers fall
-back to the deterministic template (labelled in the receipt).
-
-**2a. Backend on Render (free).**
-- Render → New → Blueprint → pick this repo. It reads `render.yaml` (free web service, repo root as build
-  context, `pip install -r requirements-slim.txt`, health check `/health`).
-- Fill the prompted secrets: `GROQ_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
-  `CORS_ORIGINS=["https://<your-app>.vercel.app"]` (fill in after step 3; use the exact production URL, not `*`).
-- URL: `https://tracelayer-api.onrender.com` (or the name Render shows). Check `<url>/health`.
-
-**2b. Backend on Hugging Face (free, full models)** instead of 2a.
-- Create a GitHub fine-grained token with read-only *Contents* access to this repo.
-- huggingface.co → New Space → SDK **Docker**, hardware **CPU basic (free)**, visibility **Public** (the browser
-  must reach the API; the source stays private because the image clones it at build time).
-- Upload `deploy/huggingface/README.md` and `deploy/huggingface/Dockerfile` to the Space root.
-- Space → Settings → Variables and secrets → add secrets `GITHUB_TOKEN`, `GROQ_API_KEY`, `SUPABASE_URL`,
-  `SUPABASE_SERVICE_ROLE_KEY`, `SERVICE_API_KEY` (any long random string), `CORS_ORIGINS`.
-- URL: `https://<user>-<space>.hf.space`. New commits on `main`: Settings → Factory rebuild.
-
-**3. Frontend on Vercel (Hobby, free).**
-- New Project → import the repo → Root Directory: `frontend` (Next.js is auto-detected).
-- Environment variables: `NEXT_PUBLIC_API_BASE_URL=<backend URL from step 2>`,
-  `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Never put the service-role key here.
-- Deploy, then set the backend's `CORS_ORIGINS` to the Vercel URL and redeploy/restart the backend.
-
-**4. Supabase.** Authentication → URL Configuration: Site URL and redirect URLs = the Vercel URL. Free projects
-pause after 7 days without activity; restore from the dashboard.
-
-Policy search uses keyword retrieval in deployments (vector embeddings need a local Ollama).
+Step-by-step guide: **[DEPLOY.md](DEPLOY.md)**. In short: frontend on Vercel, backend with every model on a
+free Hugging Face Docker Space (`deploy/huggingface/`, 16 GB RAM), LLM on Groq's free tier
+(`LLM_PROVIDER=groq`), Supabase as is. Render's free 512 MB tier (`render.yaml`) also works, but without the
+trained models.
 
 ## ML layout (`backend/ml/`)
 
