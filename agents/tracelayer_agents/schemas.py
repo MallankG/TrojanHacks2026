@@ -17,7 +17,7 @@ import re
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, get_args
 
 from pydantic import (
     AfterValidator,
@@ -500,6 +500,13 @@ class VerifierError(Contract):
         "UNGROUNDED_TOKEN",
         "PROHIBITED_LANGUAGE",
         "MISSING_ALTERNATIVE",
+        # chat verifier (`chat.verify_chat`)
+        "NOT_ON_PATH",
+        "ARITHMETIC_MISMATCH",
+        "OUT_OF_SCOPE",
+        "UNSUPPORTED_BENIGN",
+        "DISPOSITION_LANGUAGE",
+        "BAD_FACT_REF",
     ]
     detail: str
 
@@ -829,3 +836,308 @@ class CytoscapeGraph(Contract):
     error: str | None = None
     nodes: list[CytoscapeNode] = Field(default_factory=list)
     edges: list[CytoscapeEdge] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------- investigation chat
+#
+# A chat is bound to one case. Tools are read-only and allowlisted (`tracelayer_agents.tools`);
+# every claim in an answer carries a label and the ids it rests on, and `chat.verify_chat` drops
+# any claim it can't trace to this turn's tool results or the case context.
+
+ChatChip = Literal[
+    "explain_alert",
+    "trace_backward",
+    "trace_forward",
+    "why_connected",
+    "evidence_per_signal",
+    "benign_explanations",
+    "policy_guidance",
+    "missing_data",
+    "similar_cases",
+    "next_steps",
+]
+CHAT_CHIPS: tuple[str, ...] = get_args(ChatChip)
+ChatToolName = Literal[
+    "transaction_lookup",
+    "trace_backward",
+    "trace_forward",
+    "time_window_aggregate",
+    "cycle_search",
+    "related_entities",
+    "model_explanation",
+    "quality_lineage",
+    "policy_retrieval",
+    "similar_cases",
+]
+CHAT_TOOLS: tuple[str, ...] = get_args(ChatToolName)
+ClaimLabel = Literal["observed_fact", "model_inference", "policy", "hypothesis", "missing_evidence"]
+BenignKind = Literal["payroll", "treasury_sweep", "refund", "reversal", "shared_service"]
+BENIGN_KINDS: tuple[str, ...] = get_args(BenignKind)
+ToolStatus = Literal["ok", "error", "timeout", "rejected"]
+VerificationStatus = Literal["verified", "partial", "unverified"]
+MAX_TOOL_CALLS_PER_TURN = 3
+CHAT_MAX_HYPOTHESES = 3
+CHAT_MAX_NEXT_STEPS = 5
+
+
+class ToolCall(Contract):
+    """One allowlisted tool call. `args` are checked against the tool's own input model."""
+
+    tool: ChatToolName
+    args: dict[str, Any] = Field(default_factory=dict)
+
+
+class ChatPlan(Contract):
+    """What the `chat_plan` prompt (or its template) returns for a free-text question."""
+
+    intent: NonBlankStr
+    tool_calls: list[ToolCall] = Field(default_factory=list, max_length=MAX_TOOL_CALLS_PER_TURN)
+
+
+class ChatPlanDraft(Contract):
+    """The `chat_plan` prompt's raw output: tool calls are loose dicts here so that an invalid
+    plan reaches `chat_classify` (which asks for a narrower question) instead of being retried
+    into the template."""
+
+    intent: str
+    tool_calls: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class ToolRefs(Contract):
+    """Every id a tool result may be cited by. `paths` are the edge (transaction) id lists of the
+    paths or cycles it returned, for path-membership checks."""
+
+    tx_ids: list[str] = Field(default_factory=list)
+    account_ids: list[str] = Field(default_factory=list)
+    edge_ids: list[str] = Field(default_factory=list)
+    paths: list[list[str]] = Field(default_factory=list)
+    chunk_ids: list[str] = Field(default_factory=list)
+    evidence_ids: list[str] = Field(default_factory=list)  # lineage refs, check ids, references
+    model_run_id: str | None = None
+
+
+class ComputedValue(Contract):
+    """A number a tool computed in Python. Amount values are recomputed by the chat verifier from
+    `transaction_ids`."""
+
+    key: str
+    kind: Literal["amount", "count", "timestamp"]
+    value: str
+    currency: CurrencyCode | None = None
+    transaction_ids: list[str] = Field(default_factory=list)
+
+
+class ToolResult(Contract):
+    """Outcome of one tool call. `rows` are plain JSON (money as decimal strings), at most
+    `tools.MAX_ROWS`; `truncated` says more existed. `warnings` name parts that could not be
+    checked (e.g. a scorer that failed); `error` is a short reason, never a stack trace."""
+
+    tool: ChatToolName
+    status: ToolStatus
+    args: dict[str, Any] = Field(default_factory=dict)
+    rows: list[dict[str, Any]] = Field(default_factory=list)
+    row_count: int = Field(default=0, ge=0)
+    truncated: bool = False
+    refs: ToolRefs = Field(default_factory=ToolRefs)
+    computed: list[ComputedValue] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    error: str | None = None
+    duration_ms: float = Field(default=0, ge=0)
+
+
+class ToolCallRecord(Contract):
+    """A tool call as shown to the UI and audited: no rows, only counts."""
+
+    tool: ChatToolName
+    args: dict[str, Any] = Field(default_factory=dict)
+    status: ToolStatus
+    row_count: int = Field(ge=0)
+    truncated: bool = False
+    duration_ms: float = Field(ge=0)
+    error: str | None = None
+
+
+class ChatClaim(Contract):
+    """One labelled statement in a chat answer and everything it cites. Every label except
+    `missing_evidence` must cite at least one id."""
+
+    text: NonBlankStr
+    label: ClaimLabel
+    transaction_ids: list[str] = Field(default_factory=list)
+    account_ids: list[str] = Field(default_factory=list)
+    edge_ids: list[str] = Field(default_factory=list)
+    evidence_ids: list[str] = Field(default_factory=list)
+    chunk_ids: list[str] = Field(default_factory=list)
+    model_run_id: str | None = None
+    amounts: list[Money] = Field(default_factory=list)
+    source_tools: list[ChatToolName] = Field(default_factory=list)
+    benign_kind: BenignKind | None = None
+
+
+class ChatGap(Contract):
+    """A claim (or free-text part) the verifier dropped. The dropped text itself is not repeated,
+    only its hash, so unverified content never reaches the UI."""
+
+    label: ClaimLabel | Literal["summary", "next_step"]
+    text_hash: Sha256Hex
+    codes: list[str] = Field(min_length=1)
+    detail: str
+    suggested_query: str
+
+
+class ChatHypothesis(Contract):
+    """A possible interpretation. `fact_refs` are 1-based numbers of the fact claims it rests on;
+    `benign_kind` is set for a benign counter-hypothesis, which needs tool support."""
+
+    text: NonBlankStr
+    fact_refs: list[int] = Field(min_length=1)
+    benign_kind: BenignKind | None = None
+
+
+class ChatSynthesis(Contract):
+    """What the `chat_answer` prompt (or its template) returns: prose around the deterministic
+    claims, never facts of its own."""
+
+    summary: NonBlankStr
+    hypotheses: list[ChatHypothesis] = Field(default_factory=list, max_length=CHAT_MAX_HYPOTHESES)
+    next_steps: list[str] = Field(default_factory=list, max_length=CHAT_MAX_NEXT_STEPS)
+
+
+class ChatContext(Contract):
+    """The case a chat is bound to. Returned with every chat response."""
+
+    case_id: str
+    alert_id: str
+    alert: Alert
+    evidence_bundle: EvidenceBundle
+    derived_facts: list[DerivedFact] = Field(default_factory=list)
+    quality_issues: list[QualityIssue] = Field(default_factory=list)
+    graph_snapshot_id: str
+    window_start: UtcDatetime
+    window_end: UtcDatetime
+    entity_scope: list[str] = Field(default_factory=list)  # account ids the chat may query
+    scope_transaction_count: int = Field(ge=0)
+    pinned_evidence_ids: list[str] = Field(default_factory=list)
+    scope_notes: list[str] = Field(default_factory=list)
+
+
+class ChatFeedback(Contract):
+    helpful: bool
+    note_hash: Sha256Hex | None = None
+    recorded_at: UtcDatetime
+
+
+class ChatTurn(Contract):
+    """One question and its verified answer, as kept on the session."""
+
+    turn_id: str
+    trace_id: str
+    created_at: UtcDatetime
+    chip: ChatChip | None = None
+    question: str | None = None
+    question_hash: Sha256Hex
+    status: Literal["ok", "needs_clarification", "error"]
+    intent: str
+    answer: str
+    claims: list[ChatClaim] = Field(default_factory=list)
+    gaps: list[ChatGap] = Field(default_factory=list)
+    failures: list[str] = Field(default_factory=list)
+    next_steps: list[str] = Field(default_factory=list)
+    suggested_chips: list[ChatChip] = Field(default_factory=list)
+    tool_calls: list[ToolCallRecord] = Field(default_factory=list)
+    verification_status: VerificationStatus
+    llm_meta: list[LLMMeta] = Field(default_factory=list)
+    feedback: ChatFeedback | None = None
+
+
+class ChatSession(Contract):
+    chat_id: str
+    case_id: str
+    alert_id: str
+    actor_id: NonBlankStr
+    actor_role: ActorRole
+    created_at: UtcDatetime
+    context: ChatContext
+    turns: list[ChatTurn] = Field(default_factory=list)
+
+
+class ChatResult(Contract):
+    """What `api.start_chat` and `api.get_chat` return."""
+
+    status: ResultStatus = "ok"
+    error: str | None = None
+    chat: ChatSession | None = None
+    available_chips: list[ChatChip] = Field(default_factory=lambda: list(CHAT_CHIPS))
+
+    @model_validator(mode="after")
+    def _complete_when_ok(self) -> ChatResult:
+        _require_when_ok(self, "chat")
+        return self
+
+
+class ChatTurnResult(Contract):
+    """What `api.send_message` returns. `needs_clarification` means no tool ran: the question
+    couldn't be mapped to an allowlisted plan inside this case;
+    `suggested_chips` say what to ask."""
+
+    status: Literal["ok", "needs_clarification", "error"] = "ok"
+    error: str | None = None
+    chat_id: str
+    turn: ChatTurn | None = None
+    context: ChatContext | None = None
+    trace: list[TraceEvent] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _complete_when_ok(self) -> ChatTurnResult:
+        if self.status != "error" and (self.turn is None or self.context is None):
+            raise ValueError(f"status={self.status!r} requires turn and context")
+        return self
+
+
+class PinResult(Contract):
+    """`rejected` = at least one id is not part of this chat's case; nothing was changed."""
+
+    status: Literal["ok", "rejected", "error"] = "ok"
+    error: str | None = None
+    chat_id: str
+    pinned_evidence_ids: list[str] = Field(default_factory=list)
+    rejected_ids: list[str] = Field(default_factory=list)
+
+
+class FeedbackResult(Contract):
+    status: ResultStatus = "ok"
+    error: str | None = None
+    chat_id: str
+    turn_id: str
+    audit_event_id: str | None = None
+
+
+class ChatClassifyOutput(Contract):
+    intent: str
+    plan: list[ToolCall]
+    clarification: str | None = None
+    llm_meta: list[LLMMeta] = Field(default_factory=list)
+
+
+class ChatToolQueryOutput(Contract):
+    tool_results: list[ToolResult]
+
+
+class ChatDraftOutput(Contract):
+    draft_claims: list[ChatClaim]
+    synthesis: ChatSynthesis
+    benign_support: dict[str, list[str]]
+    llm_meta: list[LLMMeta] = Field(default_factory=list)
+
+
+class ChatVerifyOutput(Contract):
+    claims: list[ChatClaim]
+    gaps: list[ChatGap]
+    verifier_errors: list[VerifierError]
+    answer: str
+    next_steps: list[str]
+    verification_status: VerificationStatus
+
+
+class ChatRespondOutput(Contract):
+    audit_events: list[AuditEvent]

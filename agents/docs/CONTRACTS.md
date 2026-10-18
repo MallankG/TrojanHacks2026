@@ -255,3 +255,24 @@ as aliases. The supported `filters` keys are still open, so propose them.
   "embedding": [0.01, -0.02]
 }
 ```
+
+## How the investigation chat uses these services
+
+No Protocol changed. The chat (`api.send_message`) calls existing methods read-only, inside one
+case's scope, each call capped at **5 s** and its output at 50 rows:
+
+- `CaseRepository.get_case / get_alert / get_evidence`: once per chat, to bind it to the case.
+- `GraphService.subgraph(tx_ids, hops)`: hops 1–3 around the case evidence; edges outside the case
+  window (evidence span ± 7 days) are dropped. Please keep it fast (it runs on most chat turns).
+- `GraphService.get_transactions(tx_ids)`: at most 50 ids, all from the case scope.
+- `GraphRiskScorer.score(snapshot_id)` / `BehaviorScorer.score(snapshot_id)`: re-read for the
+  alert's top factors (`model_explanation`). **ML:** if scoring a snapshot takes more than a
+  second or two, please cache outputs per `snapshot_id`; a timeout shows as "not checked".
+- `PolicyRetriever.search(query, {}, top_k)`: the analyst's query (≤ 300 chars) or the alert's
+  typology query.
+
+`similar_cases` is a mock (`mocks/fixtures/typology_references.json`, labelled
+`mock_typology_reference`) that returns reference patterns only, never other cases' data, until a
+real similar-case service exists. Chat models (`ChatContext`, `ChatTurn`, `ChatClaim`, `ChatGap`,
+`ToolResult`, …) are in `schemas.py` under "investigation chat"; the facade and JSON examples are
+in `INTEGRATION.md`.

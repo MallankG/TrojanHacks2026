@@ -6,6 +6,7 @@
         --reason "..."                                            # + reviewer decision, audit chain
     python -m tracelayer_agents.demo --copilot "What should be documented when escalating ..."
     python -m tracelayer_agents.demo --golden [--decide escalate --reason "..."] [--save]
+    python -m tracelayer_agents.demo --scenario fan_out --chat    # case chat: 3 chips + 1 question
 
 `--golden` runs the fixed demo sequence through the public facade only (see `run_golden`);
 `--save` also writes it to `mocks/fixtures/golden_run.json`, which `TRACELAYER_PRECOMPUTED=1`
@@ -40,6 +41,7 @@ from tracelayer_agents.schemas import (
     AuditEvent,
     CaseDecisionResult,
     CaseDraftResult,
+    ChatTurnResult,
     CopilotResult,
     TraceEvent,
 )
@@ -376,6 +378,65 @@ def _save_golden(run: dict[str, Any], config: AgentConfig) -> str | None:
     return None
 
 
+CHAT_DEMO_CHIPS = ("explain_alert", "trace_forward", "benign_explanations")
+CHAT_DEMO_QUESTION = "Where did the money go after it left the hub account?"
+
+
+def _chat_turn_report(label: str, result: ChatTurnResult) -> None:
+    print(f"\n--- {label} ---")
+    if result.status == "error" or result.turn is None:
+        print(f"error: {result.error}")
+        return
+    turn = result.turn
+    print(f"status: {turn.status}   intent: {turn.intent}   verification: "
+          f"{turn.verification_status}   llm: "
+          + ", ".join(f"{m.provider}{' (fallback)' if m.fallback_used else ''}"
+                      for m in turn.llm_meta))
+    for call in turn.tool_calls:
+        print(f"  tool {call.tool:<22} {call.status:<8} rows={call.row_count:<3} "
+              f"{call.duration_ms:>8.1f} ms  {call.error or ''}")
+    print(f"answer: {turn.answer}")
+    for claim in turn.claims[:8]:
+        print(f"  [{claim.label}] {claim.text}")
+    if len(turn.claims) > 8:
+        print(f"  ... {len(turn.claims) - 8} more claims")
+    for gap in turn.gaps:
+        print(f"  GAP ({gap.label}: {', '.join(gap.codes)}) -> {gap.suggested_query}")
+    for step in turn.next_steps:
+        print(f"  next: {step}")
+
+
+async def run_chat_demo(scenario: str, mode: str) -> int:
+    """Analysis → case draft → chat on the top alert's case, through the public facade."""
+    api.configure()
+    analysis = await api.run_analysis(scenario, mode)  # type: ignore[arg-type]
+    if analysis.status != "ok" or not analysis.alerts:
+        print(f"analysis {analysis.status}: {analysis.error or 'no alerts'}", file=sys.stderr)
+        return 1
+    top = min(analysis.alerts, key=lambda a: a.rank or 0)
+    case = await api.start_case(top.alert_id)
+    if case.status != "ok":
+        print(f"case failed: {case.error}", file=sys.stderr)
+        return 1
+    chat = await api.start_chat(case.case_id, "demo_user", "analyst")
+    if chat.status != "ok" or chat.chat is None:
+        print(f"chat failed: {chat.error}", file=sys.stderr)
+        return 1
+    ctx = chat.chat.context
+    print(f"chat {chat.chat.chat_id} bound to {ctx.case_id} (alert {ctx.alert_id}, snapshot "
+          f"{ctx.graph_snapshot_id})")
+    print(f"window {ctx.window_start:%Y-%m-%d} to {ctx.window_end:%Y-%m-%d}; "
+          f"{len(ctx.entity_scope)} accounts and {ctx.scope_transaction_count} transactions "
+          f"in scope; {len(ctx.evidence_bundle.transactions)} evidence transactions")
+    for chip in CHAT_DEMO_CHIPS:
+        _chat_turn_report(f"chip: {chip}", await api.send_message(chat.chat.chat_id, chip=chip))
+    _chat_turn_report(f"question: {CHAT_DEMO_QUESTION}",
+                      await api.send_message(chat.chat.chat_id, text=CHAT_DEMO_QUESTION))
+    check = api.verify_audit_chain()
+    print(f"\naudit chain: {'ok' if check.ok else 'BROKEN'} ({check.checked} events)")
+    return 0 if check.ok else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m tracelayer_agents.demo")
     parser.add_argument("--scenario", choices=SCENARIOS, default="fan_out")
@@ -385,6 +446,10 @@ def main(argv: list[str] | None = None) -> int:
         default=os.environ.get("TRACELAYER_MODE", "strict"),
     )
     parser.add_argument("--copilot", metavar="QUESTION", help="ask the policy copilot instead")
+    parser.add_argument(
+        "--chat", action="store_true",
+        help="open an investigation chat on the top alert's case: 3 chips + 1 question",
+    )
     parser.add_argument(
         "--draft", action="store_true", help="then draft the case narrative for the top alert"
     )
@@ -428,6 +493,10 @@ def main(argv: list[str] | None = None) -> int:
                 return 1
             print(f"\nsaved {precomputed.GOLDEN_RUN_PATH}")
         return 0
+
+    if args.chat:
+        print(f"scenario: {args.scenario}   mode: {args.mode}\n")
+        return asyncio.run(run_chat_demo(args.scenario, args.mode))
 
     services = get_services()
     if args.copilot is not None:

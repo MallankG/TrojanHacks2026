@@ -16,21 +16,29 @@ Pydantic model that works as a FastAPI `response_model` (money as decimal string
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections import OrderedDict
-from typing import Any
+from datetime import UTC, datetime
+from typing import Any, get_args
 
 from tracelayer_agents import audit
+from tracelayer_agents.chat.session import MAX_PINS, ChatStore, build_context, build_scope
 from tracelayer_agents.config import AgentConfig
 from tracelayer_agents.interfaces import Services
 from tracelayer_agents.nodes.human_decision import DecisionRejected
 from tracelayer_agents.registry import get_services
 from tracelayer_agents.schemas import (
+    CHAT_CHIPS,
+    ActorRole,
     AnalysisResult,
     AuditVerification,
     CaseDecisionResult,
     CaseDraftResult,
     CaseStatus,
+    ChatFeedback,
+    ChatResult,
+    ChatTurnResult,
     CopilotResult,
     CytoscapeEdge,
     CytoscapeEdgeData,
@@ -38,11 +46,14 @@ from tracelayer_agents.schemas import (
     CytoscapeNode,
     CytoscapeNodeData,
     Decision,
+    FeedbackResult,
     Mode,
+    PinResult,
     TraceEvent,
 )
 from tracelayer_agents.workflows import analysis as analysis_workflow
 from tracelayer_agents.workflows import case as case_workflow
+from tracelayer_agents.workflows import chat as chat_workflow
 from tracelayer_agents.workflows import copilot as copilot_workflow
 from tracelayer_agents.wrappers import NodeError
 
@@ -52,18 +63,22 @@ logger = logging.getLogger(__name__)
 TRACE_HISTORY = 50
 MAX_ERROR_CHARS = 200
 MAX_GRAPH_HOPS = 3
+MAX_CHAT_MESSAGE_CHARS = 2000
+MAX_FEEDBACK_NOTE_CHARS = 2000
 
 _services: Services | None = None
 _config: AgentConfig | None = None
 _traces: OrderedDict[str, list[TraceEvent]] = OrderedDict()
+_chats = ChatStore()
 
 
 def configure(services: Services | None = None, config: AgentConfig | None = None) -> None:
     """Resolve the services once (each missing one falls back to its mock, with one warning) and
     keep them with the config for every later call. Safe to call again: it replaces both."""
-    global _services, _config
+    global _services, _config, _chats
     _services = get_services(services)
     _config = config or AgentConfig.from_env()
+    _chats = ChatStore()  # chats are bound to cases in these repositories
 
 
 def _ensure() -> tuple[Services, AgentConfig]:
@@ -270,3 +285,163 @@ def verify_audit_chain() -> AuditVerification:
         return AuditVerification(
             ok=False, checked=0, reason=_internal(exc, "verify_audit_chain")
         )
+
+
+# --------------------------------------------------------------------------- investigation chat
+
+
+async def start_chat(case_id: str, actor_id: str, actor_role: ActorRole | str) -> ChatResult:
+    """Open an investigation chat bound to one case (opened by `start_case`). `actor_id` and
+    `actor_role` must come from the backend's auth. A different case needs a new chat."""
+    services, _ = _ensure()
+    if actor_role not in get_args(ActorRole):
+        return ChatResult(status="error", error=f"actor_role must be one of {get_args(ActorRole)}")
+    if not (actor_id or "").strip():
+        return ChatResult(status="error", error="actor_id must not be empty")
+    try:
+        scope = await asyncio.to_thread(build_scope, case_id, services)
+    except KeyError as err:
+        return ChatResult(status="error", error=_short(str(err.args[0] if err.args else err)))
+    except Exception as exc:
+        return ChatResult(status="error", error=_internal(exc, "start_chat"))
+    try:
+        entry = _chats.create(scope, actor_id, actor_role)  # type: ignore[arg-type]
+        audit.record(
+            services.audit, action="chat.started", object_type="case", object_id=case_id,
+            actor_id=actor_id, actor_role=actor_role,
+            metadata={"chat_id": entry.session.chat_id, "alert_id": scope.alert.alert_id,
+                      "bundle_hash": scope.bundle.bundle_hash,
+                      "graph_snapshot_id": scope.graph_snapshot_id,
+                      "scope_accounts": len(scope.account_ids),
+                      "scope_transactions": len(scope.edges)},
+        )
+    except Exception as exc:
+        return ChatResult(status="error", error=_internal(exc, "start_chat"))
+    return ChatResult(chat=entry.session.model_copy(deep=True))
+
+
+async def send_message(
+    chat_id: str, text: str | None = None, chip: str | None = None
+) -> ChatTurnResult:
+    """Ask one question (`text`) or press one prompt chip (`chip`) in a chat; exactly one."""
+    services, config = _ensure()
+    if (text is None or not text.strip()) == (chip is None):
+        return ChatTurnResult(status="error", chat_id=chat_id,
+                              error="send exactly one of text or chip")
+    if chip is not None and chip not in CHAT_CHIPS:
+        return ChatTurnResult(status="error", chat_id=chat_id, error=f"unknown chip {chip!r}")
+    if text is not None and len(text) > MAX_CHAT_MESSAGE_CHARS:
+        return ChatTurnResult(status="error", chat_id=chat_id,
+                              error=f"text must be at most {MAX_CHAT_MESSAGE_CHARS} characters")
+    try:
+        entry = _chats.get(chat_id)
+        result = await chat_workflow.run_chat_turn(
+            entry, services, config, chip=chip, question=text.strip() if text else None
+        )
+    except KeyError:
+        return ChatTurnResult(status="error", chat_id=chat_id,
+                              error=_short(f"unknown chat_id {chat_id!r}"))
+    except NodeError as err:
+        trace = _failed_trace(err)
+        _remember(trace)
+        return ChatTurnResult(status="error", chat_id=chat_id, error=_node_error(err),
+                              trace=trace)
+    except Exception as exc:
+        return ChatTurnResult(status="error", chat_id=chat_id,
+                              error=_internal(exc, "send_message"))
+    _remember(result.trace)
+    return result
+
+
+def _set_pins(chat_id: str, ids: list[str], pin: bool) -> PinResult:
+    services, _ = _ensure()
+    try:
+        entry = _chats.get(chat_id)
+    except KeyError:
+        return PinResult(status="error", chat_id=chat_id,
+                         error=_short(f"unknown chat_id {chat_id!r}"))
+    try:
+        ids = list(dict.fromkeys(i for i in ids or [] if isinstance(i, str)))
+        session = entry.session
+        current = list(session.context.pinned_evidence_ids)
+        allowed = entry.scope.pinnable_ids if pin else set(current)
+        rejected = [i for i in ids if i not in allowed]
+        if rejected or not ids:
+            return PinResult(
+                status="rejected", chat_id=chat_id, pinned_evidence_ids=current,
+                rejected_ids=rejected,
+                error="ids must be transactions, accounts or derived facts of this chat's case"
+                      if pin else "ids are not pinned" if rejected else "no ids given",
+            )
+        updated = (list(dict.fromkeys([*current, *ids])) if pin
+                   else [i for i in current if i not in ids])
+        if len(updated) > MAX_PINS:
+            return PinResult(status="rejected", chat_id=chat_id, pinned_evidence_ids=current,
+                             error=f"at most {MAX_PINS} pinned ids")
+        with entry.lock:
+            session.context = build_context(entry.scope, updated)
+        audit.record(
+            services.audit, action="chat.pin" if pin else "chat.unpin", object_type="case",
+            object_id=session.case_id, actor_id=session.actor_id, actor_role=session.actor_role,
+            metadata={"chat_id": chat_id, "ids": ",".join(ids)},
+        )
+    except Exception as exc:
+        return PinResult(status="error", chat_id=chat_id, error=_internal(exc, "pin_evidence"))
+    return PinResult(chat_id=chat_id, pinned_evidence_ids=updated)
+
+
+def pin_evidence(chat_id: str, ids: list[str]) -> PinResult:
+    """Pin transactions, accounts or derived facts of this chat's case; chips then start from
+    them. All-or-nothing: any id outside the case rejects the call."""
+    return _set_pins(chat_id, ids, pin=True)
+
+
+def unpin_evidence(chat_id: str, ids: list[str]) -> PinResult:
+    return _set_pins(chat_id, ids, pin=False)
+
+
+def get_chat(chat_id: str) -> ChatResult:
+    """The chat session: its case context (alert, evidence, pins) and every turn so far."""
+    try:
+        return ChatResult(chat=_chats.get(chat_id).session.model_copy(deep=True))
+    except KeyError:
+        return ChatResult(status="error", error=_short(f"unknown chat_id {chat_id!r}"))
+    except Exception as exc:
+        return ChatResult(status="error", error=_internal(exc, "get_chat"))
+
+
+def record_feedback(
+    chat_id: str, turn_id: str, helpful: bool, note: str | None = None
+) -> FeedbackResult:
+    """Reviewer feedback on one turn. The note is audited as a hash and length only."""
+    services, _ = _ensure()
+    result = {"chat_id": chat_id, "turn_id": turn_id}
+    if not isinstance(helpful, bool):
+        return FeedbackResult(status="error", error="helpful must be true or false", **result)
+    if note is not None and len(note) > MAX_FEEDBACK_NOTE_CHARS:
+        return FeedbackResult(status="error", **result,
+                              error=f"note must be at most {MAX_FEEDBACK_NOTE_CHARS} characters")
+    try:
+        entry = _chats.get(chat_id)
+        turn = next((t for t in entry.session.turns if t.turn_id == turn_id), None)
+        if turn is None:
+            return FeedbackResult(status="error", error=_short(f"unknown turn_id {turn_id!r}"),
+                                  **result)
+        note_hash = audit.sha256_json(note) if note else None
+        with entry.lock:
+            turn.feedback = ChatFeedback(helpful=helpful, note_hash=note_hash,
+                                         recorded_at=datetime.now(UTC))
+        session = entry.session
+        event = audit.record(
+            services.audit, action="chat.feedback", object_type="case",
+            object_id=session.case_id, actor_id=session.actor_id, actor_role=session.actor_role,
+            metadata={"chat_id": chat_id, "turn_id": turn_id, "trace_id": turn.trace_id,
+                      "helpful": helpful, "note_hash": note_hash,
+                      "note_chars": len(note) if note else 0},
+        )
+    except KeyError:
+        return FeedbackResult(status="error", error=_short(f"unknown chat_id {chat_id!r}"),
+                              **result)
+    except Exception as exc:
+        return FeedbackResult(status="error", error=_internal(exc, "record_feedback"), **result)
+    return FeedbackResult(audit_event_id=event.event_id, **result)

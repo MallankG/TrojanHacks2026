@@ -34,6 +34,15 @@ flowchart LR
   end
 ```
 
+```mermaid
+flowchart LR
+  subgraph CH["chat_workflow · api.send_message (one turn, bound to one case)"]
+    CL[chat_classify · chip plan or LLM plan] -- plan --> TQ[chat_tool_query · allowlisted tools]
+    TQ --> DA[chat_draft_answer · LLM prose] --> CV[chat_verify] --> CR[chat_respond · audit]
+    CL -- needs clarification --> CR
+  end
+```
+
 ## Agents
 
 | Node | Kind | Inputs | Outputs |
@@ -53,6 +62,11 @@ flowchart LR
 | record_decision | deterministic | decision | final case_status, `case.decision` audit event |
 | copilot_answer | **LLM** | question, escaped source blocks | PolicyAnswer: claims each citing chunk_ids |
 | verify_citations | deterministic | answer, sources | answer with unsupported claims dropped, verifier errors |
+| chat_classify | deterministic (chip) / **LLM** (free text) | chip or question, case scope | ≤3 allowlisted tool calls, or a clarification request |
+| chat_tool_query | deterministic | plan, case scope | `ToolResult`s (read-only, ≤50 rows, 5 s each, scope-checked) |
+| chat_draft_answer | **LLM** (hybrid) | numbered claims built in Python from tool results | labelled claims; LLM writes only summary, hypotheses (by fact number), next steps |
+| chat_verify | deterministic | claims, tool results | verified claims; dropped ones as gaps with a narrower query |
+| chat_respond | deterministic | turn | `chat.turn` audit event |
 
 Every node returns a Pydantic model and is wrapped by `@traced_node`, which validates the output,
 enforces a timeout and appends a trace event (node, timings, status, input/output hashes).
@@ -83,6 +97,18 @@ A failed draft is redrafted once with the errors as feedback. If errors remain, 
 that cites nothing or cites a chunk that was not retrieved, and it answers "no answer" rather than
 answer without a source. Retrieved text is untrusted: it is HTML-escaped inside `<source>` blocks, and
 the narrative prompt sees only source titles.
+
+**Investigation chat.** `chat.verify_chat` applies the same idea to tool results: every id in a
+claim must come from this turn's tool results or the case evidence (`UNKNOWN_TX`,
+`UNKNOWN_ACCOUNT`, `OUT_OF_SCOPE`), cited edges must lie on one returned path or cycle
+(`NOT_ON_PATH`), every amount must be a tool-computed value that re-adds from the scope's
+transactions (`UNSUPPORTED_AMOUNT`, `ARITHMETIC_MISMATCH`), and free text is swept as above plus
+disposition and proximity-as-proof phrases (`DISPOSITION_LANGUAGE`). A benign hypothesis (payroll,
+treasury sweep, refund, reversal, shared service) needs deterministic support in the rows
+(`UNSUPPORTED_BENIGN`); treasury sweep and shared service can't be supported until ownership data
+exists. Failing claims are dropped and returned as gaps (hash, codes, suggested narrower query).
+The chat's case scope (evidence + ≤3-hop neighbourhood inside evidence span ± 7 days) is checked
+before any tool calls a service, so a chat can't read another case.
 
 ## Audit hash chain
 

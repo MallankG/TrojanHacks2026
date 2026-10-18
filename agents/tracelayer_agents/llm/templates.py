@@ -18,6 +18,9 @@ from pydantic import BaseModel
 
 from tracelayer_agents.guardrails import find_prohibited
 from tracelayer_agents.schemas import (
+    ChatHypothesis,
+    ChatPlan,
+    ChatSynthesis,
     Contract,
     NarrativeClaim,
     NarrativeHypothesis,
@@ -341,3 +344,82 @@ def build_narrative(variables: dict[str, Any], synthesis: NarrativeSynthesis) ->
         )),
         follow_up_questions=list(synthesis.follow_up_questions),
     )
+
+
+# --------------------------------------------------------------------------- investigation chat
+
+_BENIGN_TEXT = {
+    "payroll": "a payroll-like disbursement (one payer, several recipients, one day, similar "
+               "amounts)",
+    "refund": "a refund (the same amount returned between the same accounts)",
+    "reversal": "a reversal (the same amount returned between the same accounts)",
+    "treasury_sweep": "a treasury sweep",
+    "shared_service": "a shared-service arrangement",
+}
+
+
+@template("chat_plan")
+def chat_plan(variables: dict[str, Any]) -> ChatPlan:
+    """Keyword match of the question to a chip, then that chip's precomputed plan; "unclear"
+    (no tools) when nothing matches."""
+    from tracelayer_agents.chat.plans import keyword_chip
+
+    plans = variables.get("chip_plans") or {}
+    chip = keyword_chip(str(variables.get("question") or ""))
+    if chip is None or chip not in plans:
+        return ChatPlan(intent="unclear")
+    return ChatPlan(intent=chip, tool_calls=plans[chip])
+
+
+@template("chat_answer")
+def chat_answer(variables: dict[str, Any]) -> ChatSynthesis:
+    """Summary of what was and wasn't checked, one hypothesis per supported benign kind plus a
+    caveated typology hypothesis, and neutral next steps; all from the variables."""
+    facts = variables.get("facts") or []
+    support = variables.get("benign_support") or {}
+    checked = variables.get("checked_tools") or []
+    failed = variables.get("failed_tools") or []
+    hub = variables.get("hub_account")
+    observed = [f for f in facts if f["label"] == "observed_fact"]
+    grounded = [f for f in facts
+                if f["label"] in ("observed_fact", "model_inference") and f["transaction_ids"]]
+
+    summary = f"Checked {', '.join(checked)}" if checked else "No tool returned results"
+    summary += ". Each statement below cites its source ids. "
+    if failed:
+        summary += f"Not checked because the tool failed or was not run: {', '.join(failed)}. "
+    if any(f["source_tools"][0] in ("related_entities", "trace_forward", "trace_backward")
+           for f in observed):
+        summary += "Being connected to an account in the graph is not evidence of wrongdoing. "
+    summary += "Deterministic answer (no model synthesis); a reviewer must assess it."
+
+    hypotheses: list[ChatHypothesis] = []
+    if variables.get("allow_hypotheses"):
+        for kind, tx_ids in support.items():
+            refs = [f["n"] for f in observed if set(f["transaction_ids"]) & set(tx_ids)]
+            if refs and kind in _BENIGN_TEXT:
+                hypotheses.append(ChatHypothesis(
+                    text=(f"Benign hypothesis: the activity is consistent with "
+                          f"{_BENIGN_TEXT[kind]}. This needs confirmation and reviewer "
+                          "assessment."),
+                    fact_refs=refs[:5], benign_kind=kind,
+                ))
+        tags = [t for t in variables.get("typology_tags") or [] if _quotable(t)]
+        if tags and grounded:
+            hypotheses.append(ChatHypothesis(
+                text=(f"Hypothesis: the activity is consistent with a {tags[0].replace('_', '-')}"
+                      " pattern. It may also have a legitimate explanation; this requires "
+                      "reviewer assessment."),
+                fact_refs=[f["n"] for f in grounded][:3],
+            ))
+    next_steps = []
+    if hub:
+        next_steps.append(f"Obtain the KYC profile and stated business purpose for {hub}.")
+        next_steps.append(f"Confirm whether the counterparties of {hub} are employees, vendors "
+                          "or related parties.")
+        if "payroll" in support:
+            next_steps.append(f"Check whether the payments from {hub} match a documented payroll "
+                              "schedule.")
+    if failed:
+        next_steps.append("Re-run the tools that failed before relying on this answer.")
+    return ChatSynthesis(summary=summary, hypotheses=hypotheses[:3], next_steps=next_steps[:5])

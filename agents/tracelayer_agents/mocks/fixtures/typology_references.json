@@ -1,0 +1,19 @@
+[
+  {"reference_id": "REF-FAN-OUT-01", "typology": "fan_out",
+   "description": "One account sends funds to many recipients within a short window.",
+   "common_benign_explanations": ["payroll", "vendor batch payments"],
+   "typical_follow_ups": ["Confirm whether recipients are employees or vendors.",
+                          "Compare with the account's historical disbursement pattern."]},
+  {"reference_id": "REF-FAN-IN-01", "typology": "fan_in",
+   "description": "Many senders fund one account within a short window.",
+   "common_benign_explanations": ["merchant settlements", "shared-service collections"],
+   "typical_follow_ups": ["Identify the relationship between the senders and the receiver."]},
+  {"reference_id": "REF-PASS-THROUGH-01", "typology": "pass_through",
+   "description": "Funds arrive and leave an account quickly in a similar amount.",
+   "common_benign_explanations": ["treasury sweep", "intermediary settlement"],
+   "typical_follow_ups": ["Check whether the account is an operating or sweep account."]},
+  {"reference_id": "REF-CYCLE-01", "typology": "cycle",
+   "description": "Funds return to the originating account through intermediaries.",
+   "common_benign_explanations": ["refund or reversal chains", "intra-group transfers"],
+   "typical_follow_ups": ["Check for documented refunds, reversals or group ownership."]}
+]

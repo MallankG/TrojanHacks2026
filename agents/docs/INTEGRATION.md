@@ -93,6 +93,11 @@ The data mocks share one in-memory store, so swap in the data services (`ingesti
 | `await get_alert_graph(alert_id, hops=1)` | `CytoscapeGraph` | `ok`, `error` |
 | `get_trace(trace_id)` | `list[TraceEvent]` | `[]` if unknown |
 | `verify_audit_chain()` | `AuditVerification` | `ok: bool` |
+| `await start_chat(case_id, actor_id, actor_role)` | `ChatResult` | `ok`, `error` |
+| `await send_message(chat_id, text=None, chip=None)` | `ChatTurnResult` | `ok`, `needs_clarification`, `error` |
+| `pin_evidence(chat_id, ids)` / `unpin_evidence(chat_id, ids)` | `PinResult` | `ok`, `rejected`, `error` |
+| `get_chat(chat_id)` | `ChatResult` | `ok`, `error` |
+| `record_feedback(chat_id, turn_id, helpful, note=None)` | `FeedbackResult` | `ok`, `error` |
 
 - The functions **never raise**. Failures come back as the result with `status` and a short `error`
   (no stack traces, no prompt text) plus the trace so far.
@@ -550,6 +555,153 @@ Response `200`:
 {"ok": true, "checked": 19, "first_bad_index": null, "reason": null}
 ```
 
+### Investigation chat (case-scoped)
+
+A chat is bound to **one case** (opened by `POST /api/v1/cases`). It answers with read-only,
+allowlisted tools inside that case's scope: the evidence bundle plus the ≤3-hop graph
+neighbourhood around it, clipped to the case window (evidence span ± 7 days). It can't read
+another case: switching case means a new chat. `actor_id`/`actor_role` come from your auth.
+
+Suggested routes (each calls the facade function shown; status mapping as above, plus
+`needs_clarification` → 200):
+
+| route | facade |
+|---|---|
+| `POST /api/v1/cases/{case_id}/chats` | `await api.start_chat(case_id, user.id, user.role)` → `ChatResult` |
+| `POST /api/v1/chats/{chat_id}/messages` body `{"text": "..."}` or `{"chip": "trace_forward"}` | `await api.send_message(chat_id, text=..., chip=...)` → `ChatTurnResult` |
+| `POST /api/v1/chats/{chat_id}/pins` body `{"ids": [...]}` | `api.pin_evidence(chat_id, ids)` → `PinResult` |
+| `DELETE /api/v1/chats/{chat_id}/pins` body `{"ids": [...]}` | `api.unpin_evidence(chat_id, ids)` → `PinResult` |
+| `GET /api/v1/chats/{chat_id}` | `api.get_chat(chat_id)` → `ChatResult` |
+| `POST /api/v1/chats/{chat_id}/turns/{turn_id}/feedback` body `{"helpful": true, "note": "..."}` | `api.record_feedback(chat_id, turn_id, helpful, note)` → `FeedbackResult` |
+
+Chips (`available_chips`): `explain_alert`, `trace_backward`, `trace_forward`, `why_connected`,
+`evidence_per_signal`, `benign_explanations`, `policy_guidance`, `missing_data`, `similar_cases`,
+`next_steps`. Send exactly one of `text` (≤ 2000 chars) or `chip`.
+
+**For the frontend**
+- Show `context` (alert, evidence, window, pins) with every answer; it is in every response.
+- Render `turn.claims` grouped or badged by `label`: `observed_fact`, `model_inference`, `policy`,
+  `hypothesis`, `missing_evidence`. Each claim's ids (`transaction_ids`, `account_ids`, `edge_ids`
+  to highlight on the graph, `chunk_ids` for policy sources, `evidence_ids`) are clickable refs.
+- `turn.gaps` are claims the verifier **dropped**: show the `detail` and `suggested_query` (as a
+  "try this" prompt), never the dropped text (only its hash is kept).
+- `turn.failures` / `missing_evidence` claims say which tool failed; nothing from a failed tool
+  is presented as checked. `turn.llm_meta[].fallback_used=true` means the deterministic template
+  wrote the prose.
+- `status="needs_clarification"`: no tool ran; show `turn.answer` and `turn.suggested_chips`.
+- Pins (`pin_evidence`) accept transaction ids, account ids and derived-fact ids (`DF-n`) of this
+  case only; chips then start from the pinned ids. Any other id → `status="rejected"` with
+  `rejected_ids`, nothing changed.
+
+Latency: chips call the LLM once (answer prose), free text twice (plan + prose); with the
+template it is milliseconds, with Ollama see the latency note above. Each tool is capped at 5 s.
+
+#### `POST /api/v1/cases/{case_id}/chats`
+
+Response `200` (`ChatResult`):
+```json
+{
+  "status": "ok", "error": null,
+  "chat": {
+    "chat_id": "chat_fc646ac2f7c2", "case_id": "case_5ea02560904e",
+    "alert_id": "alrt_a812f90d1b25", "actor_id": "user_1", "actor_role": "analyst",
+    "created_at": "2026-10-18T03:18:00.838014Z",
+    "context": {
+      "case_id": "case_5ea02560904e", "alert_id": "alrt_a812f90d1b25",
+      "alert": {"alert_id": "alrt_a812f90d1b25", "tier": "high", "composite_score": 0.932203, "…": "…"},
+      "evidence_bundle": {"alert_id": "alrt_a812f90d1b25", "transactions": ["…"], "bundle_hash": "2fb8…"},
+      "derived_facts": [{"fact_id": "DF-1", "label": "evidence transaction count", "kind": "count",
+                         "value": "9", "currency": null, "transaction_ids": ["TX-51001", "…"],
+                         "account_ids": []}, "…"],
+      "quality_issues": [], "graph_snapshot_id": "snap_60742743c1f42dee",
+      "window_start": "2026-08-28T13:05:00Z", "window_end": "2026-09-11T15:21:00Z",
+      "entity_scope": ["ACC-3001", "ACC-3101", "…"], "scope_transaction_count": 9,
+      "pinned_evidence_ids": [], "scope_notes": []
+    },
+    "turns": []
+  },
+  "available_chips": ["explain_alert", "trace_backward", "trace_forward", "…"]
+}
+```
+
+#### `POST /api/v1/chats/{chat_id}/messages`
+
+Request: `{"chip": "benign_explanations"}` (or `{"text": "Where did the money go?"}`).
+Response `200` (`ChatTurnResult`):
+```json
+{
+  "status": "ok", "error": null, "chat_id": "chat_fc646ac2f7c2",
+  "turn": {
+    "turn_id": "turn_569320d7329d", "trace_id": "tr_1953…", "created_at": "2026-10-18T03:18:00.844806Z",
+    "chip": "benign_explanations", "question": null, "question_hash": "50ef…",
+    "status": "ok", "intent": "benign_explanations",
+    "answer": "Checked time_window_aggregate, trace_forward, transaction_lookup. Each statement below cites its source ids. Being connected to an account in the graph is not evidence of wrongdoing. Deterministic answer (no model synthesis); a reviewer must assess it.",
+    "claims": [
+      {"text": "From 2026-08-28 to 2026-09-11, ACC-3001 sent $43,855.00 across 9 transactions.",
+       "label": "observed_fact", "transaction_ids": ["TX-51001", "…"], "account_ids": ["ACC-3001"],
+       "edge_ids": [], "evidence_ids": [], "chunk_ids": [], "model_run_id": null,
+       "amounts": ["43855.00"], "source_tools": ["time_window_aggregate"], "benign_kind": null},
+      {"text": "Forward trace from ACC-3001: ACC-3001 → ACC-3101 via TX-51001, totaling $4,850.00, on 2026-09-04.",
+       "label": "observed_fact", "transaction_ids": ["TX-51001"], "account_ids": ["ACC-3001", "ACC-3101"],
+       "edge_ids": ["TX-51001"], "evidence_ids": [], "chunk_ids": [], "model_run_id": null,
+       "amounts": ["4850.00"], "source_tools": ["trace_forward"], "benign_kind": null},
+      {"text": "Benign hypothesis: the activity is consistent with a payroll-like disbursement (one payer, several recipients, one day, similar amounts). This needs confirmation and reviewer assessment.",
+       "label": "hypothesis", "transaction_ids": ["TX-51001", "…"], "account_ids": ["ACC-3001", "…"],
+       "edge_ids": [], "evidence_ids": [], "chunk_ids": [], "model_run_id": null, "amounts": [],
+       "source_tools": ["time_window_aggregate", "trace_forward"], "benign_kind": "payroll"},
+      "…"
+    ],
+    "gaps": [],
+    "failures": [],
+    "next_steps": ["Obtain the KYC profile and stated business purpose for ACC-3001.", "…"],
+    "suggested_chips": [],
+    "tool_calls": [
+      {"tool": "time_window_aggregate", "args": {"account_ids": ["ACC-3001"], "group_by": "account"},
+       "status": "ok", "row_count": 1, "truncated": false, "duration_ms": 0.245, "error": null},
+      {"tool": "trace_forward", "args": {"account_id": "ACC-3001", "hops": 1},
+       "status": "ok", "row_count": 9, "truncated": false, "duration_ms": 0.22, "error": null},
+      "…"
+    ],
+    "verification_status": "verified",
+    "llm_meta": [{"provider": "template", "model": "template", "prompt_version": "chat_answer_v1",
+                  "input_hash": "b38d…", "attempts": 0, "fallback_used": true, "latency_ms": 0.026,
+                  "errors": []}],
+    "feedback": null
+  },
+  "context": {"case_id": "case_5ea02560904e", "…": "same ChatContext as start_chat, with current pins"},
+  "trace": [{"trace_id": "tr_1953…", "node": "chat_classify", "status": "ok", "…": "…"}, "…"]
+}
+```
+
+A dropped claim (e.g. the model wrote an id no tool returned) appears as:
+```json
+{"label": "hypothesis", "text_hash": "f2e4…", "codes": ["UNGROUNDED_TOKEN"],
+ "detail": "mentions an id, amount or date not in this turn's results",
+ "suggested_query": "Ask about one transaction or account in this case, e.g. ACC-3001."}
+```
+
+A question the tools can't answer inside this case: `"status": "needs_clarification"`, `turn.answer`
+explains, `turn.suggested_chips` = `["explain_alert", "trace_forward", "trace_backward", "missing_data"]`,
+no `tool_calls`, no `claims`.
+
+#### `POST /api/v1/chats/{chat_id}/pins`
+
+Request `{"ids": ["ACC-3105", "DF-1"]}` → `{"status": "ok", "error": null, "chat_id": "chat_…",
+"pinned_evidence_ids": ["ACC-3105", "DF-1"], "rejected_ids": []}`. An id from another case →
+`{"status": "rejected", "error": "ids must be transactions, accounts or derived facts of this
+chat's case", "pinned_evidence_ids": [], "rejected_ids": ["TX-13007"], …}`.
+
+#### `POST /api/v1/chats/{chat_id}/turns/{turn_id}/feedback`
+
+Request `{"helpful": true, "note": "useful"}` → `{"status": "ok", "error": null, "chat_id": "chat_…",
+"turn_id": "turn_…", "audit_event_id": "evt_…"}`. The note is audited as a hash and length only.
+
+**Audit.** Every chat writes to the case's audit trail (`object_type="case"`, `object_id=case_id`,
+actor = the chat's user): `chat.started`, `chat.turn` (question hash, chip, intent, tool calls
+`tool:status:rows`, tool args as canonical JSON with free text hashed, evidence refs, chunk ids,
+prompt versions/provider/model, verification status, kept/dropped claim counts, bundle hash),
+`chat.pin`, `chat.unpin`, `chat.feedback`. References only, never raw rows or question text.
+
 ## 6. Limitations
 
 - **In-memory until the backend provides repositories.** With the default mocks, alerts, evidence,
@@ -558,5 +710,7 @@ Response `200`:
 - **Paused cases are in memory.** The case checkpointer is LangGraph's `MemorySaver`, so a case
   drafted before a restart can't be decided after it (TEAM_QUESTIONS backend Q7).
 - **Traces** for `get_trace` are kept in memory for the last 50 runs only.
+- **Chat sessions are in memory** (lost on restart and on `api.configure()`); the case audit trail
+  is the durable record of every turn (TEAM_QUESTIONS backend Q on chat persistence).
 - **Single process.** Run one uvicorn worker. Multiple workers would each hold their own services,
   checkpointer and traces, and the audit chain doesn't support concurrent writers.

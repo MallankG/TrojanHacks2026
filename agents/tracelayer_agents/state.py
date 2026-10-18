@@ -5,12 +5,15 @@ the last node that sets it. All states are `total=False`: nodes return partial u
 """
 
 import operator
-from typing import Annotated, TypedDict, TypeVar
+from typing import Annotated, Any, TypedDict, TypeVar
 
 from tracelayer_agents.schemas import (
     Alert,
     AuditEvent,
     CaseStatus,
+    ChatClaim,
+    ChatGap,
+    ChatSynthesis,
     Decision,
     DerivedFact,
     DetectorOutput,
@@ -22,6 +25,8 @@ from tracelayer_agents.schemas import (
     PolicyAnswer,
     QualityIssue,
     RetrievedChunk,
+    ToolCall,
+    ToolResult,
     TraceEvent,
     VerifierError,
 )
@@ -88,3 +93,32 @@ class CopilotState(_TracedState, total=False):
     answer: PolicyAnswer | None
     verifier_errors: list[VerifierError]
     precomputed: bool
+
+
+class ChatState(_TracedState, total=False):
+    """One chat turn. `scope` (a `chat.session.CaseScope`) is a plain object: the chat workflow runs
+    without a checkpointer, so state is never serialized."""
+
+    chat_id: str
+    turn_id: str
+    case_id: str
+    actor_id: str
+    actor_role: str
+    scope: Any
+    pinned: list[str]
+    chip: str | None
+    question: str | None
+    intent: str
+    plan: list[ToolCall]
+    clarification: str | None
+    tool_results: list[ToolResult]
+    draft_claims: list[ChatClaim]
+    synthesis: ChatSynthesis
+    benign_support: dict[str, list[str]]
+    llm_meta: Annotated[list[LLMMeta], operator.add]
+    claims: list[ChatClaim]
+    gaps: list[ChatGap]
+    verifier_errors: list[VerifierError]
+    answer: str
+    next_steps: list[str]
+    verification_status: str

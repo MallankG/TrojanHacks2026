@@ -44,6 +44,9 @@ the PRD don't already answer. Until we hear back, agents run against the mocks i
     (`source_row_ref`, channel, status), and `subgraph()` edges don't carry them. We added
     `get_transactions(tx_ids) -> list[EvidenceTransaction]` to the Protocol (see CONTRACTS.md). Can
     you implement it against the `transactions` table, or tell us if it belongs on a different service?
+12. **Chat persistence.** Chat sessions (`api.start_chat`) live in process memory; every turn is
+   in the case audit trail (`chat.*` events, hashes and refs only). Do you want a `chat_sessions` /
+   `chat_turns` table (we'd add a `ChatRepository` Protocol), or is the audit trail enough?
 
 ## ML
 
@@ -63,6 +66,11 @@ the PRD don't already answer. Until we hear back, agents run against the mocks i
    detector or an output with `status="unavailable"`? Can the aggregator just skip it?
 7. **Fixtures.** Can you share a small AMLSim sample (fan-out, pass-through, cycle) so our mock
    fixtures match your column names and typology labels?
+8. **Explanations for the chat.** The chat's `model_explanation` tool re-reads `score(snapshot_id)`
+   for top factors under a 5 s cap. Can you cache per snapshot, and will `Alert.model_run_id` be
+   set (chat claims cite it)?
+9. **Similar cases.** `similar_cases` is a mock over typology reference patterns. Is a real
+   similar-case search planned (it must never return other cases' customer data to a chat)?
 
 ## RAG
 
