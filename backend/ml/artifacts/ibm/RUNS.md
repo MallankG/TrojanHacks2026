@@ -30,7 +30,7 @@ Mondrian conformal coverage ≈ 0.90, set size ≈ 1.
 
 Cancelled (Colab work stopped by the user): the pre-fix seed runs gnn_s1, gnn_s2, gnn_v2_s1, gnn_v2_s2 and the post-fix gnn_temporal_s1, gnn_temporal_s2. All GNN results are single-seed (seed 7).
 
-Follow-up queue (needs Colab): re-evaluate gnn_temporal with per-target temporal caps (gnn.py after the PR #6 review) and re-pick its threshold; recompute typology_recall for the servable ensemble.
+Follow-up queue (needs Colab): re-evaluate gnn_temporal with per-target temporal caps and deterministic sampling (gnn.py after the PR #6/#12 reviews) and re-pick its threshold; then rerun `ml.ibm.ensemble --models gnn_temporal xgb_temporal` to rebuild the ensemble ref/weight/threshold, rerun conformal, and recompute typology_recall.
 
 ## Rebuild on fixed code (2026-10-18, fresh T4 runtime; commits b3a4d1e + 3dc030e + 4112bca)
 Runtime recycled during the pause, so earlier artifacts (except gnn v1, tuned xgb, first rules/IF) were lost; numbers above stand under the old code.
@@ -41,7 +41,7 @@ Fixes: strictly-earlier-timestamp counterparty/pair counts (same-second rows exc
 | R2 | xgb_temporal (fixed features) | af80e0eb/e1c5def9 | 44.87 | 44.92 | 98.75 | 45.37 | 43.82 | 0.53 | XGB +6.46 (leak-free) | +2.9 over pre-fix 42.02; the served XGB |
 | R3 | rules_calibrated (cycle_3 retired, dormant fixed) | 0df14d78 | 0.88 | 0.93 | 72.85 | 7.27 | 7.09 | 1.50 | no paper row | dormant_then_large now real (train prec 2.39%); hand-set rules 0.25 |
 | R4 | isolation_forest_behavior (fixed inputs) | 7fcf5d12 | 0.98 | 0.68 | 85.53 | 1.88 | 0.81 | 45.01 | no paper row | raw IF still inverted (AUROC 45.86) |
-| R5 | **gnn_temporal** (PRD-strict: message passing only over edges before the batch's earliest target minute; targets isolated; seed 7; best ep 15/21) | 6f3968d8 | 49.67 | **61.33** | 98.92 | 61.81 | 61.53 | 0.46 | GNN −3.52 | ≈ within-window v1 (61.60) with no lookahead; better operating point (F1@thr 61.5 vs 58.7, 575 FP) |
+| R5 | **gnn_temporal** (PRD-strict as run on Colab: message passing only over edges before the batch's earliest target minute, i.e. per-batch caps, superseded by per-target caps in later code; targets isolated; seed 7; best ep 15/21) | 6f3968d8 | 49.67 | **61.33** | 98.92 | 61.81 | 61.53 | 0.46 | GNN −3.52 | ≈ within-window v1 (61.60) with no lookahead; better operating point (F1@thr 61.5 vs 58.7, 575 FP) |
 | R6 | **ensemble gnn_temporal + xgb_temporal** (w=0.8 on gnn, chosen on val) | 9c1d1e2b | 53.20 | **62.41** | 98.99 | 61.60 | 54.18 | 0.11 | GNN −2.44 | best test AUPRC of any model, strict protocol |
 | R7 | conformal (α=0.1) | 719caa91 | — | — | — | — | — | — | coverage ≈ paper | gnn_temporal 0.897 / xgb_temporal 0.881 / ensemble 0.908; set size 0.95–0.97 |
 | R8 | typology_recall @ val thr | 5f9b77d8 | — | — | — | — | — | — | — | gnn_temporal: gather-scatter 87.8, fan-out 85.5, scatter-gather 79.1, cycle 70.2, fan-in 69.2, random 64.5, stack 62.4, bipartite 50.0, unlisted 3.8 |
