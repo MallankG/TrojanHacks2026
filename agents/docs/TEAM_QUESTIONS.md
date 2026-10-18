@@ -44,6 +44,51 @@ the PRD don't already answer. Until we hear back, agents run against the mocks i
     (`source_row_ref`, channel, status), and `subgraph()` edges don't carry them. We added
     `get_transactions(tx_ids) -> list[EvidenceTransaction]` to the Protocol (see CONTRACTS.md). Can
     you implement it against the `transactions` table, or tell us if it belongs on a different service?
+12. **Chat persistence.** Chat sessions (`api.start_chat`) live in process memory; every turn is
+   in the case audit trail (`chat.*` events, hashes and refs only). Do you want a `chat_sessions` /
+   `chat_turns` table (we'd add a `ChatRepository` Protocol), or is the audit trail enough?
+
+13. **uuid vs string ids.** Your id columns are uuid. Ours (`TX-…`, `ACC-…`, alert, chunk ids)
+    are strings, and we map them with uuid5, one namespace per kind (`adapters/persistence.py`).
+    `case_evidence.alert_id/account_id/policy_chunk_id` and `narrative_citations.policy_chunk_id`
+    are FKs. Will ingestion assign uuids with the same uuid5 mapping, or should we look up your
+    uuids by `source_row_ref` / natural key before writing?
+14. **Citation original id.** `CitationIn` has no text field for our chunk id. Could you add
+    `source_ref text`, or should `quoted_text` carry it?
+15. **Policy claims.** `claim_kind` has no `policy`. We store policy claims as `fact` with
+    `cited_chunk_ids` set (the original type goes in `referenced_values.claim_type`). OK, or should
+    we add `policy` to the enum?
+16. **Decision mapping.** Ours is `escalate | dismiss | request_more_data`. We map these to
+    `escalate`+`escalate_for_sar_consideration`, `reject`+`no_further_action`, and
+    `edit`+`needs_more_information`. Is that right? `edit` seems the closest fit for "request more
+    data", but it's not a great one.
+17. **Edited summary.** Our `Decision.edited_summary` has no field in `DecisionIn`. We now also
+    save it as a new draft version (`CaseDecisionResult.edited_draft`, version 2, audited as
+    `case.narrative_edited` with parent/new/diff hashes), and `narrative_edit_create` maps it to a
+    `case_narratives` row with `parent_narrative_id`. Please confirm, and tell us whether to set
+    `author_type='user'` if you add that column.
+18. **Audit hash chain.** `audit_events` has no `prev_hash`/`hash`/`actor_role`/`model_versions`
+    columns. We put them in `metadata`. Is that acceptable, or will you add columns (see the hash
+    chain question above)?
+19. **Agent-run status.** We set `awaiting_review` after the draft and `completed` after the
+    human decision, with `failed` on any node error. Does that match how the frontend reads
+    `agent_runs.status`?
+20. **Narrative versions (PRD 8.2).** `case_narratives` has nowhere to put `draft_hash`, the version
+    number or the v4 sections. We render the sections into `content` and put `draft_hash`,
+    `draft_version` and `section` in each claim's `referenced_values`. Could you add
+    `draft_hash text`, `version int` and `sections jsonb`?
+21. **AccessPolicy (PRD 8.2).** Please implement `AccessPolicy.can_access(actor_id, actor_role,
+    case_id, tenant_id)` (CONTRACTS.md) on your auth/RLS and pass it in `Services(access=...)`.
+    Until then the mock allows every case. The call is on every chat call and every tool call, so
+    it should be a cached lookup.
+22. **Tenant on cases.** `CaseRecord` (and the PRD `cases` table) has no `tenant_id`, so the agents
+    can't check a tenant themselves. They pass the tenant from auth (`start_chat(...,
+    tenant_id=...)`) to your `AccessPolicy`. Is a tenant column planned on cases?
+23. **Shared device/IP/token links.** `shared_token_search` reads a fixture
+    (`mocks/fixtures/shared_tokens.json`). Where will device fingerprints, login IPs and payment
+    tokens per account come from (table and refresh), and are they in scope for the demo data?
+24. **Chat context route.** We suggest `POST /api/v1/chats/{chat_id}/context` for
+    `update_chat_context` (preview, then `confirm=true`); see INTEGRATION.md. OK?
 
 ## ML
 
@@ -63,6 +108,18 @@ the PRD don't already answer. Until we hear back, agents run against the mocks i
    detector or an output with `status="unavailable"`? Can the aggregator just skip it?
 7. **Fixtures.** Can you share a small AMLSim sample (fan-out, pass-through, cycle) so our mock
    fixtures match your column names and typology labels?
+8. **Explanations for the chat.** The chat's `model_explanation` tool re-reads `score(snapshot_id)`
+   for top factors under a 5 s cap. Can you cache per snapshot, and will `Alert.model_run_id` be
+   set (chat claims cite it)?
+9. **Similar cases.** `similar_cases` now ranks a synthetic library of 10 closed cases
+   (`mocks/fixtures/case_library.json`):
+   - It scores the plain, equal-weight mean of motif overlap, rail, flow shape, graph features
+     and text overlap, filtered by typology and time, and returns the top 5 with prior
+     dispositions and a "similarity is not proof" caveat.
+   - The weights are a placeholder, not fitted.
+   - Is a real similar-case search planned? It must never return other cases' customer data to
+     a chat, so a library of de-identified closed-case features would fit. Which features would
+     you expose?
 
 ## RAG
 

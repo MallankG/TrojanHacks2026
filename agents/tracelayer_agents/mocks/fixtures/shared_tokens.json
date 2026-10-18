@@ -1,0 +1,14 @@
+[
+  {"token_id": "TKN-DEV-7F3A", "token_type": "device", "label": "device fingerprint 7F3A",
+   "account_ids": ["ACC-3001", "ACC-3104", "ACC-3107"]},
+  {"token_id": "TKN-IP-0B24", "token_type": "ip", "label": "login IP address (masked) 0B24",
+   "account_ids": ["ACC-3102", "ACC-3105", "ACC-9001"]},
+  {"token_id": "TKN-CARD-55E1", "token_type": "token", "label": "payment token 55E1",
+   "account_ids": ["ACC-3103", "ACC-3108"]},
+  {"token_id": "TKN-IP-1C07", "token_type": "ip", "label": "login IP address (masked) 1C07",
+   "account_ids": ["ACC-3101", "ACC-2002"]},
+  {"token_id": "TKN-DEV-9C21", "token_type": "device", "label": "device fingerprint 9C21",
+   "account_ids": ["ACC-4001", "ACC-4002"]},
+  {"token_id": "TKN-DEV-2A10", "token_type": "device", "label": "device fingerprint 2A10",
+   "account_ids": ["ACC-1003", "ACC-1004"]}
+]

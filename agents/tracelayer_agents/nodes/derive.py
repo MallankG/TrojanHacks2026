@@ -6,12 +6,21 @@ does arithmetic. `verify_evidence` recomputes them to check amounts against.
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable
 from decimal import Decimal
-from typing import Any
+from typing import Any, Protocol
 
 from tracelayer_agents.schemas import DerivedFact, EvidenceBundle, EvidenceTransaction
 
 CENT = Decimal("0.01")
+# What the agents never receive, so no chat answer or narrative may claim it was checked.
+# TODO(review): drop items as the backend starts supplying them.
+NOT_AVAILABLE = (
+    ("kyc_profile", "No KYC or customer profile is available to the agents."),
+    ("business_purpose", "No stated business purpose is available for these transfers."),
+    ("account_ownership", "No account ownership or relationship data is available, so "
+                          "treasury-sweep or shared-service explanations cannot be checked."),
+)
 _PATTERN_KINDS = ("paths", "cycles", "fan_in", "fan_out", "pass_through")
 
 
@@ -83,3 +92,48 @@ def compute_derived_facts(bundle: EvidenceBundle) -> list[DerivedFact]:
                         currency=members[0].currency, account_ids=list(pattern.account_ids))
 
     return [DerivedFact(fact_id=f"DF-{i}", **f) for i, f in enumerate(facts, 1)]
+
+
+# --------------------------------------------------------------------------- benign patterns
+
+PAYROLL_MIN_RECIPIENTS = 3
+PAYROLL_MAX_SPREAD = Decimal("1.10")  # largest / smallest amount in the batch
+REVERSAL_STATUSES = frozenset({"reversed", "returned", "reversal"})
+REFUND_MARKERS = frozenset({"refund", "refunded"})
+
+
+class _Edge(Protocol):
+    transaction_id: str
+    origin_account_id: str
+    destination_account_id: str
+    amount: Decimal
+    currency: str
+    timestamp: Any
+
+
+def benign_patterns(edges: Iterable[_Edge]) -> dict[str, list[str]]:
+    """Benign kind → transaction ids whose shape is consistent with it (deterministic; works on
+    `SubgraphEdge` and `EvidenceTransaction` alike):
+
+    - payroll: one origin pays at least 3 distinct recipients on one day, same currency, with the
+      largest amount at most 10% above the smallest.
+    - refund / reversal: a later transaction returns the same amount between the same pair.
+    """
+    ordered = sorted(edges, key=lambda e: (e.timestamp, e.transaction_id))
+    support: dict[str, list[str]] = defaultdict(list)
+    batches: dict[tuple[str, str, str], list[_Edge]] = defaultdict(list)
+    for e in ordered:
+        batches[(e.origin_account_id, e.timestamp.date().isoformat(), e.currency)].append(e)
+    for batch in batches.values():
+        amounts = [e.amount for e in batch]
+        if (len({e.destination_account_id for e in batch}) >= PAYROLL_MIN_RECIPIENTS
+                and min(amounts) > 0 and max(amounts) / min(amounts) <= PAYROLL_MAX_SPREAD):
+            support["payroll"] += [e.transaction_id for e in batch]
+    for i, a in enumerate(ordered):
+        for b in ordered[i + 1:]:
+            if (b.origin_account_id == a.destination_account_id
+                    and b.destination_account_id == a.origin_account_id
+                    and b.amount == a.amount and b.currency == a.currency):
+                for kind in ("refund", "reversal"):
+                    support[kind] += [a.transaction_id, b.transaction_id]
+    return {k: sorted(set(v)) for k, v in sorted(support.items())}

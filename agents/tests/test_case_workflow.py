@@ -337,7 +337,7 @@ def test_template_passes_with_quality_caveats_and_no_sources() -> None:
     }
     out = build_narrative(variables, narrative(variables))
     draft = NarrativeDraft(**out.model_dump(), provider="template", model="template",
-                           prompt_version="narrative_v3")
+                           prompt_version="narrative_v4")
     assert verify_evidence(draft, bundle, []) == []
     assert any("amount_positive" in u for u in draft.uncertainties)
 
@@ -461,7 +461,7 @@ async def test_slow_ollama_draft_falls_back_to_template(monkeypatch: pytest.Monk
     assert meta.provider == "template" and meta.fallback_used
     assert "ollama_timeout" in meta.errors
     draft = update["draft_narrative"]
-    assert draft.fallback_used and draft.prompt_version == "narrative_v3"
+    assert draft.fallback_used and draft.prompt_version == "narrative_v4"
     assert update["trace_events"][0].status == "ok"
     assert verify_evidence(draft, BUNDLE, SOURCES) == []
     # only the synthesis fell back: the fact claims are the deterministic ones
@@ -509,7 +509,7 @@ async def test_llm_synthesis_merged_draft_verifies(
                                                monkeypatch)
     draft, meta = update["draft_narrative"], update["llm_meta"]
     assert meta.provider == "ollama" and not draft.fallback_used
-    assert meta.prompt_version == "narrative_v3" and meta.attempts == 1
+    assert meta.prompt_version == "narrative_v4" and meta.attempts == 1
     assert verify_evidence(draft, bundle, chunks) == []
     facts = _template_facts(bundle)
     assert draft.observed_facts[:len(facts)] == facts

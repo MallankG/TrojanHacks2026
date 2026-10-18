@@ -101,6 +101,7 @@ MOCKS_BY_PROTOCOL = [
     (i.PolicyRetriever, lambda st: m.MockPolicyRetriever()),
     (i.CaseRepository, lambda st: m.InMemoryCaseRepository()),
     (i.AuditRepository, lambda st: m.InMemoryAuditRepository()),
+    (i.AccessPolicy, lambda st: m.MockAccessPolicy()),
 ]
 
 

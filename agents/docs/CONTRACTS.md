@@ -167,6 +167,26 @@ These store data on Supabase, and agents ship in-memory versions. `CaseRepositor
 }
 ```
 
+### `AccessPolicy.can_access(actor_id: str, actor_role: str, case_id: str, tenant_id: str | None) -> bool`
+New in PRD 8.2. This is your auth/RLS answer to "may this actor read this case?". Pass it as
+`Services(access=...)`.
+- The chat asks before `start_chat`, before every `send_message`, `update_chat_context`, pin and
+  `get_chat`, and before every tool call. Access revoked mid-chat stops the next call.
+- `False` → the facade returns `status="denied"` with no case data, and writes a
+  `chat.request_denied` audit event (`reasons=access_denied`, never the records).
+- The call is synchronous and on the request path, so keep it fast (a cached membership lookup).
+- It must not raise for an unknown case: return `False`. An exception is treated as `False`
+  (fail closed).
+- `tenant_id` comes from your auth and is passed through `start_chat(..., tenant_id=...)`. It is
+  `None` in a single-tenant deployment.
+- The mock `MockAccessPolicy(denied_case_ids=..., denied_tenant_ids=...)` allows everything else.
+
+```python
+class SupabaseAccessPolicy:
+    def can_access(self, actor_id, actor_role, case_id, tenant_id) -> bool:
+        return case_id in membership_cache.cases_for(actor_id, tenant_id)
+```
+
 ## ML teammate
 
 ### `GraphRiskScorer.score(snapshot_id: str) -> DetectorOutput`
@@ -255,3 +275,35 @@ as aliases. The supported `filters` keys are still open, so propose them.
   "embedding": [0.01, -0.02]
 }
 ```
+
+## How the investigation chat uses these services
+
+The chat (`api.send_message`) calls these methods read-only, inside one case's scope, each call
+capped at **5 s** and its output at 50 rows. The only new Protocol is `AccessPolicy` (above):
+
+- `CaseRepository.get_case / get_alert / get_evidence`: once per chat, to bind it to the case.
+- `GraphService.subgraph(tx_ids, hops)`: hops 1–3 around the case evidence; edges outside the case
+  window (evidence span ± 7 days) are dropped. Please keep it fast (it runs on most chat turns).
+- `GraphService.get_transactions(tx_ids)`: at most 50 ids, all from the case scope.
+- `GraphRiskScorer.score(snapshot_id)` / `BehaviorScorer.score(snapshot_id)`: re-read for the
+  alert's top factors (`model_explanation`). **ML:** if scoring a snapshot takes more than a
+  second or two, please cache outputs per `snapshot_id`; a timeout shows as "not checked".
+- `PolicyRetriever.search(query, {}, top_k)`: the analyst's query (≤ 300 chars) or the alert's
+  typology query.
+
+Two chat tools are mocks over fixtures until a real service exists:
+- `similar_cases` (`mocks/fixtures/case_library.json`, labelled `synthetic_case_library_v1`):
+  - Ten synthetic closed cases, filtered by typology and closing time.
+  - Returns the top 5, scored as the plain mean of motif overlap, rail match, flow-shape match,
+    graph-feature similarity and text overlap. The equal weights are a placeholder.
+  - Each result carries its prior disposition and "Similarity is not proof; prior decisions can
+    be wrong."
+  - It never returns another real case's data.
+- `shared_token_search` (`mocks/fixtures/shared_tokens.json`): devices, IP addresses and payment
+  tokens shared by at least two of the case's accounts. Accounts outside the case are only
+  counted. A real implementation needs a backend source for these links (TEAM_QUESTIONS).
+
+No chat tool runs model-authored SQL or Cypher. A free-text plan is only a list of allowlisted
+`ToolCall`s, and each one's args must validate against that tool's `extra="forbid"` input model. Chat models (`ChatContext`, `ChatTurn`, `ChatClaim`, `ChatGap`,
+`ToolResult`, …) are in `schemas.py` under "investigation chat"; the facade and JSON examples are
+in `INTEGRATION.md`.

@@ -6,6 +6,7 @@
         --reason "..."                                            # + reviewer decision, audit chain
     python -m tracelayer_agents.demo --copilot "What should be documented when escalating ..."
     python -m tracelayer_agents.demo --golden [--decide escalate --reason "..."] [--save]
+    python -m tracelayer_agents.demo --scenario fan_out --chat    # case chat: 3 chips + 1 question
 
 `--golden` runs the fixed demo sequence through the public facade only (see `run_golden`);
 `--save` also writes it to `mocks/fixtures/golden_run.json`, which `TRACELAYER_PRECOMPUTED=1`
@@ -40,6 +41,7 @@ from tracelayer_agents.schemas import (
     AuditEvent,
     CaseDecisionResult,
     CaseDraftResult,
+    ChatTurnResult,
     CopilotResult,
     TraceEvent,
 )
@@ -252,7 +254,8 @@ def _latency_table(steps: list[tuple[str, list[TraceEvent]]]) -> str:
 async def run_golden(decision: dict[str, Any] | None, config: AgentConfig) -> dict[str, Any]:
     """The fixed demo sequence, through the public facade only: reset → fan_out → bad_batch
     strict (halt) → bad_batch exploratory (caveated) → cycle → start_case on the fan_out top
-    alert → copilot on the golden question → optional decision → audit chain check."""
+    alert → copilot on the golden question → case chat (golden chips, then the golden question)
+    → optional decision → audit chain check."""
     random.seed(GOLDEN_SEED)  # the mocks are hash-deterministic; this pins anything that isn't
     api.configure(config=config)  # fresh in-memory services, repositories and audit chain
 
@@ -271,12 +274,28 @@ async def run_golden(decision: dict[str, Any] | None, config: AgentConfig) -> di
     t0 = time.perf_counter()
     run["copilot"] = await api.copilot_query(precomputed.GOLDEN_QUESTION, top.alert_id)
     run["timings"]["copilot"] = (time.perf_counter() - t0) * 1000
+    if run["case"].status == "ok":
+        t0 = time.perf_counter()
+        with precomputed.record_chat() as outputs:
+            run["chat"] = await _golden_chat(run["case"].case_id)
+        run["chat_outputs"] = dict(outputs)
+        run["timings"]["chat"] = (time.perf_counter() - t0) * 1000
     if decision is not None and run["case"].status == "ok":
         t0 = time.perf_counter()
         run["decision"] = await api.resume_case(run["case"].case_id, decision)
         run["timings"]["decision"] = (time.perf_counter() - t0) * 1000
     run["audit"] = api.verify_audit_chain()
     return run
+
+
+async def _golden_chat(case_id: str) -> list[ChatTurnResult]:
+    chat = await api.start_chat(case_id, "analyst_demo", "analyst")
+    if chat.status != "ok" or chat.chat is None:
+        return []
+    chat_id = chat.chat.chat_id
+    turns = [await api.send_message(chat_id, chip=c) for c in precomputed.GOLDEN_CHAT_CHIPS]
+    turns.append(await api.send_message(chat_id, text=precomputed.GOLDEN_CHAT_QUESTION))
+    return turns
 
 
 def _golden_report(run: dict[str, Any], config: AgentConfig) -> None:
@@ -327,6 +346,27 @@ def _golden_report(run: dict[str, Any], config: AgentConfig) -> None:
         print(f"    error: {copilot.error}")
     steps.append(("copilot", copilot.trace))
 
+    turns: list[ChatTurnResult] = run.get("chat") or []
+    if turns:
+        n += 1
+        print(f"[{n}] chat  {len(turns)} turns  {run['timings']['chat']:,.0f} ms")
+        for t in turns:
+            turn = t.turn
+            if turn is None:
+                print(f"    {t.status}: {t.error}")
+                continue
+            ask = f"chip {turn.chip}" if turn.chip else f"Q: {turn.question}"
+            metas = "  ".join(
+                f"{m.provider}/{m.model} {m.prompt_version} fallback={m.fallback_used}"
+                for m in turn.llm_meta
+            )
+            print(f"    {ask}  {turn.status}  {turn.verification_status}  "
+                  f"claims={len(turn.claims)}  gaps={len(turn.gaps)}  "
+                  f"precomputed={turn.precomputed}")
+            print(f"      {metas}")
+            print(f"      {turn.answer[:160]}")
+            steps.append((f"chat/{turn.chip or 'question'}", t.trace))
+
     decided: CaseDecisionResult | None = run.get("decision")
     if decided is not None:
         n += 1
@@ -355,7 +395,13 @@ def _save_golden(run: dict[str, Any], config: AgentConfig) -> str | None:
     if case is None or case.status != "ok" or copilot is None or copilot.status != "ok":
         return "case or copilot step failed; nothing saved"
     assert case.llm_meta is not None and copilot.answer is not None
-    if case.llm_meta.fallback_used or copilot.answer.fallback_used:
+    turns: list[ChatTurnResult] = run.get("chat") or []
+    if len(turns) != len(precomputed.GOLDEN_CHAT_CHIPS) + 1 or any(
+        t.status != "ok" or t.turn is None for t in turns
+    ):
+        return "chat step failed; nothing saved"
+    chat_fallback = any(m.fallback_used for t in turns for m in t.turn.llm_meta)
+    if case.llm_meta.fallback_used or copilot.answer.fallback_used or chat_fallback:
         return ("the template answered (Ollama down or too slow); start Ollama with "
                 f"{os.environ.get('OLLAMA_MODEL') or 'the team model'} and rerun")
     datasets, config_hash = golden_hashes(config)
@@ -371,9 +417,71 @@ def _save_golden(run: dict[str, Any], config: AgentConfig) -> str | None:
         case=case,
         copilot=copilot,
         decision=run.get("decision"),
+        chat_turns=turns,
+        chat_outputs=run.get("chat_outputs") or {},
     )
     precomputed.GOLDEN_RUN_PATH.write_text(golden.model_dump_json(indent=2) + "\n")
     return None
+
+
+CHAT_DEMO_CHIPS = precomputed.GOLDEN_CHAT_CHIPS
+CHAT_DEMO_QUESTION = precomputed.GOLDEN_CHAT_QUESTION
+
+
+def _chat_turn_report(label: str, result: ChatTurnResult) -> None:
+    print(f"\n--- {label} ---")
+    if result.status == "error" or result.turn is None:
+        print(f"error: {result.error}")
+        return
+    turn = result.turn
+    print(f"status: {turn.status}   intent: {turn.intent}   verification: "
+          f"{turn.verification_status}   llm: "
+          + ", ".join(f"{m.provider}{' (fallback)' if m.fallback_used else ''}"
+                      for m in turn.llm_meta)
+          + f"   precomputed: {turn.precomputed}")
+    for call in turn.tool_calls:
+        print(f"  tool {call.tool:<22} {call.status:<8} rows={call.row_count:<3} "
+              f"{call.duration_ms:>8.1f} ms  {call.error or ''}")
+    print(f"answer: {turn.answer}")
+    for claim in turn.claims[:8]:
+        print(f"  [{claim.label}] {claim.text}")
+    if len(turn.claims) > 8:
+        print(f"  ... {len(turn.claims) - 8} more claims")
+    for gap in turn.gaps:
+        print(f"  GAP ({gap.label}: {', '.join(gap.codes)}) -> {gap.suggested_query}")
+    for step in turn.next_steps:
+        print(f"  next: {step}")
+
+
+async def run_chat_demo(scenario: str, mode: str) -> int:
+    """Analysis → case draft → chat on the top alert's case, through the public facade."""
+    api.configure()
+    analysis = await api.run_analysis(scenario, mode)  # type: ignore[arg-type]
+    if analysis.status != "ok" or not analysis.alerts:
+        print(f"analysis {analysis.status}: {analysis.error or 'no alerts'}", file=sys.stderr)
+        return 1
+    top = min(analysis.alerts, key=lambda a: a.rank or 0)
+    case = await api.start_case(top.alert_id)
+    if case.status != "ok":
+        print(f"case failed: {case.error}", file=sys.stderr)
+        return 1
+    chat = await api.start_chat(case.case_id, "demo_user", "analyst")
+    if chat.status != "ok" or chat.chat is None:
+        print(f"chat failed: {chat.error}", file=sys.stderr)
+        return 1
+    ctx = chat.chat.context
+    print(f"chat {chat.chat.chat_id} bound to {ctx.case_id} (alert {ctx.alert_id}, snapshot "
+          f"{ctx.graph_snapshot_id})")
+    print(f"window {ctx.window_start:%Y-%m-%d} to {ctx.window_end:%Y-%m-%d}; "
+          f"{len(ctx.entity_scope)} accounts and {ctx.scope_transaction_count} transactions "
+          f"in scope; {len(ctx.evidence_bundle.transactions)} evidence transactions")
+    for chip in CHAT_DEMO_CHIPS:
+        _chat_turn_report(f"chip: {chip}", await api.send_message(chat.chat.chat_id, chip=chip))
+    _chat_turn_report(f"question: {CHAT_DEMO_QUESTION}",
+                      await api.send_message(chat.chat.chat_id, text=CHAT_DEMO_QUESTION))
+    check = api.verify_audit_chain()
+    print(f"\naudit chain: {'ok' if check.ok else 'BROKEN'} ({check.checked} events)")
+    return 0 if check.ok else 1
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -385,6 +493,10 @@ def main(argv: list[str] | None = None) -> int:
         default=os.environ.get("TRACELAYER_MODE", "strict"),
     )
     parser.add_argument("--copilot", metavar="QUESTION", help="ask the policy copilot instead")
+    parser.add_argument(
+        "--chat", action="store_true",
+        help="open an investigation chat on the top alert's case: 3 chips + 1 question",
+    )
     parser.add_argument(
         "--draft", action="store_true", help="then draft the case narrative for the top alert"
     )
@@ -428,6 +540,10 @@ def main(argv: list[str] | None = None) -> int:
                 return 1
             print(f"\nsaved {precomputed.GOLDEN_RUN_PATH}")
         return 0
+
+    if args.chat:
+        print(f"scenario: {args.scenario}   mode: {args.mode}\n")
+        return asyncio.run(run_chat_demo(args.scenario, args.mode))
 
     services = get_services()
     if args.copilot is not None:
