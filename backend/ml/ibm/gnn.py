@@ -343,7 +343,9 @@ def main(data_dir, out=None, epochs=30, patience=5, bs=None, neg_frac=0.25, seed
              "hparams": dict(epochs=epochs, bs=bs, neg_frac=neg_frac, seed=seed, hidden=hidden, lr=lr, pos_weight=pos_weight, fanout=list(fanout), ego=ego, temporal=temporal),
              "operating_threshold": thr,
              # per-target caps + deterministic sampling: clears IBMGNNScorer's / EnsembleScorer's caveat
-             "calibration": "per-target" if temporal else "per-protocol threshold",
+             # only a clean, traceable checkout may clear the scorers' caveat
+             "calibration": ("per-target" if not code_version().endswith(("-dirty", "unknown")) else None)
+                            if temporal else "per-protocol threshold",
              "code_version": code_version()}, indent=2))
     return res
 
@@ -352,8 +354,10 @@ def code_version():
     """Short git sha of the code that wrote a results.json, so its calibration stamp is traceable."""
     import subprocess
     try:
-        return subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=Path(__file__).parent, capture_output=True,
-                              text=True, timeout=5, check=True).stdout.strip() or "unknown"
+        run = lambda *cmd: subprocess.run(["git", *cmd], cwd=Path(__file__).parent, capture_output=True,
+                                          text=True, timeout=5, check=True).stdout.strip()
+        sha = run("rev-parse", "--short", "HEAD") or "unknown"
+        return sha + "-dirty" if sha != "unknown" and run("status", "--porcelain", "--", ".") else sha
     except (OSError, subprocess.SubprocessError):
         return "unknown"
 

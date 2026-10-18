@@ -53,7 +53,8 @@ class EnsembleScorer:
         ref = np.load(d / f"ibm_ensemble_{a}_{b}_ref.npz")
         self.ref_a, self.ref_b, self.w = ref["ref_a"], ref["ref_b"], res[f"weight_{a}"]
         self.threshold = res["val"]["best_threshold"]
-        self.calibration = calibration_text(res.get("calibration"))
+        self.calibration = calibration_text(res.get("calibration"), temporal=any(m.endswith("_temporal") and m.startswith("gnn")
+                                                                                for m in res.get("models", [a, b])))
 
     def blend(self, s_a, s_b):
         return blend_scores(self.ref_a, self.ref_b, self.w, s_a, s_b)
@@ -96,9 +97,10 @@ if __name__ == "__main__":
     s = np.r_[blend(w, "s_val"), blend(w, "s_test")]
     va, te = np.arange(n_val), np.arange(n_val, len(y))
     name = f"ensemble_{a.models[0]}_{a.models[1]}"
+    stamp = calibration(a.models, a.out)  # reads inputs; fail before overwriting anything EnsembleScorer serves
     np.savez_compressed(Path(a.out) / f"ibm_{name}_ref.npz", ref_a=ref[0], ref_b=ref[1])
     evaluate_and_save(name, y, s, va, te, a.out, {"models": a.models, f"weight_{a.models[0]}": w, "val_auprc_by_weight": ap_val,
                                                   "ranking": "percentile vs stored val score distributions (servable)",
-                                                  "calibration": calibration(a.models, a.out)},
+                                                  "calibration": stamp},
                       order=orders.pop())
     print(f"weight on {a.models[0]}: {w}  (val AUPRC by weight: {ap_val})")

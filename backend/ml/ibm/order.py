@@ -51,7 +51,7 @@ CALIBRATION_TEXT = {"per-target": "per-target; threshold assumes scoring with th
 
 def calibration_text(stamp, temporal=True):
     """What the scorers show for a results.json `calibration` stamp (None: written before stamps existed)."""
-    if stamp is None:
+    if not isinstance(stamp, str):  # None: written before stamps; dict: rules_calibrated's own rule calibration
         return "batch-cap threshold; per-target re-eval pending" if temporal else "per-protocol threshold"
     return CALIBRATION_TEXT.get(stamp, stamp)
 

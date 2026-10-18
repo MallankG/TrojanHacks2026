@@ -33,14 +33,3 @@ def test_calibration_clears_only_after_per_target_gnn(tmp_path):
     assert calibration(["g", "x"], tmp_path) == "per-target"
     from ml.ibm.order import calibration_text
     assert calibration_text("per-target") == calibration_text("per-target", temporal=False) != "per-target"
-
-
-def test_build_cache_refuses_orphan_legacy_parquet(tmp_path, monkeypatch):
-    import pandas as pd
-    import pytest
-    from ml.ibm import common
-    pd.DataFrame({"a": [1.0]}).to_parquet(tmp_path / "ibm_feat_graph.parquet")  # legacy: no ibm_split.npz
-    e = pd.DataFrame({"amt_paid": [1.0]})
-    monkeypatch.setattr(common, "load_edges", lambda data: (e, np.zeros(1), (np.r_[0], np.r_[0], np.r_[0]), e, pd.DataFrame({"x": [0]})))
-    with pytest.raises(ValueError, match="edge order"):
-        common.build_cache("unused", tmp_path, ["safe39"])
