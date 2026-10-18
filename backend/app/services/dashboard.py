@@ -63,6 +63,18 @@ def _decimal(value: Any) -> Decimal | None:
         return None
 
 
+def age_buckets(ages: list[timedelta], sla_days: int) -> list[dict]:
+    """Open-alert age histogram with edges at 1 day, 3 days, the SLA and twice the SLA."""
+    edges = sorted({0, 1, 3, sla_days, sla_days * 2})
+    buckets = []
+    for i, low in enumerate(edges):
+        high = edges[i + 1] if i + 1 < len(edges) else None
+        label = f"{low}+ days" if high is None else (f"Under {high} day{'s' if high > 1 else ''}" if low == 0 else f"{low} to {high} days")
+        count = sum(1 for a in ages if a >= timedelta(days=low) and (high is None or a < timedelta(days=high)))
+        buckets.append({"label": label, "min_days": low, "max_days": high, "count": count, "past_sla": low >= sla_days})
+    return buckets
+
+
 def summarize_alerts(rows: list[dict], now: datetime, sla_days: int) -> dict:
     """Open-alert aggregates for one ranker run. `rows` are that run's alerts (any status)."""
     by_status = dict.fromkeys(ALERT_STATUSES, 0)
@@ -101,6 +113,7 @@ def summarize_alerts(rows: list[dict], now: datetime, sla_days: int) -> dict:
             "oldest_hours": _hours(max(ages)) if ages else None,
             "median_hours": _hours(median(ages)) if ages else None,
             "past_sla": sum(1 for a in ages if a > sla),
+            "buckets": age_buckets(ages, sla_days),
         },
         "estimated_amount": {
             "is_estimate": True,
@@ -212,10 +225,18 @@ _SAFE = re.compile(r"[^A-Za-z0-9 _.\-@]")
 def parse_search(q: str) -> dict:
     """Normalise a search string. Only a safe character set reaches the database filters."""
     text = _SAFE.sub("", q).strip()[:SEARCH_MAX_LENGTH]
-    digits = re.fullmatch(r"(?:AL|CASE)?-?0*(\d{1,12})", text, flags=re.IGNORECASE)
+    digits = re.fullmatch(r"(AL|CASE)?-?0*(\d{1,12})", text, flags=re.IGNORECASE)
+    prefix = digits.group(1).upper() if digits and digits.group(1) else None
+    number = int(digits.group(2)) if digits else None
     words = text.lower().replace("-", " ").replace("_", " ").strip()
-    typologies = [t for t in TYPOLOGIES if words and (words in t.replace("_", " "))] if len(words) >= 3 else []
-    return {"text": text, "number": int(digits.group(1)) if digits else None, "typologies": typologies}
+    typologies = [t for t in TYPOLOGIES if words in t.replace("_", " ")] if len(words) >= 3 else []
+    return {
+        "text": text,
+        # "AL-12" only looks up alerts and "CASE-0012" only cases; a bare number tries both.
+        "alert_number": number if prefix in (None, "AL") else None,
+        "case_number": number if prefix in (None, "CASE") else None,
+        "typologies": typologies,
+    }
 
 
 def like_pattern(text: str) -> str:
@@ -307,7 +328,7 @@ def latest_ranker(tenant_id: str) -> dict | None:
 def load_alerts(tenant_id: str, run_id: str) -> tuple[list[dict], int]:
     db = get_db()
     return _bounded(
-        lambda: db.table("alerts").select("id, status, priority_band, typology, created_at, total_amount, amount_currency", count="exact")
+        lambda: db.table("alerts").select("id, status, priority_band, typology, created_at, total_amount::text, amount_currency", count="exact")
         .eq("tenant_id", tenant_id).eq("model_run_id", run_id).order("created_at").order("id"),
         MAX_SUMMARY_ALERTS,
     )

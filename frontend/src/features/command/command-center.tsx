@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format";
+import { useLiveProfile } from "@/lib/live/session";
 import { ROUTES } from "@/lib/routes";
 import { ALERT_AGE_BUCKETS, ALERTS_CLOSED_14D, ALERTS_CREATED_14D, OPEN_ALERT_TOTAL, TYPOLOGY_MIX } from "@/lib/seed/alerts";
 import { useDemoState, useRole, useScoredAlerts } from "@/lib/store/hooks";
@@ -13,6 +14,7 @@ import { Card, CardHeader, Panel } from "@/components/ui/card";
 import { Legend, Meter, Sparkline, Swatch } from "@/components/ui/misc";
 import { Pill } from "@/components/ui/pill";
 import { DataTable, Td, Th } from "@/components/ui/table";
+import { LiveCommandCenter } from "./live-command-center";
 
 interface NextAction {
   title: string;
@@ -249,6 +251,9 @@ function PlatformHealth() {
 }
 
 export function CommandCenter() {
+  // Signed in with a backend account: the same layout on live tenant data.
+  const live = useLiveProfile() !== null;
+  if (live) return <LiveCommandCenter />;
   return (
     <>
       <NextActions />

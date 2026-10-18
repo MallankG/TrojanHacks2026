@@ -81,59 +81,74 @@ def global_search(
     db = get_db()
     tid = user.tenant_id
     parsed = dash.parse_search(q)
-    text, number, limit = parsed["text"], parsed["number"], dash.SEARCH_LIMIT
+    text, limit = parsed["text"], dash.SEARCH_LIMIT
+    alert_number, case_number = parsed["alert_number"], parsed["case_number"]
     results: dict[str, list[dict]] = {"alerts": [], "cases": [], "accounts": [], "transactions": []}
-    if len(text) < 2 and number is None:
+    if len(text) < 2 and alert_number is None and case_number is None:
         return {"query": text, "results": results, "cases_included": user.role in CASE_ROLES}
 
-    alert_cols = "id, alert_number, typology, priority_band, status"
-    alerts: dict[str, dict] = {}
-    if number is not None:
-        for a in db.table("alerts").select(alert_cols).eq("tenant_id", tid).eq("alert_number", number).limit(1).execute().data:
-            alerts[a["id"]] = a
-    if parsed["typologies"]:
-        ranker = dash.latest_ranker(tid)
-        query = db.table("alerts").select(alert_cols).eq("tenant_id", tid).in_("typology", parsed["typologies"])
-        if ranker:
-            query = query.eq("model_run_id", ranker["id"])
-        for a in query.order("priority_rank", nullsfirst=False).limit(limit).execute().data:
-            alerts.setdefault(a["id"], a)
-    results["alerts"] = [_alert_item(a) for a in list(alerts.values())[:limit]]
+    pattern = dash.like_pattern(text) if len(text) >= 2 else None
 
-    if user.role in CASE_ROLES:
-        case_cols = "id, case_number, title, status"
-        cases: dict[str, dict] = {}
-        if number is not None:
-            for c in db.table("cases").select(case_cols).eq("tenant_id", tid).eq("case_number", number).limit(1).execute().data:
-                cases[c["id"]] = c
-        if len(text) >= 2:
-            for c in db.table("cases").select(case_cols).eq("tenant_id", tid).ilike("title", dash.like_pattern(text)).order("updated_at", desc=True).limit(limit).execute().data:
-                cases.setdefault(c["id"], c)
-        results["cases"] = [
+    def search_alerts() -> list[dict]:
+        cols = "id, alert_number, typology, priority_band, status"
+        found: dict[str, dict] = {}
+        if alert_number is not None:
+            for a in db.table("alerts").select(cols).eq("tenant_id", tid).eq("alert_number", alert_number).limit(1).execute().data:
+                found[a["id"]] = a
+        if parsed["typologies"]:
+            # Typology matches come from the current queue (latest ranker run) so re-scoring does not repeat them.
+            ranker = dash.latest_ranker(tid)
+            query = db.table("alerts").select(cols).eq("tenant_id", tid).in_("typology", parsed["typologies"])
+            if ranker:
+                query = query.eq("model_run_id", ranker["id"])
+            for a in query.order("priority_rank", nullsfirst=False).limit(limit).execute().data:
+                found.setdefault(a["id"], a)
+        return [_alert_item(a) for a in list(found.values())[:limit]]
+
+    def search_cases() -> list[dict]:
+        if user.role not in CASE_ROLES:
+            return []
+        cols = "id, case_number, title, status"
+        found: dict[str, dict] = {}
+        if case_number is not None:
+            for c in db.table("cases").select(cols).eq("tenant_id", tid).eq("case_number", case_number).limit(1).execute().data:
+                found[c["id"]] = c
+        if pattern:
+            for c in db.table("cases").select(cols).eq("tenant_id", tid).ilike("title", pattern).order("updated_at", desc=True).limit(limit).execute().data:
+                found.setdefault(c["id"], c)
+        return [
             {"type": "case", "id": c["id"], "label": f"CASE-{c['case_number']:04d}", "description": f"Case · {c['status'].replace('_', ' ')} · {c['title']}"}
-            for c in list(cases.values())[:limit]
+            for c in list(found.values())[:limit]
         ]
 
-    if len(text) >= 2:
-        pattern = dash.like_pattern(text)
-        accounts = (
+    def search_accounts() -> list[dict]:
+        if not pattern:
+            return []
+        rows = (
             db.table("accounts").select("id, account_ref, institution_ref, status, is_internal").eq("tenant_id", tid)
             .ilike("account_ref", pattern).order("account_ref").limit(limit).execute().data
         )
-        results["accounts"] = [
+        return [
             {"type": "account", "id": a["id"], "label": a["account_ref"],
              "description": f"Account · {'internal' if a['is_internal'] else 'external'} · {a['status']}" + (f" · {a['institution_ref']}" if a.get("institution_ref") else "")}
-            for a in accounts
+            for a in rows
         ]
-        txns = (
-            db.table("transactions").select("id, transaction_ref, occurred_at, amount, currency, channel").eq("tenant_id", tid)
+
+    def search_transactions() -> list[dict]:
+        if not pattern:
+            return []
+        rows = (
+            db.table("transactions").select("id, transaction_ref, occurred_at, amount::text, currency, channel, origin_account_id").eq("tenant_id", tid)
             .ilike("transaction_ref", pattern).order("occurred_at", desc=True).limit(limit).execute().data
         )
-        results["transactions"] = [
-            {"type": "transaction", "id": t["id"], "label": t["transaction_ref"],
+        return [
+            {"type": "transaction", "id": t["id"], "label": t["transaction_ref"], "account_id": t["origin_account_id"],
              "description": f"Transaction · {t['channel']} · {t['amount']} {t['currency']} · {t['occurred_at'][:10]}"}
-            for t in txns
+            for t in rows
         ]
+
+    for key, items in zip(results, dash.parallel(search_alerts, search_cases, search_accounts, search_transactions), strict=True):
+        results[key] = items
     return {"query": text, "results": results, "cases_included": user.role in CASE_ROLES}
 
 
@@ -146,31 +161,32 @@ def notifications(user: CurrentUser = Depends(ANY_USER)) -> dict:
     can_investigate = user.role in CASE_ROLES
     since = (datetime.now(UTC) - timedelta(days=NOTIFICATION_WINDOW_DAYS)).isoformat()
 
-    pending_cases, pending_total = [], 0
-    if can_review:
+    def pending() -> tuple[list[dict], int]:
+        if not can_review:
+            return [], 0
         result = (
             db.table("cases").select("id, case_number, title, updated_at", count="exact").eq("tenant_id", tid)
             .eq("status", "pending_review").order("updated_at", desc=True).limit(dash.NOTIFICATION_LIMIT).execute()
         )
-        pending_cases, pending_total = result.data or [], result.count or 0
+        return result.data or [], result.count or 0
 
-    ranker, new_alerts = None, 0
-    if can_investigate:
-        ranker = dash.latest_ranker(tid)
-        if ranker:
-            new_alerts = dash.count_rows(
-                db.table("alerts").select("id", count="exact", head=True).eq("tenant_id", tid)
-                .eq("model_run_id", ranker["id"]).eq("status", "new")
-            )
+    def new_in_latest_run() -> tuple[dict | None, int]:
+        ranker = dash.latest_ranker(tid) if can_investigate else None
+        if not ranker:
+            return None, 0
+        return ranker, dash.count_rows(
+            db.table("alerts").select("id", count="exact", head=True).eq("tenant_id", tid)
+            .eq("model_run_id", ranker["id"]).eq("status", "new")
+        )
 
-    bad_runs = (
-        db.table("ingestion_runs").select("id, status, started_at, completed_at, rejected_count, error_message, source_files(filename)")
+    (pending_cases, pending_total), (ranker, new_alerts), bad_runs, critical = dash.parallel(
+        pending,
+        new_in_latest_run,
+        lambda: db.table("ingestion_runs").select("id, status, started_at, completed_at, rejected_count, error_message, source_files(filename)")
         .eq("tenant_id", tid).in_("status", ["failed", "completed_with_errors"]).gte("started_at", since)
-        .order("started_at", desc=True).limit(dash.NOTIFICATION_LIMIT).execute().data
-    )
-    critical = (
-        db.table("data_quality_issues").select("created_at", count="exact").eq("tenant_id", tid)
-        .eq("status", "open").eq("severity", "critical").order("created_at", desc=True).limit(1).execute()
+        .order("started_at", desc=True).limit(dash.NOTIFICATION_LIMIT).execute().data,
+        lambda: db.table("data_quality_issues").select("created_at", count="exact").eq("tenant_id", tid)
+        .eq("status", "open").eq("severity", "critical").order("created_at", desc=True).limit(1).execute(),
     )
     items = dash.build_notifications(
         can_investigate=can_investigate, can_review=can_review, pending_cases=pending_cases, pending_total=pending_total,
