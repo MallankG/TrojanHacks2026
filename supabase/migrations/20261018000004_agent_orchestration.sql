@@ -165,40 +165,41 @@ begin
  return to_jsonb(n);
 end $$;
 create function public.record_workflow_decision(p_tenant uuid,p_run uuid,p_token uuid,p_actor uuid,p_action text,p_reason text)
- returns jsonb language plpgsql security definer set search_path='' as $$
-declare r public.agent_runs; c public.cases; n public.case_narratives; d public.case_decisions; actor_role text; receipt jsonb;
+ returns jsonb language plpgsql security definer set search_path='' as $workflow_decision$
+declare run_row public.agent_runs; case_row public.cases; narrative_row public.case_narratives; decision_row public.case_decisions; actor_role text; receipt jsonb; expected_decision text;
 begin
- select * into r from public.agent_runs where id=p_run and tenant_id=p_tenant and managed for update;
- if not found or r.lease_token is distinct from p_token or r.lease_expires_at<=clock_timestamp() or r.status<>'running' then
+ expected_decision := case p_action when 'escalate' then 'escalate' when 'dismiss' then 'reject' else 'edit' end;
+ select * into run_row from public.agent_runs where id=p_run and tenant_id=p_tenant and managed for update;
+ if not found or run_row.lease_token is distinct from p_token or run_row.lease_expires_at<=clock_timestamp() or run_row.status<>'running' then
   raise exception 'Workflow lease lost' using errcode='23505'; end if;
- select * into d from public.case_decisions where agent_run_id=p_run;
+ select * into decision_row from public.case_decisions where agent_run_id=p_run;
  if found then
-  if d.decided_by<>p_actor or d.notes<>p_reason or d.decision::text<>case p_action when 'escalate' then 'escalate' when 'dismiss' then 'reject' else 'edit' end then raise exception 'Decision already recorded' using errcode='23505'; end if;
-  return r.result->'_decision_receipt';
+  if decision_row.decided_by<>p_actor or decision_row.notes<>p_reason or decision_row.decision::text<>expected_decision then raise exception 'Decision already recorded' using errcode='23505'; end if;
+  return run_row.result->'_decision_receipt';
  end if;
- select * into c from public.cases where id=r.case_id and tenant_id=p_tenant for update;
+ select * into case_row from public.cases where id=run_row.case_id and tenant_id=p_tenant for update;
  select role::text into actor_role from public.profiles where id=p_actor and tenant_id=p_tenant;
- if c.status='closed' or actor_role not in ('admin','reviewer','analyst','investigator') or length(btrim(p_reason))<10
+ if case_row.status='closed' or actor_role not in ('admin','reviewer','analyst','investigator') or length(btrim(p_reason))<10
   or p_action not in ('escalate','dismiss','request_more_data') then
   raise exception 'Decision is not permitted' using errcode='42501'; end if;
  if p_action in ('escalate','dismiss') and actor_role not in ('admin','reviewer') then
   raise exception 'Reviewer required' using errcode='42501'; end if;
- if p_action='escalate' and c.escalation_requested_by=p_actor then
+ if p_action='escalate' and case_row.escalation_requested_by=p_actor then
   raise exception 'A different reviewer must decide an escalation' using errcode='42501'; end if;
- select * into n from public.case_narratives where agent_run_id=p_run order by version desc limit 1;
+ select * into narrative_row from public.case_narratives where agent_run_id=p_run order by version desc limit 1;
  if not found then raise exception 'Saved draft required' using errcode='23514'; end if;
- if p_action in ('escalate','dismiss') and n.verification_status<>'passed' then
+ if p_action in ('escalate','dismiss') and narrative_row.verification_status<>'passed' then
   raise exception 'Verified draft required for final disposition' using errcode='23514'; end if;
  insert into public.case_decisions(tenant_id,case_id,narrative_id,agent_run_id,decision,disposition,decided_by,notes)
- values(p_tenant,c.id,n.id,p_run,
+ values(p_tenant,case_row.id,narrative_row.id,p_run,
   case p_action when 'escalate' then 'escalate'::public.review_decision when 'dismiss' then 'reject'::public.review_decision else 'edit'::public.review_decision end,
   case p_action when 'escalate' then 'escalate_for_sar_consideration'::public.case_disposition when 'dismiss' then 'false_positive'::public.case_disposition else null end,
-  p_actor,p_reason) returning * into d;
- receipt:=jsonb_build_object('decision',to_jsonb(d),'before',to_jsonb(c),
-  'after',(select to_jsonb(current_case) from public.cases current_case where id=c.id and tenant_id=p_tenant));
+  p_actor,p_reason) returning * into decision_row;
+ receipt:=jsonb_build_object('decision',to_jsonb(decision_row),'before',to_jsonb(case_row),
+  'after',(select to_jsonb(current_case) from public.cases current_case where id=case_row.id and tenant_id=p_tenant));
  update public.agent_runs set result=coalesce(result,'{}'::jsonb)||jsonb_build_object('_decision_receipt',receipt) where id=p_run and tenant_id=p_tenant;
  return receipt;
-end $$;
+end $workflow_decision$;
 -- Side effects from a managed detector must hold the same lease as its graph checkpoint.
 create function private.validate_agent_effect() returns trigger language plpgsql set search_path='' as $$
 declare rid uuid; token uuid; hdr jsonb; mid uuid;
