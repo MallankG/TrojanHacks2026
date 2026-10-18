@@ -53,11 +53,19 @@ class EnsembleScorer:
         ref = np.load(d / f"ibm_ensemble_{a}_{b}_ref.npz")
         self.ref_a, self.ref_b, self.w = ref["ref_a"], ref["ref_b"], res[f"weight_{a}"]
         self.threshold = res["val"]["best_threshold"]
-        self.calibration = calibration_text(res.get("calibration"), temporal=any(m.endswith("_temporal") and m.startswith("gnn")
-                                                                                for m in res.get("models", [a, b])))
+        self.calibration = calibration_text(res.get("calibration"),
+                                            temporal=any(_is_temporal_gnn(d, m) for m in res.get("models", [a, b])))
 
     def blend(self, s_a, s_b):
         return blend_scores(self.ref_a, self.ref_b, self.w, s_a, s_b)
+
+
+def _is_temporal_gnn(out, model):
+    """From the model's own results.json (hparams.temporal); unreadable counts as temporal, keeping the caveat."""
+    try:
+        return bool(json.loads((Path(out) / f"ibm_{model}_results.json").read_text()).get("hparams", {}).get("temporal"))
+    except (OSError, ValueError):
+        return True
 
 
 def calibration(models, out):

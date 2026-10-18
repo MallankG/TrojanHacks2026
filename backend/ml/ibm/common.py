@@ -116,8 +116,7 @@ def build_cache(data, cache, groups=GROUPS):
     stale = [p.name for g, p in kept.items() if g in GROUPS and _group_schema(p)[0] != ORDER_VERSION]
     if stale:
         raise ValueError(f"cache {c} has groups {stale} in another edge order than {ORDER_VERSION!r}; "
-                         "rebuild the cache with every group (or, if they come from a canon-v1 build that predates "
-                         "per-group stamps, run `python -m ml.ibm.common --cache <dir> --stamp-groups`)")
+                         "rebuild the cache with every group")
     e, y, (tr, va, te), safe, node_tr = load_edges(data)
     node_tr.rename_axis("account").reset_index().to_parquet(c / "ibm_node_features_train.parquet")  # serving needs it
     print(f"edges {len(e):,} | train {len(tr):,} val {len(va):,} test {len(te):,} ({time.time() - t0:.0f}s)", flush=True)
@@ -141,10 +140,8 @@ def load_cache(cache, groups, as_array=False):
     schema = {g: _group_schema(c / f"ibm_feat_{g}.parquet") for g in groups}  # (order, ncols), one read per group
     mixed = {g: o for g, (o, _) in schema.items()}
     if any(o != split[-1] for o in mixed.values()):
-        live_unstamped = split[-1] == ORDER_VERSION and all(o is None for g, o in mixed.items() if o != split[-1] and g in GROUPS)
-        hint = (" or, if the unstamped groups come from a canon-v1 build that predates per-group stamps, run "
-                "`python -m ml.ibm.common --cache <dir> --stamp-groups`") if live_unstamped else ""
-        raise ValueError(f"cache {c}: feature groups {mixed} don't match the split's edge order {split[-1]!r}; rebuild it{hint}")
+        raise ValueError(f"cache {c}: feature groups {mixed} don't match the split's edge order {split[-1]!r}; "
+                         "rebuild it with every group")
     if not as_array:
         return (pd.concat([pd.read_parquet(c / f"ibm_feat_{g}.parquet") for g in groups], axis=1), *split)
     names, X, j = [], None, 0
@@ -169,26 +166,6 @@ def _group_schema(path):
     s = pq.read_schema(path)
     attrs = (s.metadata or {}).get(b"PANDAS_ATTRS")
     return (json.loads(attrs).get("order") if attrs else None), len([n for n in s.names if not n.startswith("__index")])
-
-
-def stamp_groups(cache):
-    """One-shot migration: stamp unstamped feature groups of a canon-v1 build that predates per-group stamps.
-    build_cache writes the split before the groups, so a group written by the same build is newer than the split;
-    an older unstamped group is a leftover from another edge order (e.g. an interrupted rebuild) and is refused."""
-    c = Path(cache)
-    split = c / "ibm_split.npz"
-    order = npz_order(np.load(split))
-    if order != ORDER_VERSION:
-        raise ValueError(f"split in {c} is in edge order {order!r}, not {ORDER_VERSION!r}; rebuild the cache instead")
-    unstamped = [p for p in sorted(c.glob("ibm_feat_*.parquet")) if _group(p) in GROUPS and _group_schema(p)[0] is None]
-    older = [p.name for p in unstamped if p.stat().st_mtime < split.stat().st_mtime]
-    if older:
-        raise ValueError(f"{older} predate the split in {c}, so they may be in another edge order; rebuild the cache")
-    for p in unstamped:
-        f = pd.read_parquet(p)
-        f.attrs["order"] = ORDER_VERSION
-        f.to_parquet(p)
-        print(f"stamped {p.name} as {ORDER_VERSION}", flush=True)
 
 
 def at_threshold(y, s, thr):
@@ -241,14 +218,8 @@ def cli(description):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data", help="HI-Small dir (required unless --stamp-groups)")
+    ap.add_argument("--data", required=True)
     ap.add_argument("--cache", default="ml/artifacts/ibm/cache")
     ap.add_argument("--groups", nargs="+", default=list(GROUPS), help="build only these groups (e.g. --groups cycles)")
-    ap.add_argument("--stamp-groups", action="store_true", help="stamp a pre-per-group-stamp canon-v1 cache's groups, then exit")
     a = ap.parse_args()
-    if a.stamp_groups:
-        stamp_groups(a.cache)
-    elif not a.data:
-        ap.error("--data is required")
-    else:
-        build_cache(a.data, a.cache, a.groups)
+    build_cache(a.data, a.cache, a.groups)

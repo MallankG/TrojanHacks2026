@@ -23,13 +23,6 @@ def test_load_cache_refuses_a_group_in_another_edge_order(tmp_path):
     assert load_cache(tmp_path, ["safe39"])[-1] == ORDER_VERSION
 
 
-def test_stamp_groups_migrates_a_pre_stamp_canon_cache(tmp_path):
-    from ml.ibm.common import stamp_groups
-    _cache(tmp_path, {"safe39": ORDER_VERSION, "temporal": None})  # temporal written before per-group stamps
-    stamp_groups(tmp_path)
-    assert load_cache(tmp_path, ["safe39", "temporal"])[-1] == ORDER_VERSION
-
-
 def test_build_cache_ignores_retired_groups(tmp_path, monkeypatch):
     from ml.ibm import common
     _cache(tmp_path, {"cycles": None})  # leftover unstamped retired group on the Colab cache
@@ -49,14 +42,3 @@ def test_build_cache_refuses_orphan_legacy_parquet(tmp_path):
     pd.DataFrame({"a": [1.0]}).to_parquet(tmp_path / "ibm_feat_graph.parquet")  # legacy, unstamped
     with pytest.raises(ValueError, match="edge order"):  # raised before any data is loaded
         common.build_cache("unused", tmp_path, ["safe39"])
-
-
-def test_stamp_groups_refuses_groups_older_than_the_split(tmp_path):
-    import os
-    from ml.ibm.common import stamp_groups
-    _cache(tmp_path, {"safe39": None, "temporal": None})
-    split = tmp_path / "ibm_split.npz"
-    old = tmp_path / "ibm_feat_temporal.parquet"  # e.g. left over from an interrupted rebuild
-    os.utime(old, (split.stat().st_mtime - 60,) * 2)
-    with pytest.raises(ValueError, match="predate the split"):
-        stamp_groups(tmp_path)
