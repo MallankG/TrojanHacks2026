@@ -18,6 +18,8 @@ import { LogoMark } from "./logo";
 
 const SIDE_BUTTON = "min-h-9 w-full rounded-lg border border-sidebar-line px-2.5 text-left text-[12.5px] font-semibold text-[#c5d0de] hover:bg-sidebar-hover hover:text-white";
 
+const LLM_NAMES: Record<string, string> = { groq: "Groq", ollama: "Ollama (local)" };
+
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -32,7 +34,8 @@ export function Sidebar() {
   const pendingForOfficer = state.caseWork.status === "Pending approval" && role.canApproveEscalation;
 
   // Live session: badges and the ingestion/scoring pills come from the dashboard summary.
-  const summary = useDashboardSummary().data;
+  const summaryState = useDashboardSummary();
+  const summary = summaryState.data;
   const count = (n: number | undefined) => (n ? String(n) : null);
 
   const badge = (item: NavItem): string | null => {
@@ -59,7 +62,14 @@ export function Sidebar() {
         },
         { label: "GraphBase", status: graphHealth.loading ? "Checking" : graphHealth.data?.status === "ok" ? "Engine ready" : "Unavailable", tone: graphHealth.data?.status === "ok" ? "ok" : graphHealth.error ? "bad" : "mute" },
         { label: "Scoring", status: !summary ? "Checking" : ranker ? `Ranked ${ranker.completed_at ? ranker.completed_at.slice(5, 16).replace("T", " ") : ""}` : "Not run yet", tone: ranker ? "ok" : "mute" },
-        { label: "LLM", status: "Not connected (agents)", tone: "mute" },
+        {
+          label: "LLM",
+          // configured, not "ready": no network check, so each call can still fall back to the template
+          status: !summary?.llm ? (summaryState.error || summary ? "Unknown" : "Checking")
+            : summary.llm.configured ? `${LLM_NAMES[summary.llm.provider ?? ""] ?? summary.llm.provider} configured`
+            : (summary.llm.reason ?? "Unavailable"),
+          tone: summary?.llm?.configured ? "ok" : summary?.llm ? "warn" : "mute",
+        },
       ]
     : [
         { label: "Ingestion", status: fixed ? "Cash feed late" : "1 batch on hold", tone: "warn" },

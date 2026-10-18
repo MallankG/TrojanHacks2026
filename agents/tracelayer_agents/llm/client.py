@@ -118,6 +118,18 @@ class LLMSettings:
         )
 
     @property
+    def unavailable_reason(self) -> str | None:
+        """Error code when the configured provider cannot be called at all (the template answers);
+        None when calls are attempted. Reachability, keys' validity and rate limits are per call."""
+        if self.provider == "template":
+            return "template_only"
+        if self.provider == "groq" and not self.groq_api_key:
+            return "groq_no_api_key"
+        if self.provider == "groq" and not self.groq_approved:
+            return "groq_not_approved_destination"
+        return None
+
+    @property
     def model(self) -> str | None:
         """The configured model of the active provider (None: Ollama's first listed model)."""
         return self.groq_model if self.provider == "groq" else self.ollama_model
@@ -349,11 +361,8 @@ class LLMClient:
     async def _try_groq(
         self, prompt_name: str, variables: dict[str, Any], output_model: type[T], run: _Attempt
     ) -> T | None:
-        if not self.settings.groq_api_key:
-            run.errors.append("groq_no_api_key")
-            return None
-        if not self.settings.groq_approved:
-            run.errors.append("groq_not_approved_destination")
+        if reason := self.settings.unavailable_reason:  # no key, or not an approved destination
+            run.errors.append(reason)
             return None
         try:
             prompt = _render(PROMPTS[prompt_name], variables)

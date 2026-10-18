@@ -185,3 +185,28 @@ def test_dashboard_requires_auth():
     client = TestClient(app)
     for path in ("/dashboard/summary", "/notifications", "/search?q=ab"):
         assert client.get(path).status_code == 401
+
+
+LLM_ENV = ("LLM_PROVIDER", "GROQ_API_KEY", "GROQ_MODEL", "APPROVED_DATA_DESTINATIONS", "OLLAMA_HOST", "OLLAMA_MODEL",
+           "LLM_TIMEOUT_S", "LLM_MAX_CALLS_PER_RUN")
+
+
+@pytest.mark.parametrize(("env", "configured", "reason"), [
+    ({"LLM_PROVIDER": "groq", "GROQ_API_KEY": "gsk_x", "APPROVED_DATA_DESTINATIONS": '["supabase","groq"]'}, True, None),
+    ({"LLM_PROVIDER": "groq", "APPROVED_DATA_DESTINATIONS": '["groq"]'}, False, "Groq API key missing"),
+    ({"LLM_PROVIDER": "groq", "GROQ_API_KEY": "gsk_x", "APPROVED_DATA_DESTINATIONS": '["supabase"]'}, False,
+     "Groq not an approved data destination"),
+    ({"LLM_PROVIDER": "template"}, False, "Template only (no LLM configured)"),
+    ({}, True, None),  # default: local Ollama is configured (reachability is checked per call, not here)
+    ({"LLM_PROVIDER": "openai"}, False, "LLM settings invalid"),
+    ({"LLM_MAX_CALLS_PER_RUN": "abc"}, False, "LLM settings invalid"),
+])
+def test_llm_status_reports_what_the_agents_will_use(monkeypatch, env, configured, reason):
+    from tracelayer_agents import api as agents_api
+    for key in LLM_ENV:
+        monkeypatch.delenv(key, raising=False)
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    status = agents_api.llm_status()
+    assert (status["configured"], status["reason"]) == (configured, reason)
+    assert "gsk" not in str(status)  # never echoes the key

@@ -244,7 +244,8 @@ export function Topbar() {
   const router = useRouter();
   const pathname = usePathname();
   const state = useDemoState();
-  const live = useLiveProfile() !== null;
+  const profile = useLiveProfile();
+  const role = useRole();
   const screen = SCREEN_TITLES[screenForPath(pathname)];
   return (
     <header className="flex flex-wrap items-center gap-3 border-b border-line bg-white px-7 py-3">
@@ -255,21 +256,28 @@ export function Topbar() {
       <GlobalSearch />
       <Pill tone="warn">Synthetic data</Pill>
       <MaskToggle />
-      <label className="flex items-center gap-2 text-[12.5px] text-muted" title={live ? "Your role comes from your account" : undefined}>
-        Role
-        <select
-          value={state.role}
-          disabled={live}
-          onChange={(event) => setRole(event.target.value as RoleId)}
-          className="min-h-10 rounded-[10px] border border-[#b9c3d1] bg-white px-2.5 py-1.5 text-sm text-ink disabled:bg-subtle"
-        >
-          {ROLE_ORDER.map((id) => (
-            <option key={id} value={id}>
-              {ROLES[id].label}
-            </option>
-          ))}
-        </select>
-      </label>
+      {profile ? (
+        // Live: the account's own role (several backend roles share one prototype role, so the picker would mislabel it)
+        <span className="flex items-center gap-2 text-[12.5px] text-muted" title="Your role comes from your account">
+          Role
+          <span className="flex min-h-10 items-center rounded-[10px] border border-line bg-subtle px-2.5 text-sm text-ink">{role.label}</span>
+        </span>
+      ) : (
+        <label className="flex items-center gap-2 text-[12.5px] text-muted">
+          Role
+          <select
+            value={state.role}
+            onChange={(event) => setRole(event.target.value as RoleId)}
+            className="min-h-10 rounded-[10px] border border-[#b9c3d1] bg-white px-2.5 py-1.5 text-sm text-ink"
+          >
+            {ROLE_ORDER.map((id) => (
+              <option key={id} value={id}>
+                {ROLES[id].label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <button type="button" className={buttonClasses("ghost", "sm")} onClick={() => openModal({ kind: "help" })}>
         Help
       </button>
