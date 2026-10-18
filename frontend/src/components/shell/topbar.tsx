@@ -4,6 +4,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ROUTES, SCREEN_TITLES, screenForPath } from "@/lib/routes";
 import { openModal, selectBatch, setRole, updateGraph } from "@/lib/store/actions";
+import { useLive } from "@/lib/live/api";
+import { commandApi, useLiveNotifications, type SearchHit } from "@/lib/live/api-command";
+import { utc } from "@/lib/live/format";
 import { useLiveProfile } from "@/lib/live/session";
 import { useDemoState, useRole } from "@/lib/store/hooks";
 import { ROLE_ORDER, ROLES } from "@/lib/seed/roles";
@@ -99,8 +102,18 @@ function GlobalSearch() {
   );
 
   const q = query.trim().toLowerCase();
+  const live = useLiveProfile() !== null;
+  const liveQuery = live && q.length >= 2 ? q : "";
+  const liveHits = useLive(async () => (liveQuery ? await commandApi.search(liveQuery) : null), `search:${liveQuery}`);
+  const hrefFor = (hit: SearchHit) =>
+    hit.type === "alert" ? ROUTES.riskAlert(hit.id) : hit.type === "case" ? ROUTES.case(hit.id) : ROUTES.entity(hit.type === "account" ? hit.id : (hit.account_id ?? hit.id));
+  const liveEntries: SearchEntry[] = liveHits.data
+    ? [...liveHits.data.results.alerts, ...liveHits.data.results.cases, ...liveHits.data.results.accounts, ...liveHits.data.results.transactions]
+        .slice(0, 8)
+        .map((hit) => ({ id: hit.label, description: `Live · ${hit.description}`, go: () => router.push(hrefFor(hit)) }))
+    : [];
   const results = q
-    ? index.filter((entry) => (role.canAccessCases || !entry.caseScoped) && `${entry.id} ${entry.description}`.toLowerCase().includes(q)).slice(0, 6)
+    ? [...liveEntries, ...index.filter((entry) => (role.canAccessCases || !entry.caseScoped) && `${entry.id} ${entry.description}`.toLowerCase().includes(q))].slice(0, live ? 10 : 6)
     : [];
 
   return (
@@ -156,12 +169,21 @@ function Notifications() {
   const [open, setOpen] = useState(false);
   const ref = useDismiss(open, () => setOpen(false));
 
+  const liveNotes = useLiveNotifications();
   const items: Array<{ at: string; text: string; href: string }> = [];
-  if (!state.data.driftFixed) items.push({ at: "13:20", text: "ach_2026_10_06_b quarantined. You are the backup owner.", href: ROUTES.data });
-  if (!state.caseWork.claimFixed) items.push({ at: "13:52", text: "Verifier blocked 1 claim in CASE-0412.", href: ROUTES.case("CASE-0412", "narrative") });
-  if (state.caseWork.status === "Pending approval" && role.canApproveEscalation) items.push({ at: "Now", text: "Approval requested: CASE-0412 escalation.", href: ROUTES.case("CASE-0412", "disposition") });
-  items.push({ at: "13:41", text: "AL-1027 and AL-1029 clustered as CL-17.", href: ROUTES.riskAlert("AL-1027") });
-  items.push({ at: "12:58", text: "Cash feed is late against its 2-hour SLA.", href: ROUTES.data });
+  if (liveNotes.live) {
+    for (const n of liveNotes.data?.items ?? []) {
+      const href =
+        n.target_type === "case" && n.target_id ? ROUTES.case(n.target_id) : n.target_type === "cases" ? ROUTES.cases : n.target_type === "alerts" ? ROUTES.risk : n.target_type === "data_quality" ? ROUTES.dataQuality : ROUTES.data;
+      items.push({ at: n.at ? utc(n.at).replace(" UTC", "") : "Now", text: n.detail ? `${n.title} ${n.detail}` : n.title, href });
+    }
+  } else if (!state.data.driftFixed) items.push({ at: "13:20", text: "ach_2026_10_06_b quarantined. You are the backup owner.", href: ROUTES.data });
+  if (!liveNotes.live && !state.caseWork.claimFixed) items.push({ at: "13:52", text: "Verifier blocked 1 claim in CASE-0412.", href: ROUTES.case("CASE-0412", "narrative") });
+  if (!liveNotes.live && state.caseWork.status === "Pending approval" && role.canApproveEscalation) items.push({ at: "Now", text: "Approval requested: CASE-0412 escalation.", href: ROUTES.case("CASE-0412", "disposition") });
+  if (!liveNotes.live) {
+    items.push({ at: "13:41", text: "AL-1027 and AL-1029 clustered as CL-17.", href: ROUTES.riskAlert("AL-1027") });
+    items.push({ at: "12:58", text: "Cash feed is late against its 2-hour SLA.", href: ROUTES.data });
+  }
 
   return (
     <div ref={ref} className="relative">
@@ -174,7 +196,7 @@ function Notifications() {
           <div className="px-2.5 py-2 text-[13.5px] font-semibold">Notifications</div>
           {items.map((item) => (
             <button
-              key={item.text}
+              key={`${item.at}-${item.text}`}
               type="button"
               className="flex min-h-11 w-full flex-col rounded-lg px-2.5 py-2 text-left text-[13.5px] hover:bg-canvas"
               onClick={() => {
