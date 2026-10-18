@@ -54,23 +54,6 @@ export function fieldImpact(field: ImpactField, fixed: boolean): Array<{ kind: s
   return rows[field].map(([kind, value, status, tone]) => ({ kind, value, status, tone }));
 }
 
-export function featureDrift(fixed: boolean): Array<{ feature: string; psi: number; status: "Stable" | "Watch" | "Drift"; tone: Tone }> {
-  const values: Array<[string, number]> = [
-    ["amount_vs_baseline_z", 0.04],
-    ["out_in_ratio_24h", 0.07],
-    ["median_interarrival_min", 0.05],
-    ["new_counterparty_share_7d", 0.12],
-    ["rail_mix_p2p_share", 0.21],
-    ["target_account_missing_rate", fixed ? 0.02 : 0.31],
-  ];
-  return values.map(([feature, psi]) => {
-    const status = psi >= 0.25 ? "Drift" : psi >= 0.1 ? "Watch" : "Stable";
-    return { feature, psi, status, tone: status === "Drift" ? "bad" : status === "Watch" ? "warn" : "ok" };
-  });
-}
-
-export const SCORE_HISTOGRAM = [31, 22, 14, 9, 7, 5, 4, 3, 3, 2];
-
 export function agentRun(state: DemoState): Array<{ name: string; status: "Done" | "Warning" | "Failed" | "Skipped" | "Waiting"; output: string; duration: string }> {
   const fixed = state.data.driftFixed;
   const decided = state.caseWork.status !== "In review";

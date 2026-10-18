@@ -6,7 +6,7 @@ The agent service (LangGraph) drafts and verifies; this API stores every artifac
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.api.deps import ensure_tenant_ids
 from app.core.db import fetch_by_ids, get_db, get_one, insert_many, to_json, with_actor
@@ -108,11 +108,12 @@ def get_narrative(narrative_id: UUID, user: CurrentUser = Depends(ANY_CALLER)) -
 
 
 @router.put("/narratives/{narrative_id}/verification")
-def record_verification(narrative_id: UUID, body: NarrativeVerification,
+def record_verification(narrative_id: UUID, body: NarrativeVerification, request: Request,
                         user: CurrentUser = Depends(CAN_INVESTIGATE_OR_SERVICE)) -> dict:
     """Store the evidence verifier's result for a narrative and each of its claims."""
     db = get_db()
     tid, nid = user.tenant_id, str(narrative_id)
+    request.state.operation_success = body.verification_status == "passed"
     if not get_one("case_narratives", tid, nid, "id"):
         raise NotFound("Narrative")
     for claim in body.claims:

@@ -3,3 +3,6 @@
 __pycache__/
 .pytest_cache/
 ml/data/
+
+release-manifest.json
+*.private.pem

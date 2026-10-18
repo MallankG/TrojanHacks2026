@@ -236,6 +236,28 @@ def _process_rows(tenant_id: str, run_id: str, source_file: dict, headers: list[
     validator = RowValidator(mapping, _existing_transaction_refs(tenant_id))
     results = [validator.validate(i + 1, raw) for i, raw in enumerate(raw_rows)]
 
+    # Opt-in executable source contracts run on original values before canonical writes.
+    # No proposed mapping or changed currency/time semantics is applied automatically.
+    if get_settings().governance_contracts_enabled:
+        from app.services.governance import Product, check_row
+
+        products = db.table("governance_products").select("definition").eq("tenant_id", tenant_id).eq(
+            "source_system", source_file["source_system"]
+        ).limit(1).execute().data
+        if products:
+            contract = Product.model_validate(products[0]["definition"]).contract
+            now = datetime.now(UTC)
+            for result in results:
+                failures = check_row(result.raw, contract, now)
+                for failure in failures:
+                    result.issues.append(Issue(
+                        "GOV-CONTRACT-001", "invalid_format", "error",
+                        f"Contract {contract.version}: {failure['code']}", field_name=failure["field"],
+                    ))
+                if failures:
+                    result.normalized = None
+
+
     inserted_rows = insert_many("source_rows", [
         {
             "tenant_id": tenant_id,
