@@ -33,7 +33,11 @@ function isDemoState(value: unknown): value is DemoState {
     ((v.caseWork as Record<string, unknown>).revisions as unknown[]).length > 0 &&
     isObject(v.policy) &&
     Array.isArray(v.events) &&
-    Array.isArray(v.exports)
+    Array.isArray(v.exports) &&
+    Array.isArray(v.recomputes) &&
+    Array.isArray(v.passports) &&
+    Array.isArray(v.replays) &&
+    Array.isArray(v.sandboxProposals)
   );
 }
 

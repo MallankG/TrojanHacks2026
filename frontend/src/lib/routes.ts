@@ -6,9 +6,12 @@ export const ROUTES = {
   data: "/data",
   dataQuality: "/data/quality",
   dataContracts: "/data/contracts",
+  dataImpact: "/data/impact",
   risk: "/risk",
   riskAlert: (id: string) => `/risk/${id}`,
   riskCompare: "/risk/compare",
+  riskChanges: "/risk/changes",
+  riskPassport: (id: string) => `/risk/${id}/passport`,
   graph: "/graph",
   entity: (accountId: string) => `/entities/${accountId}`,
   copilot: "/copilot",
@@ -18,7 +21,7 @@ export const ROUTES = {
 } as const;
 
 export type CaseTab = "overview" | "checklist" | "narrative" | "disposition" | "report";
-export type GovernanceTab = "enterprise" | "superpowers" | "lineage" | "models" | "drift" | "pipelines" | "audit" | "exports" | "settings";
+export type GovernanceTab = "enterprise" | "superpowers" | "lineage" | "models" | "drift" | "pipelines" | "replay" | "sandbox" | "audit" | "exports" | "settings";
 
 export interface NavItem {
   screen: ScreenKey;

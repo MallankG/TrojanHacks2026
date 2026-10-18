@@ -156,6 +156,8 @@ export interface AuditEvent {
   object: string;
   requestId: string;
   hash: string;
+  /** Set for events read from the live backend's audit log. */
+  live?: boolean;
 }
 
 export interface ExportRecord {
@@ -208,6 +210,8 @@ export interface Batch {
   schema: string;
   hash: string;
   checks?: ContractCheck[];
+  /** Set for batches that come from the live backend (an ingestion run). */
+  runId?: string;
 }
 
 export interface ContractCheck {

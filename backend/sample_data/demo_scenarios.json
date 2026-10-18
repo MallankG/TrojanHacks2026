@@ -1,0 +1,225 @@
+{
+  "dataset": "demo_bank_transactions.csv",
+  "seed": 20261017,
+  "rows": 2193,
+  "accounts": 75,
+  "window": [
+    "2026-08-01T00:00:00+00:00",
+    "2026-10-10T00:00:00+00:00"
+  ],
+  "note": "Synthetic data. Labels are for evaluation only; detectors never read them.",
+  "scenarios": {
+    "S-A": {
+      "name": "5-hop layering chain",
+      "accounts": [
+        "L-SRC",
+        "L-01",
+        "L-02",
+        "L-03",
+        "L-04",
+        "L-DST"
+      ],
+      "expected_typology": "layering",
+      "expected_signals": [
+        "layering_chain",
+        "rapid_pass_through"
+      ],
+      "transaction_ids": [
+        "DEMO-001571",
+        "DEMO-001584",
+        "DEMO-001592",
+        "DEMO-001600",
+        "DEMO-001607"
+      ]
+    },
+    "S-B": {
+      "name": "Repeated round-trip cycle",
+      "accounts": [
+        "R-A",
+        "R-B",
+        "R-C"
+      ],
+      "expected_typology": "cycle",
+      "expected_signals": [
+        "bounded_cycle",
+        "rapid_pass_through"
+      ],
+      "transaction_ids": [
+        "DEMO-000920",
+        "DEMO-000948",
+        "DEMO-000975",
+        "DEMO-001149",
+        "DEMO-001178",
+        "DEMO-001197",
+        "DEMO-001391",
+        "DEMO-001417",
+        "DEMO-001439"
+      ]
+    },
+    "S-C": {
+      "name": "Structuring-like cash deposits",
+      "accounts": [
+        "ST-01",
+        "CASHDESK-BR01",
+        "CASHDESK-BR02",
+        "ST-EXT"
+      ],
+      "expected_typology": "structuring",
+      "expected_signals": [
+        "structuring_band"
+      ],
+      "benign_confounder": "S-C-benign",
+      "transaction_ids": [
+        "DEMO-000998",
+        "DEMO-001027",
+        "DEMO-001100",
+        "DEMO-001131",
+        "DEMO-001160",
+        "DEMO-001188"
+      ]
+    },
+    "S-C-benign": {
+      "name": "Restaurant with daily cash deposits (benign lookalike)",
+      "accounts": [
+        "BIZ-REST"
+      ],
+      "expected_typology": null,
+      "expected_non_signals": [
+        "structuring_band"
+      ],
+      "transaction_ids": []
+    },
+    "S-D": {
+      "name": "Dormant reactivation then dispersal",
+      "accounts": [
+        "DOR-01",
+        "D-SRC",
+        "D-BEN-1",
+        "D-BEN-2",
+        "D-BEN-3",
+        "D-BEN-4",
+        "D-BEN-5",
+        "D-BEN-6"
+      ],
+      "expected_typology": "dormant_reactivation",
+      "expected_signals": [
+        "dormant_reactivation",
+        "fan_out_dispersal",
+        "rapid_pass_through"
+      ],
+      "transaction_ids": [
+        "DEMO-001852",
+        "DEMO-001865",
+        "DEMO-001871",
+        "DEMO-001878",
+        "DEMO-001891",
+        "DEMO-001896",
+        "DEMO-001897"
+      ]
+    },
+    "S-E": {
+      "name": "Funnel account",
+      "accounts": [
+        "FUN-01",
+        "FUN-OUT",
+        "CUST-022",
+        "CUST-023",
+        "CUST-024",
+        "CUST-025",
+        "CUST-026",
+        "CUST-027",
+        "CUST-028",
+        "CUST-029"
+      ],
+      "expected_typology": "funnel",
+      "expected_signals": [
+        "funnel_fan_in"
+      ],
+      "benign_confounder": "S-I2",
+      "transaction_ids": [
+        "DEMO-001321",
+        "DEMO-001325",
+        "DEMO-001336",
+        "DEMO-001340",
+        "DEMO-001359",
+        "DEMO-001375",
+        "DEMO-001390",
+        "DEMO-001406",
+        "DEMO-001448"
+      ]
+    },
+    "S-H": {
+      "name": "Scam proceeds to a new beneficiary, then dispersal",
+      "accounts": [
+        "CUST-007",
+        "SC-BEN",
+        "SC-OUT-1",
+        "SC-OUT-2",
+        "SC-OUT-3",
+        "SC-OUT-4"
+      ],
+      "expected_typology": "scam_proceeds",
+      "expected_signals": [
+        "new_beneficiary_large_payment",
+        "rapid_pass_through",
+        "robust_amount_deviation"
+      ],
+      "transaction_ids": [
+        "DEMO-001649",
+        "DEMO-001675",
+        "DEMO-001676",
+        "DEMO-001683",
+        "DEMO-001688"
+      ]
+    },
+    "S-I": {
+      "name": "Benign payroll (Acme pays the same 20 employees every other Friday)",
+      "accounts": [
+        "EMP-ACME",
+        "EXT-EMPLOYER",
+        "CLIENT-01",
+        "CLIENT-02",
+        "CLIENT-03",
+        "CLIENT-04"
+      ],
+      "expected_typology": null,
+      "expected_non_signals": [
+        "fan_out_dispersal",
+        "rapid_pass_through"
+      ],
+      "transaction_ids": []
+    },
+    "S-I2": {
+      "name": "Benign high-volume wholesale market with weekly treasury sweep",
+      "accounts": [
+        "BIZ-MARKET",
+        "BIZ-MARKET-TRSY"
+      ],
+      "expected_typology": null,
+      "expected_non_signals": [
+        "funnel_fan_in"
+      ],
+      "transaction_ids": []
+    },
+    "S-J": {
+      "name": "Malformed rows (5 rejected + 1 duplicate id, 2 accepted with warnings on scenario accounts)",
+      "accounts": [
+        "ST-01",
+        "FUN-01",
+        "DOR-01"
+      ],
+      "expected_typology": null,
+      "expected_effect": "Data-quality caveats on the structuring, funnel and dormant alerts",
+      "transaction_ids": [
+        "DEMO-001052",
+        "DEMO-001083",
+        "DEMO-001123",
+        "DEMO-001158",
+        "DEMO-001191",
+        "DEMO-001404",
+        "DEMO-001901",
+        "DEMO-000101 (second occurrence)"
+      ]
+    }
+  }
+}

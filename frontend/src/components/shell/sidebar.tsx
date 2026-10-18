@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useBackendHealth } from "@/lib/api/use-backend-health";
 import { cn } from "@/lib/cn";
+import { useDashboardSummary } from "@/lib/live/api-command";
+import { useLiveProfile } from "@/lib/live/session";
 import { NAV_GROUPS, ROUTES, type NavItem } from "@/lib/routes";
 import { openModal, resetDemo, signOut, toggleSimulation } from "@/lib/store/actions";
 import { useDemoState, useRole } from "@/lib/store/hooks";
@@ -21,27 +23,53 @@ export function Sidebar() {
   const state = useDemoState();
   const role = useRole();
   const backend = useBackendHealth();
+  const profile = useLiveProfile();
   const fixed = state.data.driftFixed;
   const pendingForOfficer = state.caseWork.status === "Pending approval" && role.canApproveEscalation;
 
+  // Live session: badges and the ingestion/scoring pills come from the dashboard summary.
+  const summary = useDashboardSummary().data;
+  const count = (n: number | undefined) => (n ? String(n) : null);
+
   const badge = (item: NavItem): string | null => {
+    if (profile) {
+      if (item.screen === "data") return count(summary?.ingestion.open_issues_total);
+      if (item.screen === "risk") return count(summary?.alerts.open_total);
+      if (item.screen === "cases") return count(summary?.cases?.pending_review);
+      return null;
+    }
     if (item.screen === "data" && !fixed) return "1";
     if (item.screen === "cases" && (!state.caseWork.claimFixed || pendingForOfficer)) return "1";
     if (item.screen === "risk") return "7";
     return null;
   };
 
-  const health: Array<{ label: string; status: string; tone: Tone }> = [
-    { label: "Ingestion", status: fixed ? "Cash feed late" : "1 batch on hold", tone: "warn" },
-    { label: "GraphBase", status: state.sim.graph ? "Down, snapshots only" : "Healthy, lag 42 s", tone: state.sim.graph ? "bad" : "ok" },
-    { label: "Scoring", status: "Healthy, 18 min ago", tone: "ok" },
-    { label: "LLM", status: state.sim.llm ? "Down, drafting paused" : "Healthy, Groq", tone: state.sim.llm ? "bad" : "ok" },
+  const latestRun = summary?.ingestion.latest_run;
+  const ranker = summary?.alerts.model_run;
+  const health: Array<{ label: string; status: string; tone: Tone }> = profile
+    ? [
+        {
+          label: "Ingestion",
+          status: !summary ? "Checking" : !latestRun ? "No uploads yet" : summary.ingestion.failed_runs ? "Last run failed" : `${summary.ingestion.open_issues_total} open issues`,
+          tone: !latestRun ? "mute" : summary?.ingestion.failed_runs ? "bad" : summary?.ingestion.open_issues_total ? "warn" : "ok",
+        },
+        { label: "GraphBase", status: "Not connected (graph service)", tone: "mute" },
+        { label: "Scoring", status: !summary ? "Checking" : ranker ? `Ranked ${ranker.completed_at ? ranker.completed_at.slice(5, 16).replace("T", " ") : ""}` : "Not run yet", tone: ranker ? "ok" : "mute" },
+        { label: "LLM", status: "Not connected (agents)", tone: "mute" },
+      ]
+    : [
+        { label: "Ingestion", status: fixed ? "Cash feed late" : "1 batch on hold", tone: "warn" },
+        { label: "GraphBase", status: state.sim.graph ? "Down, snapshots only" : "Healthy, lag 42 s", tone: state.sim.graph ? "bad" : "ok" },
+        { label: "Scoring", status: "Healthy, 18 min ago", tone: "ok" },
+        { label: "LLM", status: state.sim.llm ? "Down, drafting paused" : "Healthy, Groq", tone: state.sim.llm ? "bad" : "ok" },
+      ];
+  health.push(
     {
       label: "API",
-      status: backend === "online" ? "Connected" : backend === "checking" ? "Checking" : backend === "offline" ? "Offline, demo data" : "Demo data",
-      tone: backend === "online" ? "ok" : backend === "offline" ? "warn" : "mute",
-    },
-  ];
+      status:
+        backend === "online" ? (profile ? "Live data" : "Connected, demo sign-in") : backend === "checking" ? "Checking" : backend === "offline" ? (profile ? "Offline" : "Offline, demo data") : "Demo data",
+      tone: backend === "online" ? "ok" : backend === "offline" ? (profile ? "bad" : "warn") : "mute",
+    });
 
   return (
     <aside className="flex w-full flex-col gap-1 bg-sidebar px-3.5 py-5 lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:overflow-y-auto">
@@ -54,7 +82,7 @@ export function Sidebar() {
       </Link>
       <div className="mx-1 mb-0.5 mt-2 rounded-[10px] border border-sidebar-line px-2.5 py-2">
         <div className="text-[11px] text-sidebar-muted">Tenant</div>
-        <div className="text-[13px] font-semibold text-white">Lakeview Community Bank</div>
+        <div className="text-[13px] font-semibold text-white">{profile?.tenant?.name ?? "Lakeview Community Bank"}</div>
         <div className="text-[11px] text-attention">Synthetic data only</div>
       </div>
 

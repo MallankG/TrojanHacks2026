@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { LIVE_ROLES } from "@/lib/live/roles";
+import { AuthRejected, LIVE_CONFIGURED, liveSignIn, liveSignOut } from "@/lib/live/session";
 import { ROUTES } from "@/lib/routes";
 import { signIn } from "@/lib/store/actions";
 import { useDemoState, useHydrated } from "@/lib/store/hooks";
@@ -10,6 +12,7 @@ import { Callout } from "@/components/ui/callout";
 import { Field, TextInput } from "@/components/ui/field";
 
 const MAX_ATTEMPTS = 3;
+const LOCK_MS = 15 * 60 * 1000;
 /** Prototype-only one-time code. Real sign-in is delegated to Supabase Auth. */
 const DEMO_CODE = "123456";
 
@@ -28,6 +31,11 @@ export function SignInForm() {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [attempts, setAttempts] = useState(0);
+  const lockTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (lockTimer.current) clearTimeout(lockTimer.current);
+  }, []);
+  const [busy, setBusy] = useState(false);
   const locked = attempts >= MAX_ATTEMPTS;
   const hydrated = useHydrated();
   const authed = useDemoState().authed;
@@ -54,11 +62,50 @@ export function SignInForm() {
     setError(locked ? "Too many attempts. Sign-in is locked for 15 minutes. Contact your administrator." : null);
   };
 
-  const submitCredentials = (event: FormEvent) => {
+  const submitCredentials = async (event: FormEvent) => {
     event.preventDefault();
     const problem = emailError(email) ?? (password.length < 8 ? "Password must be at least 8 characters." : null);
     setError(problem);
-    if (!problem) setStep("code");
+    if (problem) return;
+    if (!LIVE_CONFIGURED) {
+      setStep("code");
+      return;
+    }
+    // Live backend: Supabase Auth checks the password (and rate-limits); the role comes from the user's profile.
+    if (locked) {
+      setError("Too many attempts. Sign-in is locked for 15 minutes. Contact your administrator.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const profile = await liveSignIn(email.trim(), password);
+      clearCredentials();
+      setAttempts(0);
+      signIn(LIVE_ROLES[profile.role].uiRole);
+      router.replace(ROUTES.command);
+    } catch (failure) {
+      const message = failure instanceof Error ? failure.message : "Sign-in failed.";
+      // Only wrong credentials count toward the lockout; an outage or an unprovisioned account does not.
+      // This is a UI courtesy: Supabase Auth's server-side rate limit is the real control.
+      if (!(failure instanceof AuthRejected)) {
+        setError(message);
+        return;
+      }
+      const next = attempts + 1;
+      setAttempts(next);
+      setPassword("");
+      if (next >= MAX_ATTEMPTS) {
+        setError("Too many attempts. Sign-in is locked for 15 minutes. Contact your administrator.");
+        lockTimer.current = setTimeout(() => {
+          setAttempts(0);
+          setError(null);
+        }, LOCK_MS);
+      } else {
+        setError(`${message} ${MAX_ATTEMPTS - next} attempt(s) left.`);
+      }
+    } finally {
+      setBusy(false);
+    }
   };
 
   const submitCode = (event: FormEvent) => {
@@ -88,6 +135,8 @@ export function SignInForm() {
           <Button
             variant="ghost"
             onClick={() => {
+              // The SSO path is the seeded demo; drop any leftover live session so data stays consistent.
+              void liveSignOut();
               setEmail("");
               setError(null);
               setStep("code");
@@ -107,7 +156,12 @@ export function SignInForm() {
               {error}
             </Callout>
           ) : null}
-          <Button type="submit">Continue</Button>
+          <Button type="submit" disabled={busy}>
+            {busy ? "Signing in" : "Continue"}
+          </Button>
+          <p className="text-center text-xs text-muted">
+            {LIVE_CONFIGURED ? "Email sign-in uses your live backend account. Company SSO opens the seeded demo." : "Prototype sign-in on seeded demo data."}
+          </p>
         </form>
       ) : (
         <form className="flex flex-col gap-4" onSubmit={submitCode} noValidate>

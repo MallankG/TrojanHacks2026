@@ -1,5 +1,6 @@
 "use client";
 
+import { useLiveProfile } from "@/lib/live/session";
 import { CONTRACT_FIELDS } from "@/lib/seed/data-ops";
 import { rollbackMapping } from "@/lib/store/actions";
 import { useDemoState, useRole } from "@/lib/store/hooks";
@@ -8,8 +9,22 @@ import { Card, Panel } from "@/components/ui/card";
 import { KeyValueList } from "@/components/ui/key-value";
 import { Pill } from "@/components/ui/pill";
 import { DataTable, Td, Th } from "@/components/ui/table";
+import { LiveContracts } from "@/features/live/live-sources";
 
 export function ContractsView() {
+  // Live session: the real canonical schema and rule catalog first, then the seeded contract as a sample.
+  if (useLiveProfile()) {
+    return (
+      <div className="flex flex-col gap-4">
+        <LiveContracts />
+        <SampleContract sample />
+      </div>
+    );
+  }
+  return <SampleContract />;
+}
+
+function SampleContract({ sample = false }: { sample?: boolean }) {
   const fixed = useDemoState().data.driftFixed;
   const role = useRole();
   const versions = [
@@ -20,7 +35,10 @@ export function ContractsView() {
     <div className="flex flex-wrap items-start gap-4">
       <Card className="min-w-0 flex-[2_1_560px] overflow-hidden">
         <div className="px-5 py-4">
-          <h2 className="text-base font-semibold">Data contract ach.v4</h2>
+          <h2 className="text-base font-semibold">
+            Data contract ach.v4
+            {sample ? <Pill className="ml-2 align-middle">Sample</Pill> : null}
+          </h2>
           <span className="text-xs text-muted">Executable checks run at ingestion. Failures are quarantined, never silently coerced.</span>
         </div>
         <DataTable caption="Contract fields">

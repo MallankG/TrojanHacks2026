@@ -1,9 +1,10 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
+import { useLiveProfile } from "@/lib/live/session";
 import { ROUTES, screenForPath } from "@/lib/routes";
-import { markVisited } from "@/lib/store/actions";
+import { markVisited, signOut, toast } from "@/lib/store/actions";
 import { useDemoState, useHydrated } from "@/lib/store/hooks";
 import { Skeleton } from "@/components/ui/misc";
 import { ModalHost } from "@/components/modals/modal-host";
@@ -25,6 +26,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (hydrated && authed) markVisited(screenForPath(pathname));
   }, [hydrated, authed, pathname]);
+
+  // A live session that ends (expired refresh token, sign-out in another tab) signs out here too,
+  // instead of silently falling back to the seeded demo with an unlocked role menu.
+  const liveId = useLiveProfile()?.id ?? null;
+  const wasLive = useRef<string | null>(null);
+  useEffect(() => {
+    if (wasLive.current && !liveId && authed) {
+      signOut();
+      toast("Your session ended. Sign in again.");
+      router.replace(ROUTES.signIn);
+    }
+    wasLive.current = liveId;
+  }, [liveId, authed, router]);
 
   if (!hydrated || !authed) {
     return (

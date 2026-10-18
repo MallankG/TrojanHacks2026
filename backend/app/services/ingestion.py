@@ -147,7 +147,7 @@ def ingest_csv(
 
     text = content.decode("utf-8-sig", errors="replace")
     reader = csv.DictReader(io.StringIO(text))
-    headers = [h.strip() for h in (reader.fieldnames or [])]
+    headers = canonical.dedupe_headers([h.strip() for h in (reader.fieldnames or [])])
     reader.fieldnames = headers
     raw_rows = [{k: (v if v is not None else "") for k, v in row.items() if k is not None} for row in reader]
 

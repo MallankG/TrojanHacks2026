@@ -130,3 +130,38 @@ export function edgeFlags(key: EdgeKey, fixed: boolean): string[] {
       return ["Rail switch to wire"];
   }
 }
+
+export interface LensModelOptions {
+  /** Edges drawn emphasized (for example, newly visible in a snapshot or the current story hop). */
+  highlighted?: EdgeKey[];
+  /** The quarantined hop drawn as a dashed "On hold" placeholder. */
+  placeholder?: EdgeKey | null;
+  tokenVisible?: boolean;
+}
+
+/** Canvas model for an explicit set of edges, used by the time machine and the storyboard. */
+export function modelForEdges(visibleKeys: EdgeKey[], options: LensModelOptions = {}): GraphModel {
+  const highlighted = new Set(options.highlighted ?? []);
+  const shown = new Set<EdgeKey>(visibleKeys);
+  if (options.placeholder) shown.add(options.placeholder);
+  const on = Object.fromEntries((Object.keys(NODES) as NodeKey[]).map((k) => [k, false])) as Record<NodeKey, boolean>;
+  for (const e of EDGES) {
+    if (shown.has(e.key)) {
+      on[e.from] = true;
+      on[e.to] = true;
+    }
+  }
+  on.B = true;
+  const tokenVisible = Boolean(options.tokenVisible);
+  if (tokenVisible) {
+    on.T = true;
+    on.G = true;
+  }
+  const edges = Object.fromEntries(
+    EDGES.map((e) => [e.key, { edge: e, visible: shown.has(e.key), placeholder: options.placeholder === e.key, selected: highlighted.has(e.key), ...shorten(e.from, e.to) }]),
+  ) as Record<EdgeKey, EdgeRender>;
+  const nodes = Object.fromEntries((Object.keys(NODES) as NodeKey[]).map((k) => [k, { key: k, opacity: on[k] ? 1 : 0, unreached: false, selected: false }])) as Record<NodeKey, NodeRender>;
+  const visiblePath = MAIN_PATH.map((k) => EDGES.find((e) => e.key === k) as GraphEdge).filter((e) => visibleKeys.includes(e.key));
+  const tableRows = EDGES.filter((e) => shown.has(e.key)).map((edge) => ({ edge, held: options.placeholder === edge.key }));
+  return { edges, nodes, tokenVisible, visiblePath, heldShown: Boolean(options.placeholder), tableRows };
+}

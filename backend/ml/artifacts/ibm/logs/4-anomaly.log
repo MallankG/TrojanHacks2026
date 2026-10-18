@@ -1,1 +1,2 @@
-isolation_forest: val AUPRC 0.12 | test AUPRC 0.15 AUROC 45.87 best F1 0.37 | F1@val-thr 0.31 alerts/1k 23.88
+isolation_forest: val AUPRC 0.12 | test AUPRC 0.15 AUROC 45.86 best F1 0.37 | F1@val-thr 0.30 alerts/1k 25.12
+isolation_forest_behavior: val AUPRC 0.98 | test AUPRC 0.68 AUROC 85.53 best F1 1.88 | F1@val-thr 0.81 alerts/1k 45.01

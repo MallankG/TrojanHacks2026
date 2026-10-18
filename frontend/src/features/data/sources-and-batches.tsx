@@ -12,6 +12,9 @@ import { Card, Panel } from "@/components/ui/card";
 import { KeyValueList } from "@/components/ui/key-value";
 import { Pill } from "@/components/ui/pill";
 import { DataTable, Td, Th, Tr } from "@/components/ui/table";
+import { useLiveBatches } from "@/lib/live/adapters";
+import { LiveRunChecks } from "@/features/live/live-data";
+import { LiveBatchFacts, LiveSourceCards } from "@/features/live/live-sources";
 import { CheckRow } from "./check-row";
 
 export function SourcesAndBatches() {
@@ -20,7 +23,10 @@ export function SourcesAndBatches() {
   const { driftFixed: fixed, checkScope, extraBatches, selectedBatch } = state.data;
 
   const sources = useMemo(() => sourceFeeds(fixed, checkScope), [fixed, checkScope]);
-  const batches = useMemo(() => [...extraBatches, ...seededBatches(fixed)], [extraBatches, fixed]);
+  // Live ingestion runs come first; the seeded batches stay below as the scripted sample scenario.
+  const liveRuns = useLiveBatches();
+  const liveBatches = liveRuns.data;
+  const batches = useMemo(() => [...(liveBatches ?? []), ...extraBatches, ...seededBatches(fixed)], [liveBatches, extraBatches, fixed]);
   const selected = batches.find((b) => b.name === selectedBatch) ?? batches[0];
   const checks = batchChecks(selected, fixed);
   const isHeld = selected.name === HELD_BATCH;
@@ -28,11 +34,16 @@ export function SourcesAndBatches() {
   return (
     <>
       <section aria-label="Sources" className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
+        {/* Live source feeds (from uploads) first; the seeded feeds follow as the sample scenario. */}
+        <LiveSourceCards />
         {sources.map((source) => (
           <Card key={source.name} className="flex flex-col gap-2 px-4 py-3.5">
             <div className="flex items-start justify-between gap-2">
               <b>{source.name}</b>
-              <Pill tone={source.tone}>{source.status}</Pill>
+              <span className="flex shrink-0 gap-1">
+                {liveRuns.live ? <Pill>Sample</Pill> : null}
+                <Pill tone={source.tone}>{source.status}</Pill>
+              </span>
             </div>
             <span className="text-xs text-muted">Owner: {source.owner}</span>
             <span className="text-xs text-muted">
@@ -52,6 +63,15 @@ export function SourcesAndBatches() {
         <Card aria-label="Batches" className="min-w-0 flex-[2_1_560px] overflow-hidden">
           <div className="px-5 py-4">
             <h2 className="text-base font-semibold">Batches</h2>
+            {liveRuns.live ? (
+              <p className="mt-0.5 text-xs text-muted">
+                {liveRuns.error
+                  ? `Live runs could not be loaded: ${liveRuns.error}`
+                  : liveRuns.loading
+                    ? "Loading live ingestion runs…"
+                    : `${liveBatches?.length ?? 0} live ingestion run(s) from the backend, then the seeded sample batches.`}
+              </p>
+            ) : null}
           </div>
           <DataTable caption="Ingested batches">
             <thead>
@@ -72,6 +92,11 @@ export function SourcesAndBatches() {
                     <button type="button" className={buttonClasses("link", "md", "font-mono")} aria-pressed={batch.name === selected.name} onClick={() => selectBatch(batch.name)}>
                       {batch.name}
                     </button>
+                    {liveRuns.live ? (
+                      <Pill tone={batch.runId ? "ok" : "mute"} className="ml-1.5">
+                        {batch.runId ? "Live" : "Sample"}
+                      </Pill>
+                    ) : null}
                   </Td>
                   <Td>{batch.rail}</Td>
                   <Td>{batch.rows}</Td>
@@ -91,10 +116,13 @@ export function SourcesAndBatches() {
           <div>
             <div className="eyebrow">Selected batch</div>
             <h2 className="mt-1 font-mono text-[15px] font-semibold">{selected.name}</h2>
-            <span className="text-xs text-muted">
-              {selected.schema} · file hash {selected.hash} · {selected.owner}
-            </span>
+            {selected.runId ? null : (
+              <span className="text-xs text-muted">
+                {selected.schema} · file hash {selected.hash} · {selected.owner}
+              </span>
+            )}
           </div>
+          {selected.runId ? <LiveBatchFacts runId={selected.runId} /> : null}
           {isHeld && !fixed ? (
             <Callout
               tone="warn"
@@ -120,9 +148,11 @@ export function SourcesAndBatches() {
             </Callout>
           ) : null}
           <h3 className="text-[13.5px] font-semibold">Contract checks</h3>
-          {checks.map((check) => (
-            <CheckRow key={check.label} check={check} />
-          ))}
+          {selected.runId ? (
+            <LiveRunChecks runId={selected.runId} />
+          ) : (
+            checks.map((check) => <CheckRow key={check.label} check={check} />)
+          )}
         </Panel>
       </div>
     </>

@@ -1,6 +1,6 @@
 import { ALERTS } from "@/lib/seed/alerts";
-import { DEFAULT_WEIGHTS, type DemoState, type WeightKey } from "@/lib/store/state";
-import type { AlertSeed, PriorityBand, PriorityWeights, ScoredAlert, Tone } from "@/lib/types";
+import { DEFAULT_WEIGHTS, type DemoState, type ScoringInputs, type WeightKey } from "@/lib/store/state";
+import type { AlertSeed, CaseStatus, PriorityBand, PriorityWeights, ScoredAlert, Tone } from "@/lib/types";
 
 export const WEIGHT_KEYS: WeightKey[] = ["xgb", "typology", "graph", "anomaly", "age"];
 
@@ -27,7 +27,7 @@ export function weightSum(raw: Record<WeightKey, string>): number {
   return WEIGHT_KEYS.reduce((sum, k) => sum + (Number(raw[k]) || 0), 0);
 }
 
-function bandFor(score: number): { band: PriorityBand; label: string; tone: Tone } {
+export function bandFor(score: number): { band: PriorityBand; label: string; tone: Tone } {
   if (score >= BAND_THRESHOLDS.first) return { band: 1, label: "Review first", tone: "dark" };
   if (score >= BAND_THRESHOLDS.next) return { band: 2, label: "Review next", tone: "blue" };
   return { band: 3, label: "Review when able", tone: "info" };
@@ -42,9 +42,24 @@ function resolveSeed(seed: AlertSeed, fixed: boolean): AlertSeed {
   return seed;
 }
 
+export function scoringInputs(state: DemoState): ScoringInputs {
+  return {
+    driftFixed: state.data.driftFixed,
+    weights: { ...state.policy.weights },
+    policyVersion: state.policy.version,
+    bandMin: state.policy.bandMin,
+    bandMax: state.policy.bandMax,
+  };
+}
+
 export function scoreAlerts(state: DemoState): ScoredAlert[] {
-  const weights = parseWeights(state.policy.weights) ?? (parseWeights(DEFAULT_WEIGHTS) as PriorityWeights);
-  const fixed = state.data.driftFixed;
+  return scoreAlertsFor(scoringInputs(state), state.caseWork.status);
+}
+
+/** Pure scoring from explicit inputs, so any past or proposed configuration can be recomputed. */
+export function scoreAlertsFor(inputs: ScoringInputs, caseStatus: CaseStatus): ScoredAlert[] {
+  const weights = parseWeights(inputs.weights) ?? (parseWeights(DEFAULT_WEIGHTS) as PriorityWeights);
+  const fixed = inputs.driftFixed;
   return ALERTS.map((seed): ScoredAlert => {
     const a = resolveSeed(seed, fixed);
     const parts = [
@@ -57,7 +72,7 @@ export function scoreAlerts(state: DemoState): ScoredAlert[] {
     const score = parts.reduce((sum, p) => sum + p.points, 0);
     const band = bandFor(score);
     const inCase = a.caseId === "CASE-0412";
-    const status = inCase ? (state.caseWork.status === "In review" ? "In CASE-0412" : `CASE-0412: ${state.caseWork.status}`) : "New";
+    const status = inCase ? (caseStatus === "In review" ? "In CASE-0412" : `CASE-0412: ${caseStatus}`) : "New";
     return {
       ...a,
       parts,
