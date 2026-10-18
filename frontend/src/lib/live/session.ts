@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { DEMO_ANALYST_EMAIL, DEMO_PASSWORD } from "./demo-accounts";
 import { API_BASE_URL } from "@/lib/api/client";
 import { resetPrivacy } from "@/lib/privacy/store";
 
@@ -161,7 +162,7 @@ export async function getAccessToken(): Promise<string | null> {
   let current = getSession();
   if (!current && LIVE_CONFIGURED) {
     try {
-      await liveSignIn("analyst@demo.test", "TraceLayer2026!Demo");
+      await liveSignIn(DEMO_ANALYST_EMAIL, DEMO_PASSWORD);
       current = getSession();
     } catch {
       return null;
