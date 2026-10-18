@@ -18,6 +18,8 @@ import { LogoMark } from "./logo";
 
 const SIDE_BUTTON = "min-h-9 w-full rounded-lg border border-sidebar-line px-2.5 text-left text-[12.5px] font-semibold text-[#c5d0de] hover:bg-sidebar-hover hover:text-white";
 
+
+const LLM_NAMES = { groq: "Groq", ollama: "Ollama (local)", template: "template" } as const;
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -59,7 +61,11 @@ export function Sidebar() {
         },
         { label: "GraphBase", status: graphHealth.loading ? "Checking" : graphHealth.data?.status === "ok" ? "Engine ready" : "Unavailable", tone: graphHealth.data?.status === "ok" ? "ok" : graphHealth.error ? "bad" : "mute" },
         { label: "Scoring", status: !summary ? "Checking" : ranker ? `Ranked ${ranker.completed_at ? ranker.completed_at.slice(5, 16).replace("T", " ") : ""}` : "Not run yet", tone: ranker ? "ok" : "mute" },
-        { label: "LLM", status: "Not connected (agents)", tone: "mute" },
+        {
+          label: "LLM",
+          status: !summary ? "Checking" : !summary.llm ? "Unknown" : summary.llm.ready ? `Ready, ${LLM_NAMES[summary.llm.provider]}` : (summary.llm.reason ?? "Unavailable"),
+          tone: summary?.llm?.ready ? "ok" : summary?.llm ? "warn" : "mute",
+        },
       ]
     : [
         { label: "Ingestion", status: fixed ? "Cash feed late" : "1 batch on hold", tone: "warn" },

@@ -67,6 +67,7 @@ def dashboard_summary(
         "ingestion": ingestion,
         "model_freshness": freshness,
         "pipeline": dash.pipeline_flags(ingestion, freshness, ranker_attempt, now),
+        "llm": dash.llm_status(),
     }
 
 
