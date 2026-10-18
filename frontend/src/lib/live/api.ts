@@ -168,7 +168,7 @@ export interface CaseDetail extends LiveCase {
   evidence: Array<{ id: string; evidence_type: string; explanation: string; source_ref: string | null; transaction_ids: string[]; added_by_type: string; created_at: string }>;
   narratives: Array<{ id: string; version: number; author_type: string; verification_status: string; created_at: string; llm_model: string | null }>;
   decisions: CaseDecision[];
-  agent_runs: Array<{ id: string; graph_name: string; status: string; current_step: string | null; created_at: string }>;
+  agent_runs: Array<{ id: string; graph_name: string; managed?: boolean; status: string; current_step: string | null; created_at: string }>;
 }
 
 export interface AuditRow {

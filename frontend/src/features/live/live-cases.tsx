@@ -17,6 +17,7 @@ import { EmptyState, Skeleton } from "@/components/ui/misc";
 import { Pill } from "@/components/ui/pill";
 import { DataTable, Td, Th, Tr } from "@/components/ui/table";
 import { casesApi, sha256Hex } from "@/lib/live/api-cases";
+import { CaseAgents } from "./live-agents";
 import { LiveAudit } from "./live-audit";
 import { LiveData } from "./live-state";
 
@@ -147,6 +148,7 @@ export function LiveCaseDetail({ caseId }: { caseId: string }) {
               }
             />
           </Panel>
+          <CaseAgents key={c.id} caseId={c.id} closed={c.status === "closed"} initialRunId={c.agent_runs.find(r => r.graph_name === "case_workflow" && r.managed)?.id} />
           <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
             <div className="flex flex-col gap-4">
               <Panel>
@@ -172,7 +174,7 @@ export function LiveCaseDetail({ caseId }: { caseId: string }) {
               <Panel>
                 <CardHeader title="Narratives" description="Drafted by the agent service and checked by its verifier before display." />
                 {c.narratives.length === 0 ? (
-                  <EmptyState title="No narrative drafted yet." description="The agent service writes drafts through POST /cases/{id}/narratives." />
+                  <EmptyState title="No narrative drafted yet." description="Use Investigation agents above to draft and verify this case." />
                 ) : (
                   <ul className="flex flex-col gap-1.5 text-[13.5px]">
                     {c.narratives.map((n) => (

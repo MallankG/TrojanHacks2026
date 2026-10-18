@@ -4,6 +4,7 @@ Governed financial-crime investigation layer. Spec: `docs/TraceLayer_PRD_v3_3_Im
 
 - `frontend/` — Next.js app
 - `backend/` — FastAPI app (`main.py`) and ML (`ml/`)
+- `agents/` — LangGraph workflows, injected with live backend services; see [integration guide](agents/docs/INTEGRATION.md)
 - `docs/` — PRD
 
 ## Backend
