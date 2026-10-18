@@ -13,7 +13,7 @@ from app.core.config import get_settings
 from app.core.db import get_db, get_one
 from app.core.errors import NotFound
 from app.core.security import CurrentUser
-from app.services.governance import StrictModel
+from app.services.governance_superpowers import StrictModel
 
 CLASSIFICATION = {"internal": 0, "confidential": 1, "restricted": 2}
 

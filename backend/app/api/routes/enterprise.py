@@ -13,7 +13,7 @@ from app.core.errors import NotFound
 from app.core.security import ADMIN_ONLY, ANY_USER, CAN_WRITE_SCORES, CurrentUser
 from app.schemas_enterprise import EvidenceBundleV1
 from app.services import enterprise as service
-from app.services.governance import StrictModel
+from app.services.governance_superpowers import StrictModel
 from app.services.monitoring import DriftCheck, ServiceMetric, drift_report, slo_report
 
 

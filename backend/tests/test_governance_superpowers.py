@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 from app.main import app
 from app.core.security import CurrentUser, get_current_user
-from app.services.governance import Contract, Evaluation, FieldRule, Product, check_row, demo, evaluate, impact
+from app.services.governance_superpowers import Contract, Evaluation, FieldRule, Product, check_row, demo, evaluate, impact
 
 NOW = datetime(2026, 10, 18, 5, tzinfo=UTC)
 TENANT = "11111111-1111-1111-1111-111111111111"
@@ -106,7 +106,7 @@ def test_receipts_do_not_contain_raw_sensitive_values():
 
 def test_impact_traversal_handles_cycles_and_unknown_fields():
     product, _ = fixture()
-    from app.services.governance import MetadataEdge
+    from app.services.governance_superpowers import MetadataEdge
     product.edges.append(MetadataEdge(source="outcome", target="feature"))
     assert impact(product, ["amount"])["total"] == 7
     assert impact(product, ["unknown"])["total"] == 0
@@ -146,14 +146,14 @@ def test_live_endpoints_require_auth_and_demo_is_public():
 def test_catalog_reads_are_tenant_scoped(client):
     db = MagicMock()
     db.table.return_value.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
-    with patch("app.api.routes.governance.get_db", return_value=db):
+    with patch("app.api.routes.governance_superpowers.get_db", return_value=db):
         assert client.get("/governance/products").status_code == 200
     db.table.return_value.select.return_value.eq.assert_called_once_with("tenant_id", TENANT)
 
 
 def test_preview_does_not_execute_or_audit_and_rejects_sql(client):
     product, _ = fixture()
-    with patch("app.api.routes.governance.product_for", return_value=({}, product)), patch("app.api.routes.governance.event") as write:
+    with patch("app.api.routes.governance_superpowers.product_for", return_value=({}, product)), patch("app.api.routes.governance_superpowers.event") as write:
         result = client.post(f"/governance/products/{ID}/steward-query", json={"question": "which alerts depend on amount?"})
         assert result.status_code == 200
         assert result.json()["plan"]["tenant_id"] == TENANT
@@ -164,7 +164,7 @@ def test_preview_does_not_execute_or_audit_and_rejects_sql(client):
 
 def test_execute_query_is_audited_and_capped(client):
     product, _ = fixture()
-    with patch("app.api.routes.governance.product_for", return_value=({}, product)), patch("app.api.routes.governance.event") as write:
+    with patch("app.api.routes.governance_superpowers.product_for", return_value=({}, product)), patch("app.api.routes.governance_superpowers.event") as write:
         result = client.post(f"/governance/products/{ID}/steward-query", json={"question": "which alerts depend on amount?", "execute": True, "limit": 1})
         assert result.status_code == 200
         assert len(result.json()["items"]) == 1
@@ -175,7 +175,7 @@ def test_execute_query_is_audited_and_capped(client):
 def test_steward_cannot_approve_and_expiry_is_required(client):
     product, _ = fixture()
     body = {"kind": "waiver", "note": "Synthetic test rationale", "owner": "Steward", "decision": "approved", "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat()}
-    with patch("app.api.routes.governance.product_for", return_value=({}, product)):
+    with patch("app.api.routes.governance_superpowers.product_for", return_value=({}, product)):
         assert client.post(f"/governance/products/{ID}/reviews", json=body).status_code == 403
         body["decision"] = "requested"
         body["expires_at"] = (datetime.now(UTC) - timedelta(days=1)).isoformat()
@@ -184,7 +184,7 @@ def test_steward_cannot_approve_and_expiry_is_required(client):
 
 def test_quarantine_query_cannot_read_other_product(client):
     product, _ = fixture()
-    with patch("app.api.routes.governance.product_for", return_value=({}, product)), patch("app.api.routes.governance.get_one", return_value={"product_id": TENANT, "kind": "assessment"}):
+    with patch("app.api.routes.governance_superpowers.product_for", return_value=({}, product)), patch("app.api.routes.governance_superpowers.get_one", return_value={"product_id": TENANT, "kind": "assessment"}):
         result = client.post(f"/governance/products/{ID}/steward-query", json={"question": "why was this row quarantined?", "row": 1, "assessment_id": ID, "execute": True})
         assert result.status_code == 404
 
@@ -217,7 +217,7 @@ def test_ingestion_contract_quarantines_before_canonical_writes():
 
 def test_assessment_requires_registered_purpose(client):
     product, request = fixture()
-    with patch("app.api.routes.governance.product_for", return_value=({}, product)), patch("app.api.routes.governance.event") as write:
+    with patch("app.api.routes.governance_superpowers.product_for", return_value=({}, product)), patch("app.api.routes.governance_superpowers.event") as write:
         result = client.post(f"/governance/products/{ID}/assessments", json={**request.model_dump(mode="json"), "purpose": "Unrelated marketing"})
         assert result.status_code == 403
         write.assert_not_called()
@@ -228,9 +228,9 @@ def test_reviewer_approval_must_reference_unexpired_request(client):
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(ID, TENANT, "reviewer")
     expires = datetime.now(UTC) + timedelta(days=2)
     body = {"kind": "waiver", "note": "Reviewer test rationale", "owner": "Steward", "decision": "approved", "expires_at": expires.isoformat()}
-    with patch("app.api.routes.governance.product_for", return_value=({}, product)), patch("app.api.routes.governance.event", return_value={"id": ID}) as write:
+    with patch("app.api.routes.governance_superpowers.product_for", return_value=({}, product)), patch("app.api.routes.governance_superpowers.event", return_value={"id": ID}) as write:
         assert client.post(f"/governance/products/{ID}/reviews", json=body).status_code == 422
         body["request_id"] = ID
-        with patch("app.api.routes.governance.get_one", return_value={"product_id": ID, "kind": "waiver", "payload": {"decision": "requested", "expires_at": expires.isoformat()}}):
+        with patch("app.api.routes.governance_superpowers.get_one", return_value={"product_id": ID, "kind": "waiver", "payload": {"decision": "requested", "expires_at": expires.isoformat()}}):
             assert client.post(f"/governance/products/{ID}/reviews", json=body).status_code == 201
         write.assert_called_once()

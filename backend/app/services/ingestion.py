@@ -239,7 +239,7 @@ def _process_rows(tenant_id: str, run_id: str, source_file: dict, headers: list[
     # Opt-in executable source contracts run on original values before canonical writes.
     # No proposed mapping or changed currency/time semantics is applied automatically.
     if get_settings().governance_contracts_enabled:
-        from app.services.governance import Product, check_row
+        from app.services.governance_superpowers import Product, check_row
 
         products = db.table("governance_products").select("id, definition").eq("tenant_id", tenant_id).eq(
             "source_system", source_file["source_system"]

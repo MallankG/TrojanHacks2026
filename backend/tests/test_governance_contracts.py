@@ -6,7 +6,7 @@ from postgrest.exceptions import APIError
 
 from app.main import app
 from app.core.security import CurrentUser, get_current_user
-from app.services.governance import demo
+from app.services.governance_superpowers import demo
 
 TENANT = "11111111-1111-1111-1111-111111111111"
 PRODUCT = "22222222-2222-2222-2222-222222222222"

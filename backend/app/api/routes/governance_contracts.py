@@ -6,7 +6,7 @@ from pydantic import Field
 
 from app.core.db import get_db
 from app.core.security import CAN_STEWARD, CurrentUser
-from app.services.governance import Product, StrictModel
+from app.services.governance_superpowers import Product, StrictModel
 
 router = APIRouter(prefix="/governance", tags=["governance"])
 

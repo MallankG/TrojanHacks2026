@@ -9,7 +9,7 @@ from pydantic import Field
 from app.core.db import get_db, get_one, with_actor
 from app.core.errors import NotFound
 from app.core.security import ANY_USER, CAN_STEWARD, CurrentUser
-from app.services.governance import Evaluation, Product, StrictModel, demo, evaluate, impact
+from app.services.governance_superpowers import Evaluation, Product, StrictModel, demo, evaluate, impact
 
 router = APIRouter(prefix="/governance", tags=["governance"])
 

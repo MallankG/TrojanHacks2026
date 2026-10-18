@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
-from app.services.governance import StrictModel
+from app.services.governance_superpowers import StrictModel
 
 
 class Observation(StrictModel):

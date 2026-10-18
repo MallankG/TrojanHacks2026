@@ -81,7 +81,7 @@ def verify(package, root=ROOT, public_key=None):
 
 def reset_demo():
     # Regenerate only checked-in synthetic fixtures. Never truncate/delete tenant data.
-    from app.services.governance import demo
+    from app.services.governance_superpowers import demo
     from app.services.enterprise_demo import enterprise_demo, AS_OF
     (ROOT / 'frontend/src/lib/seed/governance-demo.json').write_text(json.dumps({s: demo(s, now=AS_OF) for s in ('healthy','drift')}, indent=2))
     (ROOT / 'frontend/src/lib/seed/enterprise-demo.json').write_text(json.dumps(enterprise_demo(), indent=2))
