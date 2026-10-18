@@ -22,7 +22,8 @@ SIGNALS = {
     "pass_through": (lambda f: -np.abs(np.log(f.pass_through_24h.clip(1e-6))), np.log(1.2) * -1),
     "reciprocal": (lambda f: f.pair_reciprocal, 1),
     "cycle_3": (lambda f: f.cyc3, 1),
-    "dormant_then_large": (lambda f: np.minimum(f.o_secs_since_last / 86400, f.amt_vs_o_mean_7d), 3),
+    # a first-ever event has no history (secs_since_last is filled), so it is new, not dormant
+    "dormant_then_large": (lambda f: np.minimum(f.o_secs_since_last / 86400, f.amt_vs_o_mean_7d).where(f.o_n_events_to_date > 0, 0), 3),
 }
 QUANTILES = (0.5, 0.75, 0.9, 0.95, 0.98, 0.99, 0.995, 0.999)
 

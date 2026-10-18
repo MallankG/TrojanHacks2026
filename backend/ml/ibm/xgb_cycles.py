@@ -1,10 +1,9 @@
-"""Tuned XGBoost on HI-Small: xgb_temporal + 2/3-cycle counts on each split's visible graph (Bonato & Szava 2025 cycle context).
+"""RETIRED. Tuned XGBoost on HI-Small: xgb_temporal + 2/3-cycle counts on each split's visible graph.
 
-Needs the `cycles` cache group: python -m ml.ibm.common --data <dir> --cache <cache> --groups cycles
-
-    python -m ml.ibm.xgb_cycles --cache ml/artifacts/ibm/cache --out ml/artifacts/ibm --device cuda
+The `cycles` group built each split's graph from its whole window, so an edge saw its own split's later
+edges (a laundering return leg leaked into the forward leg). Its 42.48 test AUPRC is not leakage-safe.
+Strictly-past 2-cycles are already `pair_reciprocal` in `temporal`, so use ml.ibm.xgb_temporal.
 """
-from .common import cli, fit_xgb
 
 if __name__ == "__main__":
-    fit_xgb("xgb_cycles", ["safe39", "temporal", "cycles"], cli(__doc__))
+    raise SystemExit(__doc__)

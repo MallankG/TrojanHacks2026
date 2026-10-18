@@ -59,16 +59,32 @@ class SplitGraph:
         eid = torch.as_tensor(visible, device=device)
         node = torch.cat([s, d])
         inc = torch.cat([eid, eid])
-        order = torch.argsort(node, stable=True)
-        self.inc = inc[order]
+        self.n_edges = int(len(src))
+        key = node * self.n_edges + inc  # incident edges sorted by (node, edge id = time order)
+        order = torch.argsort(key)
+        self.inc, self.key = inc[order], key[order]
+        key_out = s * self.n_edges + eid  # out-edges only, for strictly-past out-degree
+        self.key_out = torch.sort(key_out).values
+        self.rowptr_out = torch.zeros(n_nodes + 1, dtype=torch.long, device=device)
+        self.rowptr_out[1:] = torch.cumsum(torch.bincount(s, minlength=n_nodes), 0)
         self.rowptr = torch.zeros(n_nodes + 1, dtype=torch.long, device=device)
         self.rowptr[1:] = torch.cumsum(torch.bincount(node, minlength=n_nodes), 0)
         deg_in = torch.bincount(d, minlength=n_nodes).float()
         deg_out = torch.bincount(s, minlength=n_nodes).float()
         self.deg = torch.stack([torch.log1p(deg_in), torch.log1p(deg_out)], 1) / 5
 
-    def sample(self, nodes, k, gen):
+    def deg_before(self, nodes, cap):
+        """log in/out-degree from edges with id < cap only (used in temporal mode instead of split-graph degree)."""
+        n = self.n_edges
+        tot = torch.searchsorted(self.key, nodes * n + cap) - self.rowptr[nodes]
+        out = torch.searchsorted(self.key_out, nodes * n + cap) - self.rowptr_out[nodes]
+        return torch.stack([torch.log1p((tot - out).float()), torch.log1p(out.float())], 1) / 5
+
+    def sample(self, nodes, k, gen, max_eid=None):
+        """k incident edges per node, with replacement; with max_eid only edges whose id < max_eid (strictly earlier)."""
         start, deg = self.rowptr[nodes], self.rowptr[nodes + 1] - self.rowptr[nodes]
+        if max_eid is not None:
+            deg = torch.searchsorted(self.key, nodes * self.n_edges + max_eid) - start
         has = deg > 0
         start, deg = start[has], deg[has]
         off = (torch.rand(len(deg), k, device=deg.device, generator=gen) * deg[:, None]).long()
@@ -91,11 +107,15 @@ class EdgeGATv2(nn.Module):
         self.head = nn.Sequential(nn.Linear(3 * hidden, hidden), nn.ReLU(), nn.Dropout(dropout), nn.Linear(hidden, 1))
         self.drop = nn.Dropout(dropout)
 
-    def forward(self, x, ei, ea, target):
+    def forward(self, x, ei, ea, target, n_mp=None):
+        """n_mp: only the first n_mp edges pass messages (temporal mode keeps target edges out of message passing)."""
         h, e = torch.relu(self.node_in(x)), torch.relu(self.edge_in(ea))
-        rev = ei.flip(0)
+        mp = slice(None) if n_mp is None else slice(0, n_mp)
+        fwd_ei = ei[:, mp]
+        rev = fwd_ei.flip(0)
         for f, r, m, u, nn_, en in zip(self.fwd, self.rev, self.mix, self.edge_upd, self.n_norm, self.e_norm):
-            h = nn_(h + self.drop(torch.relu(m(torch.cat([f(h, ei, e), r(h, rev, e)], 1)))))
+            em = e[mp]
+            h = nn_(h + self.drop(torch.relu(m(torch.cat([f(h, fwd_ei, em), r(h, rev, em)], 1)))))
             e = en(e + self.drop(u(torch.cat([h[ei[0]], h[ei[1]], e], 1))))
         t = target
         return self.head(torch.cat([h[ei[0, t]], h[ei[1, t]], e[t]], 1)).squeeze(1)
@@ -104,12 +124,14 @@ class EdgeGATv2(nn.Module):
 class Data:
     """All edges on the device; batches = seed edges + sampled 2-hop neighbourhood in a split graph."""
 
-    def __init__(self, src, dst, node_x, edge_x, device, fanout=(20, 8), ego=False):
+    def __init__(self, src, dst, node_x, edge_x, device, fanout=(20, 8), ego=False, temporal=False):
         self.src, self.dst = torch.as_tensor(src, device=device), torch.as_tensor(dst, device=device)
         self.node_x, self.edge_x = torch.as_tensor(node_x, device=device), torch.as_tensor(edge_x, device=device)
-        self.n_nodes, self.device, self.fanout, self.ego = len(node_x), device, fanout, ego
+        self.n_nodes, self.device, self.fanout, self.ego, self.temporal = len(node_x), device, fanout, ego, temporal
 
     def batch(self, g, seeds, gen):
+        if self.temporal:
+            return self._temporal_batch(g, seeds, gen)
         nodes = torch.unique(torch.cat([self.src[seeds], self.dst[seeds]]))
         edges = [seeds]
         for k in self.fanout:
@@ -128,10 +150,36 @@ class Data:
         return x, ei, self.edge_x[eids], target
 
 
+    def _temporal_batch(self, g, seeds, gen):
+        """PRD-strict: message-passing edges all have id < the batch's earliest target (edges are time-sorted).
+        Targets are appended after them and excluded from message passing via n_mp, so no target sees
+        another target or anything later."""
+        cap = seeds.min()
+        nodes = torch.unique(torch.cat([self.src[seeds], self.dst[seeds]]))
+        past = []
+        for k in self.fanout:
+            new = g.sample(nodes, k, gen, cap)
+            past.append(new)
+            nodes = torch.unique(torch.cat([nodes, self.src[new], self.dst[new]]))
+        past = torch.unique(torch.cat(past)) if past else seeds[:0]
+        eids = torch.cat([past, seeds])
+        nid, local = torch.unique(torch.cat([self.src[eids], self.dst[eids]]), return_inverse=True)
+        ei = local.view(2, -1)
+        target = torch.arange(len(past), len(eids), device=seeds.device)
+        x = torch.cat([self.node_x[nid], g.deg_before(nid, cap)], 1)
+        if self.ego:
+            flag = torch.zeros(len(nid), 1, device=x.device)
+            flag[ei[:, target].flatten()] = 1
+            x = torch.cat([x, flag], 1)
+        return x, ei, self.edge_x[eids], target, len(past)
+
+
 @torch.no_grad()
 def predict(model, data, g, rows, bs=4096, seed=0):
     model.eval()
     gen = torch.Generator(device=data.device).manual_seed(seed)
+    if data.temporal:
+        bs = min(bs, 512)  # the cap is the batch's earliest edge: small batches keep later rows' context fresh
     out = []
     for i in range(0, len(rows), bs):
         seeds = torch.as_tensor(rows[i:i + bs], device=data.device)
@@ -141,7 +189,7 @@ def predict(model, data, g, rows, bs=4096, seed=0):
 
 
 def main(data_dir, out=None, epochs=30, patience=5, bs=2048, neg_frac=0.25, seed=7, hidden=64, lr=1e-3, pos_weight=5.0,
-         fanout=(20, 8), ego=False, tag="gnn"):
+         fanout=(20, 8), ego=False, tag="gnn", temporal=False):
     torch.manual_seed(seed)
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     t0 = time.time()
@@ -161,7 +209,7 @@ def main(data_dir, out=None, epochs=30, patience=5, bs=2048, neg_frac=0.25, seed
     src, dst = ids.get_indexer(e["src"]), ids.get_indexer(e["dst"])
     print(f"features ready in {time.time() - t0:.0f}s: node {node_x.shape}, edge {edge_x.shape}")
 
-    D = Data(src, dst, node_x, edge_x, dev, tuple(fanout), ego)
+    D = Data(src, dst, node_x, edge_x, dev, tuple(fanout), ego, temporal)
     graphs = {k: SplitGraph(D.src, D.dst, D.n_nodes, np.arange(last + 1), dev) for k, last in (("train", tr.max()), ("val", va.max()), ("test", te.max()))}
     model = EdgeGATv2(node_x.shape[1] + 2 + int(ego), edge_x.shape[1], hidden=hidden).to(dev)
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
@@ -175,8 +223,13 @@ def main(data_dir, out=None, epochs=30, patience=5, bs=2048, neg_frac=0.25, seed
         model.train()
         t1 = time.time()
         rows = rng.permutation(np.r_[pos, rng.choice(neg, int(neg_frac * len(neg)), replace=False)])
+        if temporal:  # time-contiguous batches (the cap is each batch's earliest seed), in shuffled order
+            rows = np.sort(rows)
+            starts = rng.permutation(np.arange(0, len(rows), bs))
+        else:
+            starts = np.arange(0, len(rows), bs)
         tot = 0.0
-        for i in range(0, len(rows), bs):
+        for i in starts:
             seeds = torch.as_tensor(rows[i:i + bs], device=dev)
             with torch.autocast(dev.type, dtype=torch.bfloat16, enabled=AMP):
                 logit = model(*D.batch(graphs["train"], seeds, gen)).float()
@@ -212,11 +265,11 @@ def main(data_dir, out=None, epochs=30, patience=5, bs=2048, neg_frac=0.25, seed
         o.mkdir(parents=True, exist_ok=True)
         torch.save({"state_dict": {k: v.cpu() for k, v in model.state_dict().items()}, "config": model.config,
                     "edge_mu": mu.to_dict(), "edge_sd": sd.to_dict(), "edge_features": list(ef.columns),
-                    "fanout": D.fanout, "ego": ego, "entity_types": ENTITY_TYPES}, o / f"ibm_{tag}.pt")
+                    "fanout": D.fanout, "ego": ego, "temporal": temporal, "entity_types": ENTITY_TYPES}, o / f"ibm_{tag}.pt")
         np.savez_compressed(o / f"ibm_{tag}_scores.npz", y_val=y[va], s_val=pv, y_test=y[te], s_test=pt)  # for conformal.py
         (o / f"ibm_{tag}_results.json").write_text(json.dumps(
             {"paper": PAPER_GNN, "split_cutoffs": PAPER_CUTOFFS, "results": res, "history": history,
-             "hparams": dict(epochs=epochs, bs=bs, neg_frac=neg_frac, seed=seed, hidden=hidden, lr=lr, pos_weight=pos_weight, fanout=list(fanout), ego=ego),
+             "hparams": dict(epochs=epochs, bs=bs, neg_frac=neg_frac, seed=seed, hidden=hidden, lr=lr, pos_weight=pos_weight, fanout=list(fanout), ego=ego, temporal=temporal),
              "operating_threshold": thr}, indent=2))
     return res
 
@@ -246,7 +299,7 @@ class IBMGNNScorer:
         node_x = np.column_stack([(ent == t).to_numpy(float) for t in self.ck["entity_types"]]).astype(np.float32)
         ef = gnn_edge_features(e)[self.ck["edge_features"]]
         edge_x = ((ef - pd.Series(self.ck["edge_mu"])) / pd.Series(self.ck["edge_sd"])).to_numpy(np.float32)
-        D = Data(ids.get_indexer(e["src"]), ids.get_indexer(e["dst"]), node_x, edge_x, self.device, tuple(self.ck["fanout"]), self.ck.get("ego", False))
+        D = Data(ids.get_indexer(e["src"]), ids.get_indexer(e["dst"]), node_x, edge_x, self.device, tuple(self.ck["fanout"]), self.ck.get("ego", False), self.ck.get("temporal", False))
         g = SplitGraph(D.src, D.dst, D.n_nodes, np.arange(len(e)), self.device)
         p = predict(self.model, D, g, rows)
         return pd.DataFrame({"row": orig[rows], "gnn_score": p, "gnn_flagged": p >= self.threshold}).set_index("row")
@@ -265,7 +318,9 @@ if __name__ == "__main__":
     ap.add_argument("--fanout", type=int, nargs="+", default=[20, 8])
     ap.add_argument("--ego", action="store_true")
     ap.add_argument("--patience", type=int, default=5)
+    ap.add_argument("--seed", type=int, default=7)
+    ap.add_argument("--temporal", action="store_true", help="PRD-strict: message passing only over edges strictly before each batch")
     ap.add_argument("--tag", default="gnn", help="artifact name: ibm_<tag>.pt / _results.json / _scores.npz")
     a = ap.parse_args()
     main(a.data, a.out, epochs=a.epochs, patience=a.patience, bs=a.bs, neg_frac=a.neg_frac, hidden=a.hidden, lr=a.lr,
-         pos_weight=a.pos_weight, fanout=a.fanout, ego=a.ego, tag=a.tag)
+         pos_weight=a.pos_weight, fanout=a.fanout, ego=a.ego, tag=a.tag, seed=a.seed, temporal=a.temporal)

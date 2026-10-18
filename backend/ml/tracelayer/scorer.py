@@ -3,7 +3,7 @@
     from ml.tracelayer.scorer import TraceLayerScorer
     scorer = TraceLayerScorer("ml/artifacts/tracelayer")
     alerts = scorer.score(transactions_df, accounts_df)            # all rows
-    alerts = scorer.score(transactions_df, accounts_df, rows=idx)  # only some rows
+    alerts = scorer.score(transactions_df, accounts_df, rows=idx)  # only some rows (positions in transactions_df)
 
 `transactions_df` is the canonical schema (transaction_id, timestamp, amount,
 currency, channel, origin_account_id, destination_account_id) and must include
@@ -39,8 +39,13 @@ class TraceLayerScorer:
         self.thr = self.card["thresholds"]
 
     def score(self, tx: pd.DataFrame, accounts: pd.DataFrame, rows=None, top_k_features=5) -> pd.DataFrame:
-        tx = tx.sort_values("timestamp", kind="stable").reset_index(drop=True)
+        tx = tx.reset_index(drop=True)
         rows = np.arange(len(tx)) if rows is None else np.asarray(rows)
+        order = np.argsort(pd.to_datetime(tx["timestamp"], utc=True).to_numpy(), kind="stable")
+        tx = tx.iloc[order].reset_index(drop=True)
+        pos = np.empty_like(order)
+        pos[order] = np.arange(len(order))
+        rows = pos[rows]  # caller's positions -> positions in the time-sorted frame
         f = build_features(tx, accounts)
         X = f[self.cols].to_numpy(np.float32)[rows]
         dm = xgb.DMatrix(X, feature_names=self.cols)
@@ -55,10 +60,12 @@ class TraceLayerScorer:
         out = pd.DataFrame({
             "transaction_id": tx["transaction_id"].to_numpy()[rows],
             "risk_score": risk,
-            "priority_band": np.where(risk >= t["operating"], "high", np.where(risk >= t["review_recall90"], "review", "low")),
+            # review band is empty when the F1 threshold already keeps >= 90% val recall (r90 > operating)
+            "priority_band": np.where(risk >= t["operating"], "high",
+                                      np.where(risk >= min(t["review_recall90"], t["operating"]), "review", "low")),
             "xgboost_score": p_xgb,
             "gnn_score": p_gnn,
-            "anomaly_score": -self.iso.score_samples(f[self.cols].to_numpy(np.float32)[rows]),
+            "anomaly_score": -self.iso.score_samples(X),
             "rules_fired": rules.apply(lambda r: [k for k, v in r.items() if v], axis=1),
             "top_features": [[{"feature": self.cols[j], "contribution": float(contrib[i, j])} for j in top[i] if contrib[i, j] > 0]
                              for i in range(len(rows))],
@@ -81,4 +88,8 @@ if __name__ == "__main__":  # self-check: serving path reproduces the training-t
     want = sc.card["metrics"][sc.card["selected_model"]]["test"]["pr_auc"]
     assert abs(ap - want) < 1e-4, (ap, want)
     print(f"serving PR-AUC {ap:.4f} == training {want:.4f}")
+    shuf = np.random.default_rng(0).permutation(len(tx))  # unsorted input must score the same transactions
+    res2 = sc.score(tx.iloc[shuf], acc, np.argsort(shuf)[rows])
+    assert (res2.transaction_id.to_numpy() == res.transaction_id.to_numpy()).all()
+    assert np.allclose(res2.risk_score, res.risk_score, atol=1e-5)
     print(res.sort_values("risk_score", ascending=False).head(5).to_string())

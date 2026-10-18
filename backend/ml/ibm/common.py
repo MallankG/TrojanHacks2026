@@ -3,11 +3,12 @@
 Features are built once and cached (`python -m ml.ibm.common --data <dir> --cache <dir>`); every
 model script reads the cache, so each script only trains and evaluates its own model.
 
-Feature groups (all leakage-safe):
+Feature groups (leakage-safe except `cycles`):
   safe39     paper's 39 features with node aggregates from TRAIN-period transactions only
   temporal   per-edge account state from strictly earlier edges (1h/24h/7d/30d windows, recency, counterparties)
   graph      SVD embedding of the train graph + 2-/3-cycle closure counts (Bonato & Szava 2025)
-  cycles     2-/3-cycle counts on each split's visible graph (train / train+val / all)
+  cycles     RETIRED: 2-/3-cycle counts on each split's visible graph. Each edge saw later edges of its own
+             split (the return leg leaked); strictly-past 2-cycles are already pair_reciprocal in `temporal`
 Every model saves val/test scores as ibm_<model>_scores.npz, which conformal.py consumes.
 """
 import argparse
@@ -20,15 +21,15 @@ import pandas as pd
 import scipy.sparse as sp
 from scipy.sparse.linalg import svds
 
-from ..tracelayer.features import _account_state, _distinct_cp_to_date
+from ..tracelayer.features import _account_state, _distinct_cp_to_date, _pair_counts
 from .xgb import build, edge_features, load, metrics, split
 
 HUB_DEGREE = 1000  # ponytail: hubs dropped from 3-cycle counting to keep A@A sparse; raise if RAM allows
-GROUPS = ("safe39", "temporal", "graph", "cycles")
+GROUPS = ("safe39", "temporal", "graph")  # cycles is retired (lookahead); build only with --groups cycles
 
 
 def load_edges(data):
-    """Time-sorted non-self-loop edges, labels, split indices, and leakage-safe 39-feature matrix."""
+    """Time-sorted non-self-loop edges, labels, split indices, leakage-safe 39-feature matrix, train-period node features."""
     tx, acc = load(data)
     tx = tx.sort_values("ts", kind="stable").reset_index(drop=True)
     e = tx[tx["src"] != tx["dst"]].reset_index(drop=True)
@@ -36,7 +37,7 @@ def load_edges(data):
     _, _, _, names, node_tr = build(tx[tx["ts"] <= cut[0]], acc)  # node aggregates from train period only
     nv = node_tr.reindex(pd.Index(pd.unique(np.r_[e["src"], e["dst"]]))).fillna(0)
     safe = np.hstack([nv.loc[e["src"]].to_numpy(np.float32), nv.loc[e["dst"]].to_numpy(np.float32), edge_features(e).to_numpy(np.float32)])
-    return e, e["y"].to_numpy(), (tr, va, te), pd.DataFrame(safe, columns=names)
+    return e, e["y"].to_numpy(), (tr, va, te), pd.DataFrame(safe, columns=names), node_tr
 
 
 def temporal_features(e):
@@ -47,11 +48,9 @@ def temporal_features(e):
     acct, tt, is_out = np.r_[o, d], np.r_[t, t], np.r_[np.ones(n), np.zeros(n)]
     amt = np.r_[e["amt_paid"].to_numpy(float), e["amt_recv"].to_numpy(float)]
     st = _account_state(acct, tt, {"in_cnt": 1 - is_out, "in_sum": (1 - is_out) * amt, "out_cnt": is_out, "out_sum": is_out * amt})
-    cp, order = np.r_[d, o], np.lexsort((tt, acct))
+    cp = np.r_[d, o]
     for name, m in (("in_cp", is_out == 0), ("out_cp", is_out == 1)):
-        v = np.full(2 * n, np.nan)
-        v[m] = _distinct_cp_to_date(acct[m], cp[m], tt[m])
-        st[name] = pd.Series(v[order]).groupby(acct[order]).ffill().fillna(0).to_numpy()[np.argsort(order)]
+        st[name] = _distinct_cp_to_date(acct[m], cp[m], tt[m], acct, tt)
     f = pd.DataFrame(index=range(n))
     for p, part in (("o", st.iloc[:n]), ("d", st.iloc[n:])):
         for c in part.columns:
@@ -61,12 +60,7 @@ def temporal_features(e):
     a = e["amt_paid"].to_numpy(float)
     f["pass_through_24h"] = a / (f["o_in_sum_24h"] + 1)
     f["amt_vs_o_mean_7d"] = a / (f["o_out_sum_7d"] / f["o_out_cnt_7d"].clip(lower=1) + 1)
-    pair = pd.DataFrame({"lo": np.minimum(o, d), "hi": np.maximum(o, d), "fwd": (o < d).astype(int)})
-    g = pair.groupby(["lo", "hi"])
-    c_fwd = g["fwd"].cumsum() - pair["fwd"]
-    c_rev = g.cumcount() - c_fwd
-    f["pair_prior"] = np.where(pair["fwd"] == 1, c_fwd, c_rev).astype(np.float32)
-    f["pair_reciprocal"] = np.where(pair["fwd"] == 1, c_rev, c_fwd).astype(np.float32)
+    f["pair_prior"], f["pair_reciprocal"] = _pair_counts(o, d, t)
     return f.astype(np.float32)
 
 
@@ -113,7 +107,8 @@ def build_cache(data, cache, groups=GROUPS):
     t0 = time.time()
     c = Path(cache)
     c.mkdir(parents=True, exist_ok=True)
-    e, y, (tr, va, te), safe = load_edges(data)
+    e, y, (tr, va, te), safe, node_tr = load_edges(data)
+    node_tr.rename_axis("account").reset_index().to_parquet(c / "ibm_node_features_train.parquet")  # serving needs it
     print(f"edges {len(e):,} | train {len(tr):,} val {len(va):,} test {len(te):,} ({time.time() - t0:.0f}s)", flush=True)
     np.savez(c / "ibm_split.npz", y=y, tr=tr, va=va, te=te, amt=e["amt_paid"].to_numpy())
     make = {"safe39": lambda: safe, "temporal": lambda: temporal_features(e), "graph": lambda: graph_features(e, tr),

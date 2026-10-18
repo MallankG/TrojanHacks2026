@@ -26,11 +26,11 @@ def _account_state(acct, t, cols):
     key = a.astype(np.int64) * 10**10 + tt  # t < 1e10 s, so keys never cross accounts
     right = np.searchsorted(key, key, side="left")
     out = {}
+    cs = {c: np.r_[0.0, np.cumsum(v[order])] for c, v in cols.items()}
     for w_name, w in WINDOWS.items():
         left = np.searchsorted(key, key - w, side="left")
-        for c, v in cols.items():
-            cs = np.r_[0.0, np.cumsum(v[order])]
-            out[f"{c}_{w_name}"] = cs[right] - cs[left]
+        for c in cols:
+            out[f"{c}_{w_name}"] = cs[c][right] - cs[c][left]
     # lifetime counters and recency
     first = np.searchsorted(key, a.astype(np.int64) * 10**10, side="left")
     out["n_events_to_date"] = (right - first).astype(float)
@@ -42,12 +42,25 @@ def _account_state(acct, t, cols):
     return res.iloc[inv].reset_index(drop=True)
 
 
-def _distinct_cp_to_date(acct, cp, t):
-    """Count of distinct counterparties seen strictly before each event."""
-    df = pd.DataFrame({"a": acct, "c": cp, "t": t, "i": np.arange(len(t))}).sort_values(["a", "t", "i"])
-    df["new"] = ~df.duplicated(["a", "c"])
-    df["cum"] = df.groupby("a")["new"].cumsum() - df["new"]
-    return df.sort_values("i")["cum"].to_numpy().astype(float)
+def _count_before(group, t, q_group, q_t):
+    """Per query (q_group, q_t): number of (group, t) events in the same group with t < q_t."""
+    key = np.sort(group.astype(np.int64) * 10**10 + t)  # t < 1e10 s, so keys never cross groups
+    q = q_group.astype(np.int64) * 10**10
+    return (np.searchsorted(key, q + q_t, side="left") - np.searchsorted(key, q, side="left")).astype(float)
+
+
+def _distinct_cp_to_date(acct, cp, t, q_acct, q_t):
+    """Per query (q_acct, q_t): distinct counterparties of q_acct first seen strictly before q_t."""
+    first = pd.DataFrame({"a": acct, "c": cp, "t": t}).groupby(["a", "c"])["t"].min().reset_index()
+    return _count_before(first["a"].to_numpy(), first["t"].to_numpy(), q_acct, q_t)
+
+
+def _pair_counts(o, d, t):
+    """Prior payments o->d and reciprocal d->o, strictly before each row's timestamp."""
+    n = len(o)
+    pid, _ = pd.factorize(np.r_[o.astype(np.int64) * (2**31) + d, d.astype(np.int64) * (2**31) + o])
+    fwd, rev = pid[:n], pid[n:]
+    return _count_before(fwd, t, fwd, t), _count_before(fwd, t, rev, t)
 
 
 def build_features(tx: pd.DataFrame, accounts: pd.DataFrame) -> pd.DataFrame:
@@ -72,20 +85,10 @@ def build_features(tx: pd.DataFrame, accounts: pd.DataFrame) -> pd.DataFrame:
         "near_cnt": is_out * np.r_[near, near],
     }
     st = _account_state(acct, tt, cols)
-    # distinct counterparties per direction
-    in_mask, out_mask = is_out == 0, is_out == 1
+    # distinct counterparties per direction, strictly before every event of either direction
     cp = np.r_[d, o]
-    st["in_cp_to_date"] = 0.0
-    st["out_cp_to_date"] = 0.0
-    st.loc[in_mask, "in_cp_to_date"] = _distinct_cp_to_date(acct[in_mask], cp[in_mask], tt[in_mask])
-    st.loc[out_mask, "out_cp_to_date"] = _distinct_cp_to_date(acct[out_mask], cp[out_mask], tt[out_mask])
-    # carry the latest distinct count to the other direction's events via per-account ffill
-    for c in ("in_cp_to_date", "out_cp_to_date"):
-        own = in_mask if c.startswith("in") else out_mask
-        s = pd.Series(np.where(own, st[c], np.nan))
-        order = np.lexsort((tt, acct))
-        s = s.iloc[order].groupby(acct[order]).ffill().fillna(0)
-        st[c] = s.sort_index().to_numpy()
+    for c, m in (("in_cp_to_date", is_out == 0), ("out_cp_to_date", is_out == 1)):
+        st[c] = _distinct_cp_to_date(acct[m], cp[m], tt[m], acct, tt)
 
     f = pd.DataFrame(index=range(n))
     f["amount"] = amt
@@ -117,15 +120,8 @@ def build_features(tx: pd.DataFrame, accounts: pd.DataFrame) -> pd.DataFrame:
     f["amt_over_o_in_24h"] = amt / (f["o_in_sum_24h"] + 1)
     f["amt_over_o_out_mean_30d"] = amt / (f["o_out_mean_30d"] + 1)
 
-    # pair history: prior payments o->d and reciprocal d->o (strictly earlier rows)
-    pair = pd.DataFrame({"lo": np.minimum(o, d), "hi": np.maximum(o, d), "fwd": (o < d).astype(int), "i": np.arange(n)})
-    g = pair.groupby(["lo", "hi"])
-    c_fwd = g["fwd"].cumsum() - pair["fwd"]
-    c_rev = g.cumcount() - c_fwd
-    same = np.where(pair["fwd"] == 1, c_fwd, c_rev)
-    opp = np.where(pair["fwd"] == 1, c_rev, c_fwd)
-    f["pair_prior_cnt"] = same.astype(float)
-    f["pair_reciprocal_cnt"] = opp.astype(float)
+    # pair history: prior payments o->d and reciprocal d->o (strictly earlier timestamps)
+    f["pair_prior_cnt"], f["pair_reciprocal_cnt"] = _pair_counts(o, d, t)
     return f
 
 
@@ -139,7 +135,9 @@ RULES = {
     "funnel_many_to_one": lambda f: (f.d_in_cnt_7d >= 8) & (f.d_type_individual == 1),
     "dispersal_one_to_many": lambda f: (f.o_out_cnt_24h >= 5) & (f.o_in_sum_7d > 10000) & (f.o_type_individual == 1),
     "structuring_band": lambda f: (f.near_band == 1) & (f.o_near_cnt_7d >= 2),
-    "dormant_reactivated": lambda f: ((f.o_secs_since_last > 30 * 86400) | (f.d_secs_since_last > 30 * 86400)) & (f.amount > 3000),
+    # n_events_to_date > 0: a first-ever event has no history, so it is new, not dormant (secs_since_last is filled)
+    "dormant_reactivated": lambda f: (((f.o_secs_since_last > 30 * 86400) & (f.o_n_events_to_date > 0))
+                                      | ((f.d_secs_since_last > 30 * 86400) & (f.d_n_events_to_date > 0))) & (f.amount > 3000),
     "new_account_high_value": lambda f: ((f.o_age_days < 30) | (f.d_age_days < 30)) & (f.amount > 5000),
     "reciprocal_flow": lambda f: (f.pair_reciprocal_cnt > 0) & (f.amount > 3000) & (f.o_type_individual == 1) & (f.d_type_individual == 1),
 }

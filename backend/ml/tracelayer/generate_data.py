@@ -33,7 +33,7 @@ def generate(seed=7, n_ind=7000, n_merch=300, n_emp=120, n_land=80, n_supp=60, i
     land = emp[-1] + 1 + np.arange(n_land)
     supp = land[-1] + 1 + np.arange(n_supp)
 
-    # Dormant individuals: no normal activity at all (reactivation typology draws from them).
+    # Dormant individuals: a little card spend in days 0-10, then silence (reactivation typology draws from them).
     dormant = rng.choice(ind, 150, replace=False)
     active = np.setdiff1d(ind, dormant)
     # Mule-ish accounts: some recently opened, so "new account" is a weak, not perfect, signal.
@@ -60,6 +60,9 @@ def generate(seed=7, n_ind=7000, n_merch=300, n_emp=120, n_land=80, n_supp=60, i
         return (day * 86400 + hour * 3600).astype(int)
 
     # --- normal behaviour -------------------------------------------------
+    k = rng.integers(1, 4, len(dormant))
+    o = np.repeat(dormant, k)
+    add(day_times(len(o), 0, 10), rng.lognormal(np.log(40), 0.9, len(o)), "card", o, rng.choice(merch, len(o)))
     rate = rng.lognormal(np.log(0.25), 0.6, len(active))
     k = rng.poisson(rate * DAYS)
     o = np.repeat(active, k)
@@ -106,7 +109,8 @@ def generate(seed=7, n_ind=7000, n_merch=300, n_emp=120, n_land=80, n_supp=60, i
 
     for typ in TYPOLOGIES:
         for _ in range(instances_per_typology):
-            t0 = int(rng.integers(1, DAYS - 6) * 86400 + rng.integers(0, 86400))
+            lo = 42 if typ == "dormant_reactivation" else 1  # > 30 days after the dormant accounts' last activity
+            t0 = int(rng.integers(lo, DAYS - 6) * 86400 + rng.integers(0, 86400))
             if typ == "fan_in":
                 m = mules(3)
                 hub, outs = m[0], m[1:1 + rng.integers(1, 3)]
@@ -170,7 +174,9 @@ def generate(seed=7, n_ind=7000, n_merch=300, n_emp=120, n_land=80, n_supp=60, i
             pid += 1
 
     tx = pd.concat(rows, ignore_index=True)
-    tx = tx[(tx.o != tx.d) & (tx.t < DAYS * 86400)].sort_values("t", kind="stable").reset_index(drop=True)
+    open_t = ((acc.open_date - START) // pd.Timedelta(seconds=1)).to_numpy()
+    alive = (tx.t >= open_t[tx.o]) & (tx.t >= open_t[tx.d])  # no activity before an account is opened
+    tx = tx[(tx.o != tx.d) & (tx.t < DAYS * 86400) & alive].sort_values("t", kind="stable").reset_index(drop=True)
     ids = acc.account_id.to_numpy()
     out = pd.DataFrame({
         "transaction_id": [f"T{i:08d}" for i in range(len(tx))],
