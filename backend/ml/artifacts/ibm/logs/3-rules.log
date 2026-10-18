@@ -1,1 +1,9 @@
-rules: val AUPRC 0.19 | test AUPRC 0.30 AUROC 70.91 best F1 0.87 | F1@val-thr 0.87 alerts/1k 170.73
+rules: val AUPRC 0.15 | test AUPRC 0.25 AUROC 65.28 best F1 0.65 | F1@val-thr 0.38 alerts/1k 4.31
+rules_calibrated: val AUPRC 0.88 | test AUPRC 0.93 AUROC 72.85 best F1 7.27 | F1@val-thr 7.09 alerts/1k 1.50
+  fan_in                 thr 9  train F1 1.25  train precision 0.69
+  fan_out                thr 1.423e+04  train F1 0.29  train precision 0.15
+  dst_inflow_burst_24h   thr 11  train F1 0.39  train precision 0.21
+  src_outflow_burst_1h   thr 1145  train F1 0.33  train precision 0.22
+  pass_through           thr -0.09087  train F1 0.40  train precision 0.22
+  reciprocal             thr 1  train F1 6.28  train precision 7.66
+  dormant_then_large     thr 3.461  train F1 2.37  train precision 2.39
