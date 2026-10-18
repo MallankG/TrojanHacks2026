@@ -213,7 +213,7 @@ agents/                     # flat layout (no src/); import name `tracelayer_age
     mocks/       services.py  fixtures/ (fan_out.csv, pass_through.csv, cycle.csv, bad_batch.csv,
                  policy_chunks.json)
     llm/         client.py  prompts/narrative_v2.md (v1 kept)  prompts/policy_qa_v1.md
-                 prompts/chat_plan_v1.md  prompts/chat_answer_v1.md  templates.py
+                 prompts/chat_plan_v1.md  prompts/chat_answer_v2.md  templates.py
   tests/
   docs/  CONTRACTS.md  INTEGRATION.md  ARCHITECTURE.md  TEAM_QUESTIONS.md
 ```

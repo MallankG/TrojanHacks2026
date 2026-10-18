@@ -20,8 +20,10 @@ from tracelayer_agents.chat.claims import benign_support, tool_claims
 from tracelayer_agents.chat.plans import chip_plan
 from tracelayer_agents.chat.session import CaseScope
 from tracelayer_agents.chat.verify_chat import (
+    benign_text_errors,
     chat_grounding,
     check_arithmetic,
+    filter_summary,
     gap,
     text_errors,
     verify_claims,
@@ -189,13 +191,16 @@ def chat_verify(state: Mapping[str, Any], ctx: NodeContext) -> ChatVerifyOutput:
     )
     errors += claim_errors
     synthesis: ChatSynthesis = state["synthesis"]
-    answer = synthesis.summary
+    answer, benign_gaps = filter_summary(synthesis.summary, scope)
+    gaps += benign_gaps
     if errs := text_errors(answer, ground):
         gaps.append(gap("summary", answer, errs, scope))
         answer = fallback_summary(results, kept)
+    elif not answer:
+        answer = fallback_summary(results, kept)
     next_steps = []
     for step in synthesis.next_steps:
-        if errs := text_errors(step, ground):
+        if errs := text_errors(step, ground) + benign_text_errors(step, require_hedge=False):
             gaps.append(gap("next_step", step, errs, scope))
         else:
             next_steps.append(step)

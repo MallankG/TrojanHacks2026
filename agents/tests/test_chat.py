@@ -256,6 +256,28 @@ async def test_benign_hypothesis_only_with_support(
     assert "UNSUPPORTED_BENIGN" in {c for g in sweep.turn.gaps for c in g.codes}
 
 
+
+async def test_benign_free_text_must_be_hedged(monkeypatch: pytest.MonkeyPatch) -> None:
+    chat_id = await _open_chat()
+    overclaims = ["All listed transfers are supported by payroll data.",
+                  "The pattern is consistent with a payroll distribution, as indicated by "
+                  "benign support."]
+    hedged = "The outgoing payments may be consistent with payroll, pending verification."
+    _llm_replies(monkeypatch, answer={
+        "summary": " ".join(["Trace result.", *overclaims, hedged]), "hypotheses": [],
+        "next_steps": ["The payments are payroll; this confirms a benign reading.",
+                       "Check whether the payments match a documented payroll schedule."],
+    })
+    turn = (await api.send_message(chat_id, chip="benign_explanations")).turn
+    assert turn.answer == f"Trace result. {hedged}"
+    assert turn.next_steps == ["Check whether the payments match a documented payroll schedule."]
+    benign = [g for g in turn.gaps if "ASSERTED_BENIGN" in g.codes]
+    assert [g.label for g in benign] == ["summary", "summary", "next_step"]
+    assert all(g.suggested_query for g in benign)
+    dumped = turn.model_dump_json()
+    assert "supported by payroll data" not in dumped and "as indicated by" not in dumped
+
+
 class _Broken:
     def __getattr__(self, name):
         def fail(*args, **kwargs):

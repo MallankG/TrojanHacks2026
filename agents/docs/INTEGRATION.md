@@ -663,7 +663,7 @@ Response `200` (`ChatTurnResult`):
       "…"
     ],
     "verification_status": "verified",
-    "llm_meta": [{"provider": "template", "model": "template", "prompt_version": "chat_answer_v1",
+    "llm_meta": [{"provider": "template", "model": "template", "prompt_version": "chat_answer_v2",
                   "input_hash": "b38d…", "attempts": 0, "fallback_used": true, "latency_ms": 0.026,
                   "errors": []}],
     "feedback": null

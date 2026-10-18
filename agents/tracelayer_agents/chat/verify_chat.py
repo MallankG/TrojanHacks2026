@@ -27,6 +27,18 @@ BENIGN_KIND_RE = {
     "reversal": re.compile(r"\brevers(?:al|ed)", re.IGNORECASE),
     "shared_service": re.compile(r"\bshared[\s-]+services?\b", re.IGNORECASE),
 }
+_BENIGN_WORDS = (r"(?:payroll|salar(?:y|ies)|wages?|refunds?|revers(?:al|als|ed)|"
+                 r"(?:treasury |cash )?sweeps?|shared[\s-]+services?)")
+# Free text may only mention a benign kind hedged ("may be consistent with payroll, pending
+# verification"); these assertive forms drop the sentence whatever else it says.
+BENIGN_ASSERTIVE_RE = re.compile(
+    r"\bsupported by\b|\bconfirm(?:s|ed|ing)\b|\bas (?:indicated|shown) by\b|"
+    r"\bbenign support\b|\b(?:is|are|was|were)\s+(?:an?\s+|the\s+)?" + _BENIGN_WORDS,
+    re.IGNORECASE,
+)
+BENIGN_HEDGE_RE = re.compile(r"\b(?:may|might|could)\b.*\bpending verification\b",
+                             re.IGNORECASE)
+_SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 
 
 @dataclass(frozen=True)
@@ -102,6 +114,30 @@ def text_errors(text: str, ground: ChatGround) -> list[tuple[str, str]]:
     return out
 
 
+def benign_text_errors(text: str, require_hedge: bool) -> list[tuple[str, str]]:
+    """A benign kind named in free text must not be asserted; with `require_hedge` (the summary)
+    it must also be hedged. Next steps only need to avoid asserting it."""
+    if not any(p.search(text) for p in BENIGN_KIND_RE.values()):
+        return []
+    if BENIGN_ASSERTIVE_RE.search(text):
+        return [("ASSERTED_BENIGN", "states a benign explanation as established")]
+    if require_hedge and not BENIGN_HEDGE_RE.search(text):
+        return [("ASSERTED_BENIGN", "names a benign explanation without 'may … pending "
+                 "verification'")]
+    return []
+
+
+def filter_summary(text: str, scope: CaseScope) -> tuple[str, list[ChatGap]]:
+    """Drops each summary sentence that asserts (or does not hedge) a benign explanation."""
+    kept, gaps = [], []
+    for sentence in _SENTENCE_RE.split(text.strip()):
+        if errs := benign_text_errors(sentence, require_hedge=True):
+            gaps.append(gap("summary", sentence, errs, scope))
+        else:
+            kept.append(sentence)
+    return " ".join(kept), gaps
+
+
 def benign_kinds(claim: ChatClaim) -> set[str]:
     kinds = {k for k, pattern in BENIGN_KIND_RE.items() if pattern.search(claim.text)}
     return kinds | ({claim.benign_kind} if claim.benign_kind else set())
@@ -144,7 +180,7 @@ def claim_errors(
 
 def suggested_query(codes: list[str], claim_label: str, scope: CaseScope) -> str:
     hub = scope.hub_accounts[0]
-    if "UNSUPPORTED_BENIGN" in codes:
+    if "UNSUPPORTED_BENIGN" in codes or "ASSERTED_BENIGN" in codes:
         return ("Use the benign_explanations chip, or ask whether the payments from "
                 f"{hub} match a documented payroll or refund.")
     if "NOT_ON_PATH" in codes or claim_label == "observed_fact":
@@ -166,6 +202,7 @@ GAP_DETAIL = {
     "OUT_OF_SCOPE": "cites evidence outside this case's results",
     "UNSUPPORTED_AMOUNT": "states an amount no tool computed",
     "UNSUPPORTED_BENIGN": "offers a benign explanation no tool result supports",
+    "ASSERTED_BENIGN": "states a benign explanation as fact instead of a hedged possibility",
     "UNGROUNDED_TOKEN": "mentions an id, amount or date not in this turn's results",
     "PROHIBITED_LANGUAGE": "uses prohibited language (crime, intent or SAR status)",
     "DISPOSITION_LANGUAGE": "recommends a disposition or treats proximity as proof",
