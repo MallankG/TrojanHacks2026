@@ -111,12 +111,12 @@ def build_cache(data, cache, groups=GROUPS):
     e, y, (tr, va, te), safe, node_tr = load_edges(data)
     node_tr.rename_axis("account").reset_index().to_parquet(c / "ibm_node_features_train.parquet")  # serving needs it
     print(f"edges {len(e):,} | train {len(tr):,} val {len(va):,} test {len(te):,} ({time.time() - t0:.0f}s)", flush=True)
-    if (c / "ibm_split.npz").exists():
-        old = npz_order(np.load(c / "ibm_split.npz"))
-        stale = [p.name for p in c.glob("ibm_feat_*.parquet") if p.stem[len("ibm_feat_"):] not in groups]
-        if old != ORDER_VERSION and stale:
-            raise ValueError(f"cache {c} was built in edge order {old!r}, not {ORDER_VERSION!r}; rebuild the cache "
-                             f"(its other groups {stale} would no longer line up)")
+    # parquets with no split file are legacy (unstamped) too, so they count as order None
+    old = npz_order(np.load(c / "ibm_split.npz")) if (c / "ibm_split.npz").exists() else None
+    stale = [p.name for p in c.glob("ibm_feat_*.parquet") if p.stem[len("ibm_feat_"):] not in groups]
+    if old != ORDER_VERSION and stale:
+        raise ValueError(f"cache {c} was built in edge order {old!r}, not {ORDER_VERSION!r}; rebuild the cache "
+                         f"(its other groups {stale} would no longer line up)")
     np.savez(c / "ibm_split.npz", y=y, tr=tr, va=va, te=te, amt=e["amt_paid"].to_numpy(), order=ORDER_VERSION)
     make = {"safe39": lambda: safe, "temporal": lambda: temporal_features(e), "graph": lambda: graph_features(e, tr),
             "cycles": lambda: cycle_features(e, (tr, va, te))}
@@ -127,10 +127,11 @@ def build_cache(data, cache, groups=GROUPS):
 
 def load_cache(cache, groups, as_array=False):
     """DataFrame of the feature groups, or (with as_array) one float32 C-contiguous array + column names
-    filled group by group, so only one full-size copy ever exists (HI-Small x 119 cols is ~2.1 GB)."""
+    filled group by group, so only one full-size copy ever exists (HI-Small x 119 cols is ~2.1 GB).
+    The last element is the split's edge-order stamp (None for a legacy cache): pass it on as evaluate_and_save(order=)."""
     c = Path(cache)
     z = np.load(c / "ibm_split.npz")
-    split = z["y"], (z["tr"], z["va"], z["te"]), z["amt"]
+    split = z["y"], (z["tr"], z["va"], z["te"]), z["amt"], npz_order(z)
     if not as_array:
         return (pd.concat([pd.read_parquet(c / f"ibm_feat_{g}.parquet") for g in groups], axis=1), *split)
     names, X, j = [], None, 0
@@ -175,7 +176,7 @@ def evaluate_and_save(name, y, s, va, te, out, extra=None, order=ORDER_VERSION):
 def fit_xgb(name, groups, a):
     """Tuned XGBoost (ml/ibm/xgb.py config) on the given cached feature groups; saves model + results."""
     from .xgb import run
-    (X, names), y, (tr, va, te), _ = load_cache(a.cache, groups, as_array=True)
+    (X, names), y, (tr, va, te), _, order = load_cache(a.cache, groups, as_array=True)
     m, _ = run(X, y, tr, va, te, a.seed, "tuned", a.device)
     Path(a.out).mkdir(parents=True, exist_ok=True)
     m.save_model(Path(a.out) / f"ibm_{name}.json")
@@ -186,7 +187,7 @@ def fit_xgb(name, groups, a):
     b.set_param({"device": "cpu"})  # in-place CPU predict on 500k-row views: no DMatrix or GPU copy of X
     s = np.concatenate([b.inplace_predict(X[i:i + 500_000], iteration_range=(0, m.best_iteration + 1)) for i in range(0, len(X), 500_000)])
     return evaluate_and_save(name, y, s, va, te, a.out,
-                             {"feature_groups": list(groups), "n_features": X.shape[1], "top_features_by_gain": top})
+                             {"feature_groups": list(groups), "n_features": X.shape[1], "top_features_by_gain": top}, order=order)
 
 
 def cli(description):

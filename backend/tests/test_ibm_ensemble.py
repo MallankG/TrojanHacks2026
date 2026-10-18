@@ -21,3 +21,24 @@ def test_tie_break_never_overrides_a_real_blended_difference():
 def test_dtype_is_cast_to_reference():
     s = np.random.default_rng(1).random(2000)
     assert np.array_equal(pct(REF, s), pct(REF, s.astype(np.float32)))
+
+
+def test_calibration_clears_only_after_per_target_gnn(tmp_path):
+    import json
+    from ml.ibm.ensemble import calibration
+    (tmp_path / "ibm_x_results.json").write_text(json.dumps({"model": "x"}))
+    (tmp_path / "ibm_g_results.json").write_text(json.dumps({"hparams": {"temporal": True}}))
+    assert calibration(["g", "x"], tmp_path) != "per-target"
+    (tmp_path / "ibm_g_results.json").write_text(json.dumps({"hparams": {"temporal": True}, "calibration": "per-target"}))
+    assert calibration(["g", "x"], tmp_path) == "per-target"
+
+
+def test_build_cache_refuses_orphan_legacy_parquet(tmp_path, monkeypatch):
+    import pandas as pd
+    import pytest
+    from ml.ibm import common
+    pd.DataFrame({"a": [1.0]}).to_parquet(tmp_path / "ibm_feat_graph.parquet")  # legacy: no ibm_split.npz
+    e = pd.DataFrame({"amt_paid": [1.0]})
+    monkeypatch.setattr(common, "load_edges", lambda data: (e, np.zeros(1), (np.r_[0], np.r_[0], np.r_[0]), e, pd.DataFrame({"x": [0]})))
+    with pytest.raises(ValueError, match="edge order"):
+        common.build_cache("unused", tmp_path, ["safe39"])

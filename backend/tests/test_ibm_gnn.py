@@ -85,3 +85,9 @@ def test_batch_runs_through_model():
     x, ei, ea, t, n_mp = D.batch(g, torch.tensor([500, 2500]), torch.Generator().manual_seed(0))
     out = EdgeGATv2(6 + 2 + 1, 16)(x, ei, ea, t, n_mp)
     assert out.shape == (2,) and torch.isfinite(out).all()
+
+
+def test_hash_uniforms_accept_negative_seed():
+    from ml.ibm.gnn import hash_uniforms
+    t, n = torch.arange(4), torch.arange(4)
+    assert np.array_equal(hash_uniforms(-1, t, 0, n, 2), hash_uniforms(2**64 - 1, t, 0, n, 2))

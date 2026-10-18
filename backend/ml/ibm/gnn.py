@@ -71,7 +71,7 @@ def hash_uniforms(seed, target, hop, node, k):
     t = target.cpu().numpy().astype(np.int64).view(np.uint64)
     n = node.cpu().numpy().astype(np.int64).view(np.uint64)
     with np.errstate(over="ignore"):
-        x = _mix(_U(seed) ^ (t * _GOLD) ^ (_U(hop) << _U(32))) ^ n
+        x = _mix(_U(seed & 0xFFFFFFFFFFFFFFFF) ^ (t * _GOLD) ^ (_U(hop) << _U(32))) ^ n
         x = _mix(x[:, None] ^ (np.arange(k, dtype=np.uint64) * _GOLD)[None, :])
     return (x >> _U(11)).astype(np.float64) / float(1 << 53)
 
@@ -341,7 +341,9 @@ def main(data_dir, out=None, epochs=30, patience=5, bs=None, neg_frac=0.25, seed
         (o / f"ibm_{tag}_results.json").write_text(json.dumps(
             {"paper": PAPER_GNN, "split_cutoffs": PAPER_CUTOFFS, "results": res, "history": history,
              "hparams": dict(epochs=epochs, bs=bs, neg_frac=neg_frac, seed=seed, hidden=hidden, lr=lr, pos_weight=pos_weight, fanout=list(fanout), ego=ego, temporal=temporal),
-             "operating_threshold": thr}, indent=2))
+             "operating_threshold": thr,
+             # per-target caps + deterministic sampling: clears IBMGNNScorer's / EnsembleScorer's caveat
+             "calibration": "per-target" if temporal else "per-protocol threshold"}, indent=2))
     return res
 
 
@@ -354,6 +356,8 @@ class IBMGNNScorer:
     canonically by ml/ibm/order.py, which raises if a column is missing).
     Temporal checkpoints score each row from strictly earlier edges only (per-row cap), so a row's score does
     not depend on which other rows are scored with it.
+    Sampling salts and offsets use edge / node positions in the frame passed in, so a row scores exactly as in
+    the re-eval only when `edges` is the full HI-Small edge set; a recent window samples other neighbours.
     """
 
     def __init__(self, artifact_dir=Path(__file__).parent.parent / "artifacts" / "ibm", device="cpu", name="gnn"):
