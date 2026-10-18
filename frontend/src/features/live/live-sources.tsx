@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { errorMessage, useLive } from "@/lib/live/api";
 import { dataOpsApi, type SourceFeed, type SourceStatus } from "@/lib/live/api-data-ops";
-import { RUN_TONE, SEVERITY_TONE, utc, words } from "@/lib/live/format";
+import { friendlyFileSize, friendlyHash, friendlyOwner, friendlyPipeline, friendlySchema, friendlySystem, RUN_TONE, SEVERITY_TONE, utc, words } from "@/lib/live/format";
 import { useLiveProfile } from "@/lib/live/session";
 import { ROUTES } from "@/lib/routes";
 import type { Tone } from "@/lib/types";
@@ -65,7 +65,7 @@ function LiveSourceCard({ source }: { source: SourceFeed }) {
   return (
     <Card className="flex flex-col gap-2 px-4 py-3.5">
       <div className="flex items-start justify-between gap-2">
-        <b className="break-words">{source.source_system}</b>
+        <b className="break-words">{friendlySystem(source.source_system)}</b>
         <span className="flex shrink-0 gap-1">
           <Pill tone="ok">Live</Pill>
           <Pill tone={tone}>{label}</Pill>
@@ -73,7 +73,7 @@ function LiveSourceCard({ source }: { source: SourceFeed }) {
       </div>
       <span className="text-xs text-muted">Owner: {source.owners.join(", ") || "Not recorded"}</span>
       <span className="text-xs text-muted">
-        Schema {source.schema_versions.join(", ") || "Not recorded"} · last upload {age(source.hours_since_upload)} · SLA {source.freshness_sla_hours} h
+        Schema {source.schema_versions.map(friendlySchema).join(", ") || "Not recorded"} · last upload {age(source.hours_since_upload)} · SLA {source.freshness_sla_hours} h
       </span>
       <span className="text-[12.5px]">
         {source.run_count} run{source.run_count === 1 ? "" : "s"} · {source.rows.toLocaleString("en-US")} rows · Accepted {pct(source.accepted_rate)} · Warnings {pct(source.warning_rate)} · Rejected{" "}
@@ -107,14 +107,14 @@ export function LiveBatchFacts({ runId }: { runId: string }) {
               items={[
                 ["Run status", <Pill key="s" tone={RUN_TONE[run.status] ?? "mute"}>{words(run.status)}</Pill>],
                 ["File", file?.filename ?? "Not recorded"],
-                ["File hash (SHA-256)", <span key="h" className="font-mono text-xs break-all">{file?.checksum_sha256 ?? "Not recorded"}</span>],
-                ["Schema", run.schema_version],
-                ["Pipeline", run.pipeline_version ?? "Not recorded"],
-                ["Source system", file?.source_system ?? "Not recorded"],
-                ["Owner", file?.data_owner ?? "Not recorded"],
+                ["File checksum (recorded at upload)", <span key="h" className="font-mono text-xs">{friendlyHash(file?.checksum_sha256)}</span>],
+                ["Schema", friendlySchema(run.schema_version)],
+                ["Pipeline", friendlyPipeline(run.pipeline_version)],
+                ["Source system", friendlySystem(file?.source_system)],
+                ["Owner", friendlyOwner(file?.data_owner)],
                 ["Uploaded", utc(file?.uploaded_at)],
-                ["Size", file?.byte_size != null ? `${file.byte_size.toLocaleString("en-US")} bytes` : "Not recorded"],
-                ["Data", file ? (file.is_synthetic ? "Synthetic" : "Not marked synthetic") : "Not recorded"],
+                ["Size", friendlyFileSize(file?.byte_size)],
+                ["Data classification", file ? (file.is_synthetic ? "Synthetic test data" : "Not marked synthetic") : "Not recorded"],
               ]}
             />
             <div className="flex flex-wrap gap-2">
@@ -190,7 +190,7 @@ export function LiveContracts() {
         <Card className="min-w-0 flex-[2_1_560px] overflow-hidden">
           <div className="px-5 py-4">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-base font-semibold">Canonical schema {schema.data?.schema_version ?? ""}</h2>
+              <h2 className="text-base font-semibold">{friendlySchema(schema.data?.schema_version)}</h2>
               <Pill tone="ok">Live</Pill>
             </div>
             <span className="text-xs text-muted">Every upload is mapped to these fields and checked at ingestion. Rejected rows are kept as evidence and never reach transactions.</span>
@@ -232,8 +232,8 @@ export function LiveContracts() {
               {(src) => (
                 <KeyValueList
                   items={[
-                    ["Schema", schema.data?.schema_version ?? "Loading"],
-                    ["Rules version", rules.data?.rules_version ?? "Loading"],
+                    ["Schema", friendlySchema(schema.data?.schema_version)],
+                    ["Rules engine", friendlyPipeline(rules.data?.rules_version)],
                     ["Source feeds", src.total],
                     ["Owners", [...new Set(src.items.flatMap((s) => s.owners))].join(", ") || "None yet"],
                     ["Purpose", "Transaction monitoring and investigation (synthetic data)"],
@@ -259,7 +259,7 @@ export function LiveContracts() {
       </div>
       <Card className="overflow-hidden">
         <div className="px-5 py-4">
-          <h2 className="text-base font-semibold">Data-quality rule catalog {rules.data ? `· ${rules.data.rules_version}` : ""}</h2>
+          <h2 className="text-base font-semibold">Data-quality rule catalog {rules.data ? `· ${friendlyPipeline(rules.data.rules_version)}` : ""}</h2>
           <span className="text-xs text-muted">Error and critical findings reject; warnings keep the row with a caveat; info is recorded only.</span>
         </div>
         <div className="px-5 pb-4">

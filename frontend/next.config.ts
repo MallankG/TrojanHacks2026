@@ -9,8 +9,6 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
-  cacheComponents: true,
-  partialPrefetching: true,
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },

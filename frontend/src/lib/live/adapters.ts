@@ -2,7 +2,7 @@
 
 import type { AuditEvent, AuditType, Batch, ContractCheck, Tone } from "@/lib/types";
 import { liveApi, useLive, type AuditRow, type DqIssue, type IngestionRun, type Loadable } from "./api";
-import { utc, words } from "./format";
+import { friendlyHash, friendlyOwner, friendlySchema, friendlySystem, utc, words } from "./format";
 import { profileName } from "./roles";
 import { useLiveProfile } from "./session";
 
@@ -26,15 +26,15 @@ export function runToBatch(run: IngestionRun): Batch {
   const file = run.source_files?.filename ?? "upload.csv";
   return {
     name: `${file.replace(/\.csv$/i, "")} · ${run.id.slice(0, 6)}`,
-    rail: run.source_files?.source_system ?? "Not recorded",
+    rail: friendlySystem(run.source_files?.source_system),
     rows: count(run.row_count),
     accepted: count(run.accepted_count),
     rejected: count(run.rejected_count),
     status,
     tone,
-    owner: run.source_files?.data_owner ?? "Not recorded",
-    schema: run.schema_version,
-    hash: run.source_files?.checksum_sha256 ? `${run.source_files.checksum_sha256.slice(0, 4)}…${run.source_files.checksum_sha256.slice(-4)}` : "n/a",
+    owner: friendlyOwner(run.source_files?.data_owner),
+    schema: friendlySchema(run.schema_version),
+    hash: friendlyHash(run.source_files?.checksum_sha256),
     runId: run.id,
   };
 }

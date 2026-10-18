@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { useLive } from "@/lib/live/api";
 import { governanceApi, type LineageStep, type OfflineCard } from "@/lib/live/api-governance";
-import { caseLabel, shortId, utc, words } from "@/lib/live/format";
+import { caseLabel, friendlyModel, shortId, utc, words } from "@/lib/live/format";
 import { useLiveProfile } from "@/lib/live/session";
 import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
@@ -140,7 +140,7 @@ export function LiveModelRegistry() {
                 <tbody>
                   {r.models.map((m) => (
                     <Tr key={`${m.model_name}-${m.model_version}`}>
-                      <Td className="font-mono text-xs">{m.model_name}</Td>
+                      <Td className="text-xs font-semibold">{friendlyModel(m.model_name)}</Td>
                       <Td>{words(m.model_kind)}</Td>
                       <Td className="font-mono text-xs">{m.model_version}</Td>
                       <Td>
@@ -191,8 +191,8 @@ export function LivePipelines() {
                 {p.items.map((item) => (
                   <Tr key={`${item.kind}-${item.id}`}>
                     <Td className="whitespace-nowrap text-xs">{utc(item.started_at)}</Td>
-                    <Td>{item.kind === "ingestion" ? "Ingestion" : words(item.model_kind ?? item.kind)}</Td>
-                    <Td className="font-mono text-xs">{item.name}</Td>
+                    <Td>{item.kind === "ingestion" ? "Ingestion Pipeline" : words(item.model_kind ?? item.kind)}</Td>
+                    <Td className="text-xs">{item.kind === "ingestion" ? item.name : friendlyModel(item.name)}</Td>
                     <Td>
                       <Pill tone={item.status === "failed" ? "bad" : item.status.startsWith("completed") ? "ok" : "info"}>{words(item.status)}</Pill>
                       {item.error_message ? <span className="block text-xs text-danger-ink">{item.error_message}</span> : null}

@@ -157,22 +157,31 @@ export function Sidebar() {
           Reset demo
         </button>
       </div>}
-      <div className="mt-2.5 flex items-center gap-2.5 border-t border-[#1e3350] px-1.5 py-2">
-        <span aria-hidden="true" className="inline-flex size-[34px] items-center justify-center rounded-full bg-sidebar-active text-[13px] font-bold text-brand-light">
-          {roleInitials(role)}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold text-white">{role.name}</div>
-          <div className="text-[11.5px] text-sidebar-muted">{role.label}</div>
+      <div className="mt-2.5 border-t border-[#1e3350] px-1 pt-3 pb-3">
+        <div className="flex items-center gap-2.5 px-1 py-1">
+          <span aria-hidden="true" className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-sidebar-active text-xs font-bold text-brand-light">
+            {roleInitials(role)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-semibold text-white" title={role.name}>
+              {role.name}
+            </div>
+            <div className="truncate text-[11.5px] text-sidebar-muted">
+              {role.label}
+            </div>
+          </div>
         </div>
         <button
           type="button"
-          className={cn(SIDE_BUTTON, "w-auto")}
+          className="mt-2.5 flex h-8.5 w-full items-center justify-center gap-2 rounded-lg border border-sidebar-line bg-[#0d1d33] px-3 text-[12px] font-medium text-[#c5d0de] transition-colors hover:border-red-900/60 hover:bg-red-950/40 hover:text-red-300"
           onClick={() => {
             signOut();
             router.push(ROUTES.signIn);
           }}
         >
+          <svg className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+          </svg>
           Sign out
         </button>
       </div>
