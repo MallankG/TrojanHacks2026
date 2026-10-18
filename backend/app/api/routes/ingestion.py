@@ -6,11 +6,13 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
 from app.api.deps import Limit, Offset, page
+from app.core import audit
 from app.core.config import get_settings
 from app.core.db import get_db, get_one
 from app.core.errors import NotFound
 from app.core.security import ANY_USER, CAN_INGEST, CurrentUser
-from app.services import canonical, ingestion
+from app.services import canonical, data_ops, ingestion
+from app.services.quality import RULE_CATALOG, RULES_VERSION
 
 router = APIRouter(prefix="/ingestion", tags=["ingestion"])
 
@@ -25,25 +27,41 @@ def canonical_schema(_: CurrentUser = Depends(ANY_USER)) -> dict:
         "descriptions": canonical.FIELD_DESCRIPTIONS,
         "channels": sorted(set(canonical.CHANNEL_ALIASES.values())),
         "currencies": sorted(canonical.KNOWN_CURRENCIES),
+        "rules_version": RULES_VERSION,
+        # One entry per field with its type and the data-quality rules that check it (the data contract).
+        "fields": [
+            {
+                "field": field,
+                "required": field in canonical.REQUIRED_FIELDS,
+                "type": canonical.FIELD_TYPES[field],
+                "description": canonical.FIELD_DESCRIPTIONS[field],
+                "rule_ids": [r.rule_id for r in RULE_CATALOG if field in r.fields],
+            }
+            for field in canonical.CANONICAL_FIELDS
+        ],
     }
 
 
 @router.post("/preview-mapping")
-async def preview_mapping(
+def preview_mapping(
     file: UploadFile = File(...),
-    field_mapping: str | None = Form(default=None),
-    _: CurrentUser = Depends(CAN_INGEST),
+    field_mapping: str | None = Form(default=None, description='JSON object {"canonical_field": "csv column"}; "" unmaps'),
+    user: CurrentUser = Depends(CAN_INGEST),
 ) -> dict:
-    """Read only the header row and propose a canonical mapping; nothing is stored."""
-    head = (await file.read(64 * 1024)).decode("utf-8-sig", errors="replace").splitlines()
-    headers = [h.strip() for h in head[0].split(",")] if head else []
-    mapping = canonical.auto_map(headers, _parse_mapping(field_mapping))
-    return {
-        "headers": headers,
-        "mapping": mapping,
-        "missing_required": [f for f in canonical.REQUIRED_FIELDS if f not in mapping],
-        "unmapped_columns": [h for h in headers if h not in mapping.values()],
-    }
+    """Propose a canonical mapping and dry-run the data-quality rules on the first rows; nothing is stored.
+
+    Only the first 256 KB of the file are read. Sync endpoint so the small DB lookup runs in the threadpool.
+    """
+    head = file.file.read(data_ops.PREVIEW_BYTES + 1)
+    complete = len(head) <= data_ops.PREVIEW_BYTES
+    headers, sample = data_ops.parse_preview(head[: data_ops.PREVIEW_BYTES], complete)
+    if not any(headers):
+        raise HTTPException(422, "The file has no header row")
+    overrides = _parse_mapping(field_mapping)
+    ref_column = canonical.auto_map(headers, overrides).get("transaction_id")
+    refs = {str(r.get(ref_column) or "").strip() for r in sample} - {""} if ref_column else set()
+    preview = data_ops.build_preview(headers, sample, overrides, data_ops.existing_refs(user.tenant_id, refs))
+    return {**preview, "filename": file.filename, "schema_version": get_settings().canonical_schema_version}
 
 
 @router.post("/upload", status_code=201)
@@ -93,7 +111,10 @@ def _parse_mapping(raw: str | None) -> dict[str, str] | None:
 @router.get("/runs")
 def list_runs(limit: Limit = 50, offset: Offset = 0, user: CurrentUser = Depends(ANY_USER)) -> dict:
     query = (
-        get_db().table("ingestion_runs").select("*, source_files(filename, source_system, data_owner, checksum_sha256)", count="exact")
+        get_db().table("ingestion_runs").select(
+            "*, source_files(filename, source_system, data_owner, checksum_sha256, byte_size, uploaded_at, is_synthetic)",
+            count="exact",
+        )
         .eq("tenant_id", user.tenant_id).order("started_at", desc=True)
     )
     return page(query, limit, offset)
@@ -149,5 +170,9 @@ def source_file_url(file_id: UUID, user: CurrentUser = Depends(ANY_USER)) -> dic
     source_file = get_one("source_files", user.tenant_id, str(file_id))
     if not source_file:
         raise NotFound("Source file")
-    signed = get_db().storage.from_(source_file["storage_bucket"]).create_signed_url(source_file["storage_path"], 300)
-    return {"url": signed.get("signedURL") or signed.get("signedUrl"), "expires_in": 300}
+    signed = get_db().storage.from_(source_file["storage_bucket"]).create_signed_url(
+        source_file["storage_path"], 300, {"download": True}  # attachment, named after the stored object
+    )
+    # Raw source data leaving the system is worth a trail entry even though it is a read.
+    audit.record(user, "source_file.downloaded", "source_file", str(file_id), {"filename": source_file["filename"]})
+    return {"url": signed.get("signedURL") or signed.get("signedUrl"), "expires_in": 300, "filename": source_file["filename"]}

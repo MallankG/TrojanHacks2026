@@ -32,6 +32,8 @@ class Settings(BaseSettings):
 
     canonical_schema_version: str = "canonical-txn-v1"
     pipeline_version: str = "ingest-pipeline-1.0.0"
+    # A source feed with no upload for longer than this is shown as late on the data operations screen.
+    source_freshness_sla_hours: int = 24
 
 
 @lru_cache
