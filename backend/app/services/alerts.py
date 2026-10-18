@@ -30,16 +30,21 @@ def _dq_caveats(tenant_id: str, transaction_ids: set[str], account_ids: set[str]
     return bool(notes), "; ".join(notes) or None
 
 
-def publish(user: CurrentUser, batch: AlertBatch) -> list[dict]:
+def publish(user: CurrentUser, batch: AlertBatch, *, server_ids: list[str] | None = None, run_caveat: str | None = None) -> list[dict]:
     tenant_id = user.tenant_id
     created = []
     rejected = _rejected_rows(tenant_id)
-    for alert in batch.alerts:
+    if server_ids is not None and len(server_ids) != len(batch.alerts):
+        raise ValueError("Alert ID count does not match batch")
+    for index, alert in enumerate(batch.alerts):
         txn_ids = {str(t.transaction_id) for t in alert.transactions}
         account_ids = {str(a.account_id) for a in alert.accounts}
         if alert.primary_account_id:
             account_ids.add(str(alert.primary_account_id))
         has_caveat, caveat_notes = _dq_caveats(tenant_id, txn_ids, account_ids, rejected)
+        if run_caveat:
+            has_caveat = True
+            caveat_notes = "; ".join(x for x in (caveat_notes,run_caveat) if x)
         row = alert.model_dump(mode="json", exclude={"signal_ids", "transactions", "accounts"})
         row.update({
             "tenant_id": tenant_id,
@@ -49,6 +54,8 @@ def publish(user: CurrentUser, batch: AlertBatch) -> list[dict]:
             "has_dq_caveat": has_caveat,
             "dq_caveat_notes": caveat_notes,
         })
+        if server_ids is not None:
+            row["id"] = server_ids[index]
         record = insert_many("alerts", [row], actor=user)[0]
         alert_id = record["id"]
         try:

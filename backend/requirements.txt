@@ -21,3 +21,6 @@ rfc8785==0.1.4
 
 # ml/graph (GraphBase engine)
 networkx==3.6.1
+
+# Install from backend/; the production build context must include agents/.
+-e ../agents

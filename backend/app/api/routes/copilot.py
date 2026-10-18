@@ -28,8 +28,11 @@ def create_agent_run(case_id: UUID, body: AgentRunCreate, user: CurrentUser = De
 
 @router.patch("/agent-runs/{run_id}")
 def update_agent_run(run_id: UUID, body: AgentRunUpdate, user: CurrentUser = Depends(CAN_INVESTIGATE_OR_SERVICE)) -> dict:
-    if not get_one("agent_runs", user.tenant_id, str(run_id), "id"):
+    existing = get_one("agent_runs", user.tenant_id, str(run_id), "id,managed")
+    if not existing:
         raise NotFound("Agent run")
+    if existing["managed"]:
+        raise HTTPException(409, "Managed workflows report their own state")
     now = datetime.now(UTC).isoformat()
     changes: dict = body.model_dump(exclude_unset=True, exclude={"append_steps"})
     if body.status == "running":
@@ -49,6 +52,9 @@ def get_agent_run(run_id: UUID, user: CurrentUser = Depends(ANY_CALLER)) -> dict
     run = get_one("agent_runs", user.tenant_id, str(run_id))
     if not run:
         raise NotFound("Agent run")
+    if run.get("managed"):
+        from app.services.orchestration.runs import read
+        return read(user, str(run_id))
     return run
 
 
@@ -72,6 +78,10 @@ def create_narrative(case_id: UUID, body: NarrativeCreate, user: CurrentUser = D
         if ref and not fetch_by_ids(table, tid, [ref], "id"):
             raise HTTPException(422, f"Unknown {table[:-1].replace('_', ' ')}")
 
+    if body.agent_run_id:
+        managed = get_one("agent_runs", tid, str(body.agent_run_id), "case_id,managed")
+        if managed and (managed["managed"] or managed["case_id"] != cid):
+            raise HTTPException(409, "Managed drafts are saved by the workflow")
     row = {
         "tenant_id": tid, "case_id": cid, "version": case_service.next_narrative_version(tid, cid),
         "parent_narrative_id": body.parent_narrative_id, "agent_run_id": body.agent_run_id,
@@ -114,8 +124,11 @@ def record_verification(narrative_id: UUID, body: NarrativeVerification, request
     db = get_db()
     tid, nid = user.tenant_id, str(narrative_id)
     request.state.operation_success = body.verification_status == "passed"
-    if not get_one("case_narratives", tid, nid, "id"):
+    narrative = get_one("case_narratives", tid, nid, "id,workflow_attempt")
+    if not narrative:
         raise NotFound("Narrative")
+    if narrative["workflow_attempt"] is not None:
+        raise HTTPException(409, "Workflow verifier receipts are immutable")
     for claim in body.claims:
         query = (db.table("narrative_claims").update({"verification": claim.verification, "verifier_notes": claim.verifier_notes})
                  .eq("tenant_id", tid).eq("narrative_id", nid).eq("claim_index", claim.claim_index))
