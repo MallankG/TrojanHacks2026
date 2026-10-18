@@ -69,7 +69,7 @@ class NetworkXGraphAdapter:
         """Edge shape expected by ml.graph.paths.time_respecting_paths (shared with app/services/graph.py)."""
         return {"id": tx["transaction_id"], "transaction_ref": tx.get("source_ref") or tx["transaction_id"],
                 "origin_account_id": tx["origin_account_id"], "destination_account_id": tx["destination_account_id"],
-                "occurred_at": tx["occurred_at"], "amount": tx["amount"], "amount_usd": tx.get("amount_usd") or tx["amount"],
+                "occurred_at": tx["occurred_at"], "amount": tx["amount"], "amount_usd": tx["amount_usd"] if tx.get("amount_usd") is not None else tx["amount"],
                 "currency": tx["currency"]}
 
     # --- writes ------------------------------------------------------------
@@ -238,8 +238,10 @@ class NetworkXGraphAdapter:
         # candidates: time-feasible edges only; the gap is checked per hop by the DFS (a gap measured from a node's
         # earliest arrival would wrongly drop hops of a later chain through the same account)
         _, edges, reason = self._trace(T, source, hops, start, end, True, None)
+        stats = {}
         found = time_respecting_paths([self._api_shape(e) for e in edges.values()], source, target, hops,
-                                      timedelta(hours=max_gap_hours), min_amount_ratio, limit)
+                                      timedelta(hours=max_gap_hours), min_amount_ratio, limit, stats=stats, timeout_s=self.limits.timeout_s)
+        reason = reason or stats.get("truncation_reason")
         return self._env(T, truncated=bool(reason), truncation_reason=reason, caveats=[PATH_CAVEAT], items=found,
                          parameters={"hops": hops, "max_gap_hours": max_gap_hours, "min_amount_ratio": min_amount_ratio})
 
@@ -267,7 +269,7 @@ class NetworkXGraphAdapter:
         stats = {}
         items = find_cycles(edges, min_hops=min_hops, max_hops=max_hops, max_gap_hours=max_gap_hours,
                             max_nodes=self.limits.max_nodes, max_cycles=self.limits.max_results,
-                            timeout_s=self.limits.timeout_s, stats=stats)
+                            timeout_s=self.limits.timeout_s, stats=stats, focus_account=account_id)
         if account_id:
             items = [c for c in items if account_id in c["accounts"]]
         reason = reason or stats["truncation_reason"]

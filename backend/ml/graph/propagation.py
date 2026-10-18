@@ -19,7 +19,15 @@ def propagation_leads(adapter, tenant_id, seed_account_id, disposition, *, case_
     nb = adapter.get_neighborhood(tenant_id, seed_account_id, hops=hops, start=start, end=end)
     hop_of = {n["entity_id"]: n["hop"] for n in nb["nodes"]}
     via: dict[str, list[dict]] = {}
-    for e in nb["edges"]:
+    excluded = 0
+    for original in nb["edges"]:
+        amount = original.get("amount_usd")
+        if amount is None and original.get("currency") == "USD":
+            amount = original["amount"]
+        if amount is None:
+            excluded += 1
+            continue
+        e = {**original, "amount": float(amount)}
         if e["amount"] < min_amount:
             continue
         for acct in (e["origin_account_id"], e["destination_account_id"]):
@@ -35,6 +43,6 @@ def propagation_leads(adapter, tenant_id, seed_account_id, disposition, *, case_
                   f"(dispositioned '{disposition}'{f' on case {case_id}' if case_id else ''}): "
                   f"{len(direct or es)} linking transaction(s) totalling {total:,.2f}. Review lead only, not a finding.")
         leads.append({"account_id": acct, "hops": h, "reason": reason, "lead_type": "review_lead",
-                      "via_transaction_ids": [e["transaction_id"] for e in (direct or es)], "linked_amount": total, "seed": seed})
+                      "via_transaction_ids": [e["transaction_id"] for e in (direct or es)], "linked_amount": total, "amount_basis": "USD", "excluded_no_usd": excluded, "seed": seed})
     leads.sort(key=lambda l: (l["hops"], -l["linked_amount"], l["account_id"]))
     return leads[:max_leads]

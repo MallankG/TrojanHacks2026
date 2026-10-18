@@ -85,7 +85,7 @@ def _cycle_instances(cycle, by_pair, max_gap):
 
 
 def find_cycles(edges, *, min_hops=3, max_hops=10, start=None, end=None, max_gap_hours=None,
-                max_nodes=2000, max_cycles=100, timeout_s=5.0, stats=None):
+                max_nodes=2000, max_cycles=100, timeout_s=5.0, stats=None, focus_account=None):
     if not (2 <= min_hops <= max_hops <= 10):
         raise ValueError("cycle hops must satisfy 2 <= min_hops <= max_hops <= 10")
     stats = {} if stats is None else stats
@@ -107,7 +107,7 @@ def find_cycles(edges, *, min_hops=3, max_hops=10, start=None, end=None, max_gap
         if clock.expired():
             stats.update(truncated=True, truncation_reason="timeout")
             break
-        if len(cyc) < min_hops:
+        if len(cyc) < min_hops or (focus_account is not None and focus_account not in cyc):
             continue
         best = []
         for r in range(len(cyc)):  # money may start at any account on the cycle

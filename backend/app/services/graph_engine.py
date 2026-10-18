@@ -13,7 +13,7 @@ from app.core.db import get_one
 from app.core.errors import NotFound
 from app.services import graph
 from ml.graph import GraphLimits, LimitExceeded, NetworkXGraphAdapter, find_motifs
-from ml.graph.adapter import envelope
+from ml.graph.adapter import PATH_CAVEAT, envelope
 from ml.graph.motifs import CYCLE_CAVEAT
 
 LIMITS = GraphLimits(max_hops=6, max_nodes=300, max_edges=5000, max_range_days=120, timeout_s=5, max_results=100)
@@ -81,9 +81,11 @@ def analyze(tenant_id: str, params: dict) -> dict:
         elif operation == "paths":
             # A valid target outside the hydrated neighborhood is unreachable inside this bounded search.
             if target and target not in {n["id"] for n in payload["nodes"]}:
-                engine.upsert_entities(tenant_id, [{"entity_id": target, "type": "Account"}])
-            result = engine.find_time_respecting_paths(tenant_id, account, target, hops=params["hops"],
-                     max_gap_hours=params["max_gap_hours"], min_amount_ratio=params["min_amount_ratio"], limit=params["limit"], **kw)
+                result = envelope(graph_version=loaded["graph_version"], limits=limits, items=[], caveats=[PATH_CAVEAT],
+                         parameters={"hops": params["hops"], "max_gap_hours": params["max_gap_hours"], "min_amount_ratio": params["min_amount_ratio"]})
+            else:
+                result = engine.find_time_respecting_paths(tenant_id, account, target, hops=params["hops"],
+                         max_gap_hours=params["max_gap_hours"], min_amount_ratio=params["min_amount_ratio"], limit=params["limit"], **kw)
         elif operation == "cycles":
             result = engine.find_cycles_bounded(tenant_id, account_id=account, min_hops=params["min_hops"],
                      max_hops=params["hops"], max_gap_hours=params["max_gap_hours"], **kw)
@@ -93,7 +95,11 @@ def analyze(tenant_id: str, params: dict) -> dict:
             result = engine.get_graph_snapshot(tenant_id, account_id=account, hops=params["hops"], **kw)
         else:
             stats = {}
-            items = find_motifs(params["motif"], transactions, min_branches=params["min_branches"],
+            motif_transactions = transactions
+            if params["motif"] in ("fan_in", "fan_out"):
+                endpoint = "destination_account_id" if params["motif"] == "fan_in" else "origin_account_id"
+                motif_transactions = [t for t in transactions if t[endpoint] == account]
+            items = find_motifs(params["motif"], motif_transactions, min_branches=params["min_branches"],
                     window_hours=params["window_hours"], max_results=params["limit"], timeout_s=limits.timeout_s, stats=stats, **kw)
             # Fan findings belong to the requested focus; split/merge results stay within its hydrated context.
             if params["motif"] in ("fan_in", "fan_out"):

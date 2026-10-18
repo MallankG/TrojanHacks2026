@@ -176,3 +176,51 @@ def test_actual_http_transport(authenticated):
         server.should_exit = True
         thread.join(timeout=5)
         sock.close()
+
+
+def test_focus_fan_is_scoped_before_global_result_limit(authenticated):
+    client, load = authenticated
+    payload = source('t1')
+    nodes = [A, B, C, D, 'other-1', 'other-2']
+    payload['nodes'] = [{'id': n, 'degree': 1} for n in nodes]
+    pairs = [(A, B), (A, C), (A, D), (B, C), (B, D), (B, 'other-1'), (B, 'other-2')]
+    payload['edges'] = [{'id': str(i), 'source': u, 'target': v, 'amount': '100', 'amount_usd': '100', 'currency': 'USD', 'occurred_at': '2026-10-01T12:00:00Z'} for i, (u, v) in enumerate(pairs)]
+    load.side_effect = None
+    load.return_value = payload
+    response = analyze(client, 'motifs', motif='fan_out', min_branches=3, limit=1)
+    assert response.status_code == 200
+    assert response.json()['items'][0]['accounts'][0] == A
+    assert response.json()['items'][0]['branches'] == 3
+
+
+def test_zero_usd_value_is_not_replaced_with_native_currency(authenticated):
+    client, load = authenticated
+    payload = source('t1')
+    payload['edges'][0].update(amount='15000', currency='JPY', amount_usd=0)
+    load.side_effect = None
+    load.return_value = payload
+    response = analyze(client, 'paths', target_account_id=C)
+    assert response.status_code == 200
+    assert response.json()['items'][0]['start_amount_usd'] == 0
+
+
+def test_unreachable_target_does_not_grow_full_hydrated_graph(authenticated):
+    client, load = authenticated
+    payload = source('t1')
+    payload['nodes'] = payload['nodes'][:2]
+    payload['edges'] = payload['edges'][:1]
+    load.side_effect = None
+    load.return_value = payload
+    response = analyze(client, 'paths', target_account_id=C, max_nodes=2)
+    assert response.status_code == 200
+    assert response.json()['items'] == []
+    assert response.json()['source']['nodes'] == 2
+
+
+def test_path_budget_is_reported_as_partial_in_http_response(authenticated):
+    client, _ = authenticated
+    with patch('ml.graph.paths.MAX_EXPANSIONS', 1):
+        response = analyze(client, 'paths', target_account_id=C)
+    assert response.status_code == 200
+    assert response.json()['truncated'] is True
+    assert response.json()['truncation_reason'] == 'max_expansions'

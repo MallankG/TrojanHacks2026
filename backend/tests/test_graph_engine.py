@@ -207,3 +207,44 @@ def test_propagation_denials(g):
 def test_health_check(g):
     h = g.health_check()
     assert h["status"] == "ok" and h["provider"] == "networkx-inmemory" and h["edges"] == 8
+
+
+def test_path_work_budget_marks_partial_results():
+    from ml.graph.paths import time_respecting_paths
+    stats = {}
+    edges = [dict(id='1', origin_account_id='a', destination_account_id='b', occurred_at='2026-10-01T00:00:00Z', amount='100', amount_usd=0, currency='JPY')]
+    from datetime import timedelta
+    assert time_respecting_paths(edges, 'a', 'missing', 3, timedelta(hours=72), 0, 20, max_expansions=1, stats=stats) == []
+    assert stats == {'truncated': True, 'truncation_reason': 'max_expansions'}
+
+
+def test_propagation_normalizes_string_fx_amounts_and_excludes_unknown_units():
+    from ml.graph import NetworkXGraphAdapter
+    from ml.graph.propagation import propagation_leads
+    adapter = NetworkXGraphAdapter()
+    adapter.upsert_transactions('t', [dict(transaction_id='1', origin_account_id='a', destination_account_id='b', occurred_at='2026-10-01T00:00:00Z', amount='15000', amount_usd='100', currency='JPY'), dict(transaction_id='2', origin_account_id='a', destination_account_id='b', occurred_at='2026-10-01T01:00:00Z', amount='20000', currency='JPY')])
+    leads = propagation_leads(adapter, 't', 'a', 'escalated')
+    assert leads[0]['linked_amount'] == 100
+    assert leads[0]['amount_basis'] == 'USD'
+    assert leads[0]['excluded_no_usd'] == 1
+
+
+def test_cycle_focus_is_applied_before_result_limit():
+    from ml.graph import find_cycles
+    edges = []
+    for prefix in ('other', 'focus'):
+        for i, (src, dst) in enumerate([(prefix+'a', prefix+'b'), (prefix+'b', prefix+'c'), (prefix+'c', prefix+'a')]):
+            edges.append(dict(transaction_id=prefix+str(i), origin_account_id=src, destination_account_id=dst, amount=100, currency='USD', occurred_at=f'2026-10-01T0{i}:00:00Z'))
+    items = find_cycles(edges, max_cycles=1, focus_account='focusa')
+    assert len(items) == 1
+    assert 'focusa' in items[0]['accounts']
+
+
+def test_path_timeout_marks_partial_results():
+    from ml.graph.paths import time_respecting_paths
+    from datetime import timedelta
+    from unittest.mock import patch
+    stats = {}
+    with patch('ml.graph.paths.time.monotonic', side_effect=[0, 1]):
+        assert time_respecting_paths([], 'a', 'b', 3, timedelta(hours=72), 0, 20, stats=stats, timeout_s=.5) == []
+    assert stats == {'truncated': True, 'truncation_reason': 'timeout'}
