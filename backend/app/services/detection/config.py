@@ -10,7 +10,7 @@ from copy import deepcopy
 ENGINE_VERSION = "detection-engine-1.0.0"
 RULES_VERSION = "typology-rules-1.0.0"
 ANOMALY_VERSION = "robust-baseline-1.0.0"
-POLICY_VERSION = "priority-policy-1.0.0"
+POLICY_VERSION = "priority-policy-1.1.0"
 
 # Server-side bounds for one run (the request may lower them, never raise them).
 LIMITS = {
@@ -133,11 +133,11 @@ ANOMALY = {
 
 SUPERVISED = {
     "signal_name": "xgboost_transaction_risk",
-    "artifact_dir": "ml/artifacts/tracelayer",
+    "artifact_dir": "ml/artifacts/ibm",
     "max_signals": 300,
-    "caveat": "The canonical schema has no account type or open date. The model's account-type features are all zero and "
-              "account age is approximated from first observation, so these inputs are outside the model's training "
-              "distribution. Treat the score as weak context only.",
+    "caveat": "IBM HI-Small research models on a different feed. Unknown entity types and static account history use "
+              "zero features. Scope history, dates, rails and currencies may differ from training; scores are "
+              "review context, not calibrated probabilities or measured performance on this feed.",
 }
 
 # Alert fusion (ranker). Weights are explicit and versioned; nothing else contributes to rank_score.
@@ -162,6 +162,7 @@ POLICY = {
     "corroboration_cap": 0.18,
     "anomaly_weight": 0.12,
     "supervised_weight": 0.04,
+    "model_selection": "fixed validation-reference ensemble when available, else temporal XGBoost; other raw scores contribute zero",
     "amount_weight": 0.06,
     "amount_saturation_usd": 250000,
     "bands": {"critical": 0.75, "high": 0.6, "medium": 0.45},

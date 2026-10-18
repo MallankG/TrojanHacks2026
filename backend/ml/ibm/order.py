@@ -46,6 +46,16 @@ def order_edges(e: pd.DataFrame, version) -> pd.DataFrame:
     raise ValueError(f"unknown edge order version {version!r}")
 
 
+CALIBRATION_TEXT = {"per-target": "per-target; threshold assumes scoring with the full edge history"}
+
+
+def calibration_text(stamp, temporal=True):
+    """What the scorers show for a results.json `calibration` stamp (None: written before stamps existed)."""
+    if not isinstance(stamp, str):  # None: written before stamps; dict: rules_calibrated's own rule calibration
+        return "batch-cap threshold; per-target re-eval pending" if temporal else "per-protocol threshold"
+    return CALIBRATION_TEXT.get(stamp, stamp)
+
+
 def npz_order(z):
     """The `order` stamp of a loaded score/split npz (None for legacy files)."""
     return str(z["order"]) if "order" in z else None

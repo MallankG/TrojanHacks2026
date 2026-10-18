@@ -15,12 +15,14 @@ import { Chip, Segmented } from "@/components/ui/controls";
 import { TextInput } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/misc";
 import { Pill } from "@/components/ui/pill";
+import { useLiveProfile } from "@/lib/live/session";
 import { LiveAlertEntries } from "@/features/live/live-alerts";
 
 type BandFilter = QueueBandFilter;
 type StatusFilter = QueueStatusFilter;
 
 export function AlertQueue({ selectedId }: { selectedId: AlertId | string }) {
+  const profile=useLiveProfile();
   const alerts = useScoredAlerts();
   // Filters live in the store so they survive moving between alert pages.
   const { text, band, status, grouped } = useDemoState().riskQueue;
@@ -37,6 +39,8 @@ export function AlertQueue({ selectedId }: { selectedId: AlertId | string }) {
   );
 
   const clear = () => updateRiskQueue({ text: "", band: "all", status: "all" });
+
+  if(profile) return <Card aria-label="Ranked alerts" className="flex min-w-0 max-w-[420px] flex-[1_1_340px] flex-col gap-2.5 p-3.5"><LiveAlertEntries selectedId={selectedId}/></Card>;
 
   return (
     <Card aria-label="Ranked alerts" className="flex min-w-0 max-w-[420px] flex-[1_1_340px] flex-col gap-2.5 p-3.5">

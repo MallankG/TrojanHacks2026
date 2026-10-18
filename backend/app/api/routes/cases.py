@@ -161,6 +161,22 @@ def evidence_passport(case_id: UUID, user: CurrentUser = Depends(ANY_CALLER)) ->
     return sealed
 
 
+def _active_agent_run(user: CurrentUser, case_id: UUID) -> bool:
+    """A live run blocks final decisions; a running one whose worker lease expired (crash) does not."""
+    rows = (get_db().table("agent_runs").select("status, lease_expires_at").eq("tenant_id", user.tenant_id)
+            .eq("case_id", str(case_id)).eq("managed", True).in_("status", ["running", "queued", "awaiting_review"])
+            .execute().data)
+    now = datetime.now(UTC).isoformat()
+    return any(r["status"] != "running" or not r.get("lease_expires_at") or r["lease_expires_at"] > now for r in rows)
+
+
+def _latest_narrative(user: CurrentUser, case_id: UUID) -> list[dict]:
+    """The latest narrative, plus whether the agent ever drafted one for this case."""
+    rows = (get_db().table("case_narratives").select("id,verification_status,author_type").eq("tenant_id", user.tenant_id)
+            .eq("case_id", str(case_id)).order("version", desc=True).execute().data)
+    return [{**rows[0], "agent_drafted": any(r["author_type"] == "agent" for r in rows)}] if rows else []
+
+
 @router.post("/{case_id}/decisions", status_code=201)
 def record_decision(case_id: UUID, body: DecisionIn, user: CurrentUser = Depends(CAN_INVESTIGATE)) -> dict:
     """Human review step. The database enforces that only reviewers/admins accept, reject, escalate or dispose."""
@@ -172,10 +188,27 @@ def record_decision(case_id: UUID, body: DecisionIn, user: CurrentUser = Depends
         raise HTTPException(403, "Only reviewers can accept, reject or escalate")
     if body.disposition and user.role not in ("reviewer", "admin"):
         raise HTTPException(403, "Only reviewers can record a disposition")
+    if (body.decision != "edit" or body.disposition) and _active_agent_run(user, case_id):
+        raise HTTPException(409, "Finish the active agent review or save a human revision before the final case decision")
+    # A caller cannot bypass a failed receipt by omitting the narrative selection.
+    latest = _latest_narrative(user, case_id)
+    # Accepting or escalating relies on the narrative. Once the agent has drafted for this case, the latest
+    # version must carry a passed verifier receipt (save_revision re-verifies human edits), so posting a plain
+    # unverified narrative can't skip the check. Dismissals don't rest on a narrative.
+    final = body.decision in ('accept', 'escalate')
+    if final and latest and latest[0].get('agent_drafted'):
+        if latest[0]['verification_status']!='passed':
+            raise HTTPException(422,'The latest narrative must pass verification before acceptance or disposition')
+        if body.narrative_id and str(body.narrative_id)!=latest[0]['id']:
+            raise HTTPException(409,'Review the latest narrative revision before deciding')
+        body=body.model_copy(update={'narrative_id':UUID(latest[0]['id'])})
     if body.narrative_id:
-        narrative = get_one("case_narratives", user.tenant_id, str(body.narrative_id), "id, case_id")
+        narrative = get_one("case_narratives", user.tenant_id, str(body.narrative_id), "id, case_id, verification_status, author_type")
         if not narrative or narrative["case_id"] != str(case_id):
             raise HTTPException(422, "Narrative does not belong to this case")
+    if body.narrative_id and final and latest and latest[0].get('agent_drafted'):
+        if narrative['verification_status']!='passed':
+            raise HTTPException(422,'A passed verifier receipt is required to accept or dispose this narrative')
     row = {**body.model_dump(), "tenant_id": user.tenant_id, "case_id": str(case_id), "decided_by": user.id}
     decision = insert_many("case_decisions", [row], actor=user)[0]
     updated = get_one("cases", user.tenant_id, str(case_id), "id, status, disposition, disposed_by, disposed_at")

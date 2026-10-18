@@ -1330,3 +1330,19 @@ class ChatVerifyOutput(Contract):
 
 class ChatRespondOutput(Contract):
     audit_events: list[AuditEvent]
+
+
+# Allowlisted tool arguments at the live adapter boundary. No free-form query language.
+class EvidenceLookup(Contract):
+    transaction_ids:list[NonBlankStr]=Field(min_length=1,max_length=500)
+
+class PathSearch(Contract):
+    account_id:NonBlankStr
+    hops:int=Field(default=3,ge=1,le=3)
+    max_gap_hours:int=Field(default=72,ge=1,le=72)
+    limit:int=Field(default=10,ge=1,le=10)
+
+class PolicyLookup(Contract):
+    query:NonBlankStr=Field(max_length=4000)
+    top_k:int=Field(default=8,ge=1,le=8)
+    filters:dict[str,str]=Field(default_factory=dict,max_length=0)

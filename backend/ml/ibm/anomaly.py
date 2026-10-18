@@ -34,15 +34,15 @@ def behavior(f, amt):
     return np.log1p(b.clip(lower=0)).to_numpy(np.float32)
 
 
-def fit_score(name, X, tr, y, va, te, a):
+def fit_score(name, X, tr, y, va, te, a, order):
     iso = IsolationForest(n_estimators=200, max_samples=8192, random_state=a.seed, n_jobs=-1).fit(X[tr])
     joblib.dump(iso, Path(a.out) / f"ibm_{name}.joblib")
-    return evaluate_and_save(name, y, -iso.score_samples(X), va, te, a.out)
+    return evaluate_and_save(name, y, -iso.score_samples(X), va, te, a.out, order=order)
 
 
 if __name__ == "__main__":
     a = cli(__doc__)
-    f, y, (tr, va, te), amt = load_cache(a.cache, ["temporal"])
+    f, y, (tr, va, te), amt, order = load_cache(a.cache, ["temporal"])
     Path(a.out).mkdir(parents=True, exist_ok=True)
-    fit_score("isolation_forest", f.to_numpy(np.float32), tr, y, va, te, a)
-    fit_score("isolation_forest_behavior", behavior(f, amt), tr, y, va, te, a)
+    fit_score("isolation_forest", f.to_numpy(np.float32), tr, y, va, te, a, order)
+    fit_score("isolation_forest_behavior", behavior(f, amt), tr, y, va, te, a, order)

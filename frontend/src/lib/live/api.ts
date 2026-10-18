@@ -234,7 +234,7 @@ export const liveApi = {
     call<LiveCase>(`/cases/${id}`, { method: "PATCH", body }),
   addNote: (id: string, explanation: string) =>
     call<unknown>(`/cases/${id}/evidence`, { method: "POST", body: { evidence_type: "analyst_note", explanation } }),
-  decide: (id: string, body: { decision: CaseDecision["decision"]; disposition?: Disposition | null; notes?: string }) =>
+  decide: (id: string, body: { narrative_id?: string; decision: CaseDecision["decision"]; disposition?: Disposition | null; notes?: string }) =>
     call<{ decision: CaseDecision; case: LiveCase }>(`/cases/${id}/decisions`, { method: "POST", body }),
   exportUrl: (id: string) => call<{ url: string; path: string; expires_in: number }>(`/cases/${id}/export-url`),
   audit: (params: { object_type?: string; object_id?: string; limit?: number } = {}) => call<Page<AuditRow>>(`/audit/events${query(params)}`),

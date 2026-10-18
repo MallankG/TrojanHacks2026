@@ -44,5 +44,5 @@ def install_error_handlers(app: FastAPI) -> None:
         code = exc.code or ""
         http_status = _PG_STATUS.get(code, status.HTTP_502_BAD_GATEWAY)
         if http_status == status.HTTP_502_BAD_GATEWAY:
-            logger.error("Database error %s: %s", code, exc.message)
+            logger.error("Database error code %s", code)
         return JSONResponse(status_code=http_status, content={"detail": exc.message, "code": code})

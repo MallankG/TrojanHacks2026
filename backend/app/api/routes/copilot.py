@@ -121,13 +121,15 @@ def get_narrative(narrative_id: UUID, user: CurrentUser = Depends(ANY_CALLER)) -
 def record_verification(narrative_id: UUID, body: NarrativeVerification, request: Request,
                         user: CurrentUser = Depends(CAN_INVESTIGATE_OR_SERVICE)) -> dict:
     """Store the evidence verifier's result for a narrative and each of its claims."""
+    if not user.is_service:
+        raise HTTPException(403,'Verifier receipts are server-generated; use the evidence-checking revision endpoint')
     db = get_db()
     tid, nid = user.tenant_id, str(narrative_id)
     request.state.operation_success = body.verification_status == "passed"
-    narrative = get_one("case_narratives", tid, nid, "id,workflow_attempt")
+    narrative = get_one("case_narratives", tid, nid, "id,workflow_attempt,verification_report")
     if not narrative:
         raise NotFound("Narrative")
-    if narrative["workflow_attempt"] is not None:
+    if narrative["workflow_attempt"] is not None or (narrative.get("verification_report") or {}).get("source_run_id"):
         raise HTTPException(409, "Workflow verifier receipts are immutable")
     for claim in body.claims:
         query = (db.table("narrative_claims").update({"verification": claim.verification, "verifier_notes": claim.verifier_notes})

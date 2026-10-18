@@ -74,7 +74,7 @@ export function LiveAlertEntries({ selectedId }: { selectedId: string }) {
           })}
         </ul>
       )}
-      <span className="eyebrow mt-1">Sample alerts</span>
+
     </div>
   );
 }

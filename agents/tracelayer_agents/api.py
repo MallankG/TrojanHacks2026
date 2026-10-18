@@ -634,3 +634,11 @@ def record_feedback(
     except Exception as exc:
         return FeedbackResult(status="error", error=_internal(exc, "record_feedback"), **result)
     return FeedbackResult(audit_event_id=event.event_id, **result)
+
+
+
+def verify_narrative(draft: contracts.NarrativeDraft, bundle: contracts.EvidenceBundle,
+                     sources: list[contracts.RetrievedChunk]) -> list[contracts.VerifierError]:
+    """Deterministic verification for human edits and preview; never modifies a workflow."""
+    from tracelayer_agents.nodes.verify import verify_evidence
+    return verify_evidence(draft,bundle,sources)

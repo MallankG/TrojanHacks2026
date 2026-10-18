@@ -98,8 +98,9 @@ def build_alert(rules: list[Finding], anomalies: list[Finding], supervised: list
         for f in ctx_anomalies:
             components.append(_component(f, policy["anomaly_weight"], contributions["anomaly"] if f is top else 0.0))
     if supervised:
-        top = max(supervised, key=lambda f: f.score)
-        contributions["supervised"] = policy["supervised_weight"] * top.score
+        candidates=[f for f in supervised if f.detector.startswith('ensemble_')] or [f for f in supervised if f.detector=='xgb_temporal']
+        top = max(candidates, key=lambda f: f.score) if candidates else None
+        contributions["supervised"] = policy["supervised_weight"] * top.score if top else 0.0
         for f in supervised:
             components.append(_component(f, policy["supervised_weight"],
                                          contributions["supervised"] if f is top else 0.0))
@@ -178,7 +179,8 @@ def fuse(rules: list[Finding], anomalies: list[Finding], supervised: list[Findin
     clusters = cluster(fired, window)
 
     attached: set[int] = set()
-    sup_by_txn = {f.transaction_id: f for f in supervised}
+    sup_by_txn = defaultdict(list)
+    for f in supervised: sup_by_txn[f.transaction_id].append(f)
     alerts = []
     for group in clusters:
         evidence = {t for f in group for t in f.evidence}
@@ -189,12 +191,12 @@ def fuse(rules: list[Finding], anomalies: list[Finding], supervised: list[Findin
             if a.transaction_id in evidence or (a.subject in flow_accounts and start <= a.window_start <= end):
                 ctx.append(a)
                 attached.add(i)
-        sup = [sup_by_txn[t] for t in sorted(evidence) if t in sup_by_txn]
+        sup = [f for t in sorted(evidence) for f in sup_by_txn.get(t,[])]
         alerts.append(build_alert(group, ctx, sup, policy))
 
     for i, a in enumerate(anomalies):
         if i not in attached and a.triggered and a.strength >= policy["standalone_anomaly_min_strength"]:
-            alerts.append(build_alert([], [a], [s for s in [sup_by_txn.get(a.transaction_id)] if s], policy))
+            alerts.append(build_alert([], [a], sup_by_txn.get(a.transaction_id,[]), policy))
     if policy.get("standalone_supervised"):
         covered = {t["transaction_id"] for al in alerts for t in al["transactions"]}
         for s in supervised:
