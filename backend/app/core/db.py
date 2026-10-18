@@ -4,6 +4,7 @@ Every query issued through this module must filter by tenant_id explicitly; tena
 backend's responsibility because RLS does not apply to the service role.
 """
 
+from contextvars import ContextVar
 from collections.abc import Callable, Iterable
 from datetime import date, datetime
 from decimal import Decimal
@@ -11,9 +12,12 @@ from functools import lru_cache
 from typing import Any
 from uuid import UUID
 
+import httpx
 from supabase import Client, create_client
 
 from app.core.config import get_settings
+
+workflow_lease_var = ContextVar("workflow_lease", default=None)
 
 PAGE_SIZE = 1000
 INSERT_CHUNK = 500
@@ -22,7 +26,16 @@ INSERT_CHUNK = 500
 @lru_cache
 def get_db() -> Client:
     settings = get_settings()
-    return create_client(settings.supabase_url, settings.supabase_service_role_key)
+    # Concurrent dashboard reads use independent HTTP/1.1 pooled connections. A shared
+    # HTTP/2 connection can be closed by the upstream while other streams are active.
+    client = create_client(settings.supabase_url, settings.supabase_service_role_key)
+    rest = client.postgrest
+    original = rest.session
+    # Keep this transport private to PostgREST: Storage changes its own base URL.
+    rest.session = httpx.Client(base_url=original.base_url, headers=original.headers,
+                                http2=False, timeout=30.0)
+    original.close()
+    return client
 
 
 def to_json(value: Any) -> Any:
@@ -59,6 +72,9 @@ def with_actor(query: Any, actor: Any | None) -> Any:
 
     actor is a CurrentUser (duck-typed to avoid a circular import). The headers are per-query.
     """
+    if lease := workflow_lease_var.get():
+        query.headers["x-workflow-run"] = lease[0]
+        query.headers["x-workflow-token"] = lease[1]
     if actor is not None:
         if actor.id:
             query.headers["x-actor-id"] = actor.id

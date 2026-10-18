@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
-import { liveApi, useLive } from "@/lib/live/api";
+import { call, liveApi, useLive } from "@/lib/live/api";
 import { useDashboardSummary, type DashboardSummary, type FlagStatus } from "@/lib/live/api-command";
 import { BAND_LABEL, BAND_TONE, alertLabel, money, utc, words } from "@/lib/live/format";
 import { LIVE_ROLES } from "@/lib/live/roles";
@@ -86,7 +86,7 @@ function NextActions({ summary }: { summary: DashboardSummary }) {
     <section aria-label="Next best actions" className="flex flex-wrap items-start gap-6 rounded-[18px] bg-hero p-7 text-white">
       <div className="flex flex-[1_1_300px] flex-col gap-2">
         <div className="eyebrow text-brand-light">Signed in as {profile?.display_name ?? profile?.email ?? "you"}</div>
-        <h1 className="text-[28px] font-semibold leading-tight">{actions.length === 0 ? "Nothing needs you right now" : `${actions.length} thing${actions.length === 1 ? "" : "s"} need you today`}</h1>
+        <h1 className="text-[28px] font-semibold leading-tight">{actions.length === 0 ? "Nothing needs you right now" : `${actions.length} thing${actions.length === 1 ? " needs" : "s need"} you today`}</h1>
         <p className="text-sm text-hero-text">From live tenant data, updated {utc(summary.generated_at)}.</p>
       </div>
       <ol className="flex flex-[2_1_520px] flex-col gap-2.5">
@@ -321,6 +321,7 @@ function LiveAlertsTable({ summary }: { summary: DashboardSummary }) {
 const MODEL_KIND_LABEL: Record<string, string> = { rule_engine: "Rules", supervised: "Supervised", anomaly: "Anomaly", graph_model: "Graph model", ranker: "Ranker" };
 
 function PlatformHealth({ summary }: { summary: DashboardSummary }) {
+  const graphHealth = useLive(() => call<{ status: string }>("/graph/engine/health"), "graph-engine-health");
   const flag = (key: string) => summary.pipeline.find((f) => f.key === key);
   const latest = summary.ingestion.latest_run;
   const completedModels = Object.entries(summary.model_freshness).filter(([, run]) => run !== null);
@@ -375,7 +376,7 @@ function PlatformHealth({ summary }: { summary: DashboardSummary }) {
     href: ROUTES.governance("models"),
     live: true,
   });
-  rows.push({ label: "GraphBase sync", detail: "Graph views are built from Postgres on request. No graph store is connected.", tag: "Not connected", tone: notConnected, href: ROUTES.governance("pipelines"), live: false });
+  rows.push({ label: "Graph engine", detail: "Authenticated graph queries load current transactions from Postgres on request.", tag: graphHealth.loading ? "Checking" : graphHealth.data?.status === "ok" ? "Engine ready" : "Unavailable", tone: graphHealth.data?.status === "ok" ? "ok" : graphHealth.error ? "bad" : "mute", href: ROUTES.graph, live: true });
   rows.push({ label: "LLM provider", detail: "Not connected to a live service in this prototype. Review continues without drafting.", tag: "Not connected", tone: notConnected, href: ROUTES.governance("pipelines"), live: false });
 
   return (
