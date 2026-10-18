@@ -1,0 +1,53 @@
+{
+  "model": "xgb_temporal",
+  "val": {
+    "auroc": 98.57756146240652,
+    "auprc": 44.86974797490444,
+    "best_f1": 45.56962025316456,
+    "best_precision": 50.56179775280899,
+    "best_recall": 41.474654377880185,
+    "best_threshold": 0.7854205965995789
+  },
+  "test": {
+    "auroc": 98.75450803746753,
+    "auprc": 44.91534198648595,
+    "best_f1": 45.37151320661565,
+    "best_precision": 46.95963208993357,
+    "best_recall": 43.8872970391595,
+    "best_threshold": 0.6815747618675232,
+    "precision@100": 95.0,
+    "precision@1000": 63.7
+  },
+  "test_at_val_threshold": {
+    "threshold": 0.7854205965995789,
+    "precision": 54.10526315789474,
+    "recall": 36.81948424068768,
+    "f1": 43.81926683716965,
+    "false_alerts_per_1k": 0.5283699947243791,
+    "tp": 771,
+    "fp": 654,
+    "fn": 1323
+  },
+  "feature_groups": [
+    "safe39",
+    "temporal"
+  ],
+  "n_features": 85,
+  "top_features_by_gain": {
+    "fmt_ACH": 2504.909423828125,
+    "fmt_Wire": 296.1464538574219,
+    "pair_prior": 248.9788818359375,
+    "pair_reciprocal": 206.34719848632812,
+    "fmt_Credit Card": 151.12326049804688,
+    "o_out_cp": 104.00037384033203,
+    "fmt_Cheque": 95.73738861083984,
+    "o_out_cnt_1h": 93.0311279296875,
+    "day": 85.84551239013672,
+    "fmt_Cash": 72.9374008178711,
+    "d_in_cnt_1h": 39.036800384521484,
+    "src_out_deg": 37.43584442138672,
+    "fmt_Bitcoin": 33.46079635620117,
+    "o_out_cnt_24h": 33.12533950805664,
+    "src_ent_Individual": 30.998794555664062
+  }
+}
