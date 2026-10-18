@@ -152,3 +152,11 @@ atomically appends an immutable revision and remediation receipt; concurrent or 
 replacements return 409. The highest source revision governs future ingestion, and each
 run pins its exact product ID. Historical products, receipts and run pins remain unchanged.
 Apply `20261018000003_source_contract_versions.sql` before enabling this operation.
+
+Run the contract migration regression suite against disposable PostgreSQL with
+`node scripts/test-contract-db.mjs /path/to/@electric-sql/pglite/dist/index.js`
+from `backend/` (omit the runtime path when PGlite is locally installed). It applies
+the actual tenancy, audit and governance SQL with only the ingestion table stubbed,
+and checks replacement/audit atomicity, stale edits, immutable history and pins,
+cross-tenant isolation, and RPC execution grants. The SQL assertions also live in
+`supabase/tests/contract_versions.sql` for disposable migrated databases.
