@@ -393,19 +393,3 @@ def load_freshness(tenant_id: str, now: datetime) -> tuple[dict[str, dict | None
     )
     freshness = {k: freshness_row(rows[0] if rows else None, now) for k, rows in zip(MODEL_KINDS, completed, strict=True)}
     return freshness, attempt[0] if attempt else None
-
-
-def llm_status() -> dict:
-    """The agents' configured LLM (no network call): provider, model, and why it would fall back to the template.
-    Mirrors tracelayer_agents.llm.client: Groq needs a key and an approved egress destination."""
-    from tracelayer_agents.llm.client import LLMSettings
-
-    s = LLMSettings.from_env()
-    reason = None
-    if s.provider == "template":
-        reason = "Template only (no LLM configured)"
-    elif s.provider == "groq" and not s.groq_api_key:
-        reason = "Groq API key missing"
-    elif s.provider == "groq" and not s.groq_approved:
-        reason = "Groq not an approved data destination"
-    return {"provider": s.provider, "model": s.model, "ready": reason is None, "reason": reason}

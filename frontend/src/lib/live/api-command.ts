@@ -58,8 +58,8 @@ export interface DashboardSummary {
     truncated: boolean;
   };
   model_freshness: Record<"rule_engine" | "supervised" | "anomaly" | "graph_model" | "ranker", ModelFreshness | null>;
-  /** The agents' configured LLM; `reason` says why drafts would come from the template instead. */
-  llm?: { provider: "groq" | "ollama" | "template"; model: string | null; ready: boolean; reason: string | null };
+  /** The agents' configured LLM (no network check): `configured` means calls are attempted; `reason` says why not. */
+  llm?: { provider: string | null; model: string | null; configured: boolean; reason: string | null };
   pipeline: Array<{ key: "ingestion" | "data_quality" | "scoring"; status: FlagStatus; detail: string }>;
 }
 

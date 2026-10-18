@@ -132,6 +132,29 @@ def _remember(trace: list[TraceEvent]) -> None:
 # --------------------------------------------------------------------------- workflows
 
 
+LLM_STATUS_TEXT = {
+    "template_only": "Template only (no LLM configured)",
+    "groq_no_api_key": "Groq API key missing",
+    "groq_not_approved_destination": "Groq not an approved data destination",
+}
+
+
+def llm_status() -> dict[str, Any]:
+    """The configured LLM provider for status displays: no network call and never the key.
+    `configured` means calls will be attempted (each can still fall back to the template);
+    `reason` says why they won't."""
+    from tracelayer_agents.llm.client import LLMSettings
+
+    try:
+        settings = LLMSettings.from_env()
+    except ValueError:  # unknown provider or non-numeric limits: the client refuses them too
+        return {"provider": None, "model": None, "configured": False,
+                "reason": "LLM settings invalid"}
+    code = settings.unavailable_reason
+    return {"provider": settings.provider, "model": settings.model, "configured": code is None,
+            "reason": LLM_STATUS_TEXT.get(code, code) if code else None}
+
+
 async def run_analysis(batch_ref: str, mode: Mode = "strict") -> AnalysisResult:
     """Ingest, gate, score and investigate one batch."""
     services, config = _ensure()

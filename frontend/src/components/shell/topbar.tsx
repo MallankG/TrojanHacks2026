@@ -7,7 +7,6 @@ import { openModal, selectBatch, setRole, signOut, updateGraph } from "@/lib/sto
 import { useLive } from "@/lib/live/api";
 import { commandApi, useLiveNotifications, type SearchHit } from "@/lib/live/api-command";
 import { utc } from "@/lib/live/format";
-import { LIVE_ROLES } from "@/lib/live/roles";
 import { useLiveProfile } from "@/lib/live/session";
 import { setMasked, useMaskers } from "@/lib/privacy/store";
 import { useDemoState, useRole } from "@/lib/store/hooks";
@@ -246,6 +245,7 @@ export function Topbar() {
   const pathname = usePathname();
   const state = useDemoState();
   const profile = useLiveProfile();
+  const role = useRole();
   const screen = SCREEN_TITLES[screenForPath(pathname)];
   return (
     <header className="flex flex-wrap items-center gap-3 border-b border-line bg-white px-7 py-3">
@@ -260,7 +260,7 @@ export function Topbar() {
         // Live: the account's own role (several backend roles share one prototype role, so the picker would mislabel it)
         <span className="flex items-center gap-2 text-[12.5px] text-muted" title="Your role comes from your account">
           Role
-          <span className="flex min-h-10 items-center rounded-[10px] border border-line bg-subtle px-2.5 text-sm text-ink">{LIVE_ROLES[profile.role].label}</span>
+          <span className="flex min-h-10 items-center rounded-[10px] border border-line bg-subtle px-2.5 text-sm text-ink">{role.label}</span>
         </span>
       ) : (
         <label className="flex items-center gap-2 text-[12.5px] text-muted">

@@ -5,6 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
+from tracelayer_agents import api as agents_api
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.security import ANY_USER, CurrentUser
@@ -67,7 +68,7 @@ def dashboard_summary(
         "ingestion": ingestion,
         "model_freshness": freshness,
         "pipeline": dash.pipeline_flags(ingestion, freshness, ranker_attempt, now),
-        "llm": dash.llm_status(),
+        "llm": agents_api.llm_status(),
     }
 
 
