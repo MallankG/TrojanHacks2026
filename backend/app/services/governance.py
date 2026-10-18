@@ -67,6 +67,8 @@ def _metric_key(key: str) -> str:
     return k
 
 
+# Scalars in a metrics blob that are settings or sizes, not performance metrics.
+NOT_METRICS = {"threshold", "seed", "random_seed", "n", "n_rows", "rows", "positives", "epoch", "epochs", "rounds"}
 HEADLINE_ORDER = ("pr_auc", "roc_auc", "precision", "recall", "f1", "false_alerts_per_1000_tx")
 
 
@@ -85,9 +87,9 @@ def headline_metrics(metrics: dict | None) -> dict[str, float]:
     out: dict[str, float] = {}
     for source in sources:  # later sources (test) override earlier ones
         for key, value in source.items():
-            number = _number(value)
-            if number is not None:
-                out[_metric_key(str(key))] = number
+            number, name = _number(value), _metric_key(str(key))
+            if number is not None and name not in NOT_METRICS:
+                out[name] = number
     return out
 
 
