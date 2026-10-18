@@ -1,0 +1,107 @@
+{
+  "paper": {
+    "auroc": 98.18,
+    "auprc": 38.46,
+    "auprc_sd": 1.01,
+    "best_f1": 40.3
+  },
+  "split_cutoffs": [
+    "2022-09-06T18:24",
+    "2022-09-08T03:28"
+  ],
+  "features": [
+    "src_out_deg",
+    "src_out_mean",
+    "src_out_std",
+    "src_in_deg",
+    "src_in_mean",
+    "src_in_std",
+    "src_reinv_cnt",
+    "src_reinv_vol",
+    "src_ent_Individual",
+    "src_ent_Sole Proprietorship",
+    "src_ent_Partnership",
+    "src_ent_Corporation",
+    "src_ent_Country",
+    "src_ent_Direct",
+    "dst_out_deg",
+    "dst_out_mean",
+    "dst_out_std",
+    "dst_in_deg",
+    "dst_in_mean",
+    "dst_in_std",
+    "dst_reinv_cnt",
+    "dst_reinv_vol",
+    "dst_ent_Individual",
+    "dst_ent_Sole Proprietorship",
+    "dst_ent_Partnership",
+    "dst_ent_Corporation",
+    "dst_ent_Country",
+    "dst_ent_Direct",
+    "log_amt",
+    "h_sin",
+    "h_cos",
+    "day",
+    "fmt_ACH",
+    "fmt_Bitcoin",
+    "fmt_Cash",
+    "fmt_Cheque",
+    "fmt_Credit Card",
+    "fmt_Wire",
+    "cur_mismatch"
+  ],
+  "test_mean_sd": {
+    "paper": {
+      "auroc": [
+        98.21249214566265,
+        0.061682630735124276
+      ],
+      "auprc": [
+        38.04602039791301,
+        0.9139876295296728
+      ],
+      "best_f1": [
+        39.70785239416445,
+        1.0500177080322097
+      ],
+      "best_precision": [
+        42.39929724051137,
+        3.291742151060451
+      ],
+      "best_recall": [
+        37.755491881566385,
+        3.166387186400822
+      ],
+      "best_threshold": [
+        0.9863466024398804,
+        0.002717814612182843
+      ]
+    },
+    "tuned": {
+      "auroc": [
+        98.321966813223,
+        0.046300575365470095
+      ],
+      "auprc": [
+        47.628570317388025,
+        0.38463157220983124
+      ],
+      "best_f1": [
+        47.83490623714364,
+        0.4521862965045163
+      ],
+      "best_precision": [
+        63.439891021063275,
+        3.1216097617310474
+      ],
+      "best_recall": [
+        38.490926456542496,
+        1.3850739288861498
+      ],
+      "best_threshold": [
+        0.8255717754364014,
+        0.021821830279985046
+      ]
+    }
+  }
+}

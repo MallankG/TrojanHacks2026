@@ -1,0 +1,177 @@
+{
+  "config": {
+    "neg_ratio": 200,
+    "n_estimators": 3000,
+    "max_depth": 8,
+    "learning_rate": 0.05,
+    "spw": "sqrt",
+    "early_stopping_rounds": 150
+  },
+  "paper": {
+    "auroc": 98.18,
+    "auprc": 38.46,
+    "auprc_sd": 1.01,
+    "best_f1": 40.3
+  },
+  "runs": [
+    {
+      "val": {
+        "auroc": 97.97189856585405,
+        "auprc": 42.4410069142176,
+        "best_f1": 43.486777668952016,
+        "best_precision": 60.0,
+        "best_recall": 34.10138248847927,
+        "best_threshold": 0.8433916568756104
+      },
+      "test": {
+        "auroc": 98.37962017016828,
+        "auprc": 46.90904873021739,
+        "best_f1": 47.0517084971273,
+        "best_precision": 64.13849958779885,
+        "best_recall": 37.15377268385864,
+        "best_threshold": 0.8263790011405945
+      }
+    },
+    {
+      "val": {
+        "auroc": 97.95322886150689,
+        "auprc": 42.870705294107445,
+        "best_f1": 43.83301707779886,
+        "best_precision": 57.32009925558312,
+        "best_recall": 35.483870967741936,
+        "best_threshold": 0.8230375051498413
+      },
+      "test": {
+        "auroc": 98.3442571835025,
+        "auprc": 47.63020707009705,
+        "best_f1": 48.180135718692156,
+        "best_precision": 68.03135888501743,
+        "best_recall": 37.29703915950334,
+        "best_threshold": 0.8524751663208008
+      }
+    },
+    {
+      "val": {
+        "auroc": 98.02450158053654,
+        "auprc": 43.291228972619095,
+        "best_f1": 44.95335029686175,
+        "best_precision": 50.189393939393945,
+        "best_recall": 40.706605222734254,
+        "best_threshold": 0.7739871144294739
+      },
+      "test": {
+        "auroc": 98.33662384102333,
+        "auprc": 47.84298708989307,
+        "best_f1": 47.71279675738274,
+        "best_precision": 60.588235294117645,
+        "best_recall": 39.350525310410696,
+        "best_threshold": 0.8012881875038147
+      }
+    },
+    {
+      "val": {
+        "auroc": 97.90578435979852,
+        "auprc": 43.19241414167626,
+        "best_f1": 44.526901669758814,
+        "best_precision": 56.20608899297424,
+        "best_recall": 36.86635944700461,
+        "best_threshold": 0.8647448420524597
+      },
+      "test": {
+        "auroc": 98.24143643170795,
+        "auprc": 48.037273519387924,
+        "best_f1": 48.357870894677234,
+        "best_precision": 59.38803894297635,
+        "best_recall": 40.783190066857685,
+        "best_threshold": 0.8008261919021606
+      }
+    },
+    {
+      "val": {
+        "auroc": 97.93683650257796,
+        "auprc": 43.06739667812631,
+        "best_f1": 44.403330249768736,
+        "best_precision": 55.81395348837209,
+        "best_recall": 36.86635944700461,
+        "best_threshold": 0.8317267298698425
+      },
+      "test": {
+        "auroc": 98.30789643971296,
+        "auprc": 47.72333517734469,
+        "best_f1": 47.87201931783881,
+        "best_precision": 65.05332239540607,
+        "best_recall": 37.87010506208214,
+        "best_threshold": 0.8468903303146362
+      }
+    }
+  ],
+  "test_mean_sd": {
+    "auroc": [
+      98.321966813223,
+      0.046300575365470095
+    ],
+    "auprc": [
+      47.628570317388025,
+      0.38463157220983124
+    ],
+    "best_f1": [
+      47.83490623714364,
+      0.4521862965045163
+    ],
+    "best_precision": [
+      63.439891021063275,
+      3.1216097617310474
+    ],
+    "best_recall": [
+      38.490926456542496,
+      1.3850739288861498
+    ],
+    "best_threshold": [
+      0.8255717754364014,
+      0.021821830279985046
+    ]
+  },
+  "features": [
+    "src_out_deg",
+    "src_out_mean",
+    "src_out_std",
+    "src_in_deg",
+    "src_in_mean",
+    "src_in_std",
+    "src_reinv_cnt",
+    "src_reinv_vol",
+    "src_ent_Individual",
+    "src_ent_Sole Proprietorship",
+    "src_ent_Partnership",
+    "src_ent_Corporation",
+    "src_ent_Country",
+    "src_ent_Direct",
+    "dst_out_deg",
+    "dst_out_mean",
+    "dst_out_std",
+    "dst_in_deg",
+    "dst_in_mean",
+    "dst_in_std",
+    "dst_reinv_cnt",
+    "dst_reinv_vol",
+    "dst_ent_Individual",
+    "dst_ent_Sole Proprietorship",
+    "dst_ent_Partnership",
+    "dst_ent_Corporation",
+    "dst_ent_Country",
+    "dst_ent_Direct",
+    "log_amt",
+    "h_sin",
+    "h_cos",
+    "day",
+    "fmt_ACH",
+    "fmt_Bitcoin",
+    "fmt_Cash",
+    "fmt_Cheque",
+    "fmt_Credit Card",
+    "fmt_Wire",
+    "cur_mismatch"
+  ],
+  "serving_seed": 4,
+  "operating_threshold": 0.8317267298698425
+}
