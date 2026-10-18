@@ -13,6 +13,7 @@ from app.core.db import fetch_by_ids, get_db, get_one
 from app.core.errors import NotFound
 from app.core.security import ANY_CALLER, ANY_USER, CurrentUser
 from app.services import governance as gov
+from app.services.case_visibility import authorized_case_ids
 
 router = APIRouter(tags=["governance"])
 
@@ -119,6 +120,8 @@ def _resolve(user: CurrentUser, ref: str) -> list[dict]:
                             "detail": f"{a.get('typology')} · {a.get('status')}"})
 
     def case_alerts(case: dict) -> None:
+        if case["id"] not in authorized_case_ids(user, {case["id"]}):
+            return
         links = db.table("case_alerts").select("alert_id").eq("tenant_id", tid).eq("case_id", case["id"]) \
             .limit(MAX_MATCHES).execute().data or []
         if not links:
@@ -232,6 +235,8 @@ def pipelines(limit: int = Query(default=50, ge=1, le=RUN_LIMIT), user: CurrentU
     agent_runs = get_db().table("agent_runs").select(
         "id, case_id, graph_name, graph_version, status, current_step, steps, error_message, started_at, completed_at, created_at"
     ).eq("tenant_id", tid).order("created_at", desc=True).limit(limit).execute().data or []
+    allowed_cases = authorized_case_ids(user, {r["case_id"] for r in agent_runs})
+    agent_runs = [r for r in agent_runs if r["case_id"] in allowed_cases]
     for run in agent_runs:
         steps = run.pop("steps", None)
         run["step_count"] = len(steps) if isinstance(steps, list) else 0
@@ -268,6 +273,8 @@ def exports(limit: int = Query(default=100, ge=1, le=500), user: CurrentUser = D
     tid = user.tenant_id
     events = get_db().table("audit_events").select("*").eq("tenant_id", tid).eq("action", "case.exported") \
         .order("occurred_at", desc=True).limit(limit).execute().data or []
+    allowed_cases = authorized_case_ids(user, {e["object_id"] for e in events if gov.UUID_RE.match(e.get("object_id") or "")})
+    events = [e for e in events if e.get("object_id") in allowed_cases]
     case_rows = fetch_by_ids("cases", tid, {e["object_id"] for e in events if gov.UUID_RE.match(e.get("object_id") or "")},
                              "id, case_number, title")
     actor_ids = {e["actor_id"] for e in events if e.get("actor_id")}
