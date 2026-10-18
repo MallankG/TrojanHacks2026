@@ -1,22 +1,40 @@
-"""Score-level ensemble of saved HI-Small models (PRD "Prioritize": a ranker evaluated, not invented weights).
+"""Score-level ensemble of two saved HI-Small models (PRD "Prioritize": an evaluated ranker, not invented weights).
 
-Blends per-model scores after converting each to its percentile rank within the split; the blend weight is
-picked on validation AUPRC over a grid and reported, test is scored once.
+Each model's raw score is mapped to its percentile within that model's stored VALIDATION scores
+(searchsorted on the sorted val distribution), then blended as w*pct_a + (1-w)*pct_b. The reference
+distributions are frozen at training time, so a single new transaction can be scored (servable, not
+transductive). The weight is chosen on validation AUPRC; test is scored once.
 
-    python -m ml.ibm.ensemble --models gnn_v2 xgb_temporal --out ml/artifacts/ibm
+    python -m ml.ibm.ensemble --models gnn_temporal xgb_temporal --out ml/artifacts/ibm
+    # serving:  EnsembleScorer("gnn_temporal", "xgb_temporal").blend(gnn_scores, xgb_scores)
 """
 import argparse
+import json
 from pathlib import Path
 
 import numpy as np
-from scipy.stats import rankdata
 from sklearn.metrics import average_precision_score
 
 from .common import evaluate_and_save
 
+ART = Path(__file__).parent.parent / "artifacts" / "ibm"
 
-def pct(s):
-    return rankdata(s) / len(s)
+
+def pct(ref_sorted, s):
+    """Fraction of reference (val) scores <= s."""
+    return np.searchsorted(ref_sorted, s, side="right") / len(ref_sorted)
+
+
+class EnsembleScorer:
+    def __init__(self, a, b, artifact_dir=ART):
+        d = Path(artifact_dir)
+        res = json.loads((d / f"ibm_ensemble_{a}_{b}_results.json").read_text())
+        ref = np.load(d / f"ibm_ensemble_{a}_{b}_ref.npz")
+        self.ref_a, self.ref_b, self.w = ref["ref_a"], ref["ref_b"], res[f"weight_{a}"]
+        self.threshold = res["val"]["best_threshold"]
+
+    def blend(self, s_a, s_b):
+        return self.w * pct(self.ref_a, np.asarray(s_a)) + (1 - self.w) * pct(self.ref_b, np.asarray(s_b))
 
 
 if __name__ == "__main__":
@@ -26,8 +44,9 @@ if __name__ == "__main__":
     a = ap.parse_args()
     z = [np.load(Path(a.out) / f"ibm_{m}_scores.npz") for m in a.models]
     assert all((x["y_val"] == z[0]["y_val"]).all() and (x["y_test"] == z[0]["y_test"]).all() for x in z), "row order mismatch"
-    val = [pct(x["s_val"]) for x in z]
-    test = [pct(x["s_test"]) for x in z]
+    ref = [np.sort(x["s_val"]) for x in z]
+    val = [pct(r, x["s_val"]) for r, x in zip(ref, z)]
+    test = [pct(r, x["s_test"]) for r, x in zip(ref, z)]
     grid = np.round(np.arange(0, 1.01, 0.1), 2)
     ap_val = {float(w): float(average_precision_score(z[0]["y_val"], w * val[0] + (1 - w) * val[1])) for w in grid}
     w = max(ap_val, key=ap_val.get)
@@ -35,5 +54,7 @@ if __name__ == "__main__":
     s = np.r_[w * val[0] + (1 - w) * val[1], w * test[0] + (1 - w) * test[1]]
     va, te = np.arange(len(val[0])), np.arange(len(val[0]), len(y))
     name = f"ensemble_{a.models[0]}_{a.models[1]}"
-    evaluate_and_save(name, y, s, va, te, a.out, {"models": a.models, f"weight_{a.models[0]}": w, "val_auprc_by_weight": ap_val})
+    np.savez_compressed(Path(a.out) / f"ibm_{name}_ref.npz", ref_a=ref[0], ref_b=ref[1])
+    evaluate_and_save(name, y, s, va, te, a.out, {"models": a.models, f"weight_{a.models[0]}": w, "val_auprc_by_weight": ap_val,
+                                                  "ranking": "percentile vs stored val score distributions (servable)"})
     print(f"weight on {a.models[0]}: {w}  (val AUPRC by weight: {ap_val})")
