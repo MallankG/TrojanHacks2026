@@ -20,6 +20,7 @@ import { KeyValueList } from "@/components/ui/key-value";
 import { EmptyState } from "@/components/ui/misc";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
+import { MaskedRef, SensitiveRef, SensitiveText } from "@/components/ui/sensitive";
 import { DataTable, Td, Th, Tr } from "@/components/ui/table";
 import { useFlag } from "@/components/shell/feature-gate";
 import { GraphCanvas } from "./graph-canvas";
@@ -185,7 +186,7 @@ function Inspector({ view, fixed, graphDown }: { view: GraphView; fixed: boolean
     return (
       <Panel>
         <div className="eyebrow">Selected node</div>
-        <h2 className="font-mono text-base font-semibold">{node.id}</h2>
+        <h2 className="font-mono text-base font-semibold"><SensitiveRef value={node.id} /></h2>
         <KeyValueList items={fields} />
         <div className="flex flex-wrap gap-2">
           {key === "B" && !graphDown ? (
@@ -373,8 +374,8 @@ export function GraphWorkbench() {
                                 {edge.tx}
                               </button>
                             </Td>
-                            <Td className="font-mono">{NODES[edge.from].id}</Td>
-                            <Td className="font-mono">{NODES[edge.to].id}</Td>
+                            <Td className="font-mono"><MaskedRef value={NODES[edge.from].id} /></Td>
+                            <Td className="font-mono"><MaskedRef value={NODES[edge.to].id} /></Td>
                             <Td>{held ? "On hold" : formatMoney(edge.amount)}</Td>
                             <Td>{edge.rail}</Td>
                             <Td>{edge.initiated}</Td>
@@ -421,7 +422,7 @@ export function GraphWorkbench() {
                 <div className="flex flex-wrap gap-1.5">
                   {view.pinned.map((id) => (
                     <Pill key={id} tone="info" mono>
-                      {id}
+                      <SensitiveText value={id} />
                       <button type="button" aria-label={`Unpin ${id}`} onClick={() => togglePin(id)} className="min-h-5 px-0.5 font-bold">
                         ×
                       </button>

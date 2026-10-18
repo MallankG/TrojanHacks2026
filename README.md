@@ -5,6 +5,7 @@ Governed financial-crime investigation layer. Spec: `docs/TraceLayer_PRD_v3_3_Im
 - `frontend/` — Next.js app
 - `backend/` — FastAPI app (`main.py`) and ML (`ml/`)
 - `docs/` — PRD
+- [`docs/PRIVACY.md`](docs/PRIVACY.md) — how personal data is classified, masked and redacted
 
 ## Backend
 

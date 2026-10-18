@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { GraphPayload } from "@/lib/live/api";
 import { money, utc, words } from "@/lib/live/format";
+import { useMaskers } from "@/lib/privacy/store";
 import { KeyValueList } from "@/components/ui/key-value";
 import { EmptyState } from "@/components/ui/misc";
 
@@ -14,6 +15,7 @@ const H = 360;
  * so funds read left to right. Path tracing is investigative context, not proof of where funds went.
  */
 export function LiveGraph({ graph }: { graph: GraphPayload }) {
+  const mask = useMaskers();
   const [selected, setSelected] = useState<string | null>(graph.edges[0]?.id ?? null);
 
   const layout = useMemo(() => {
@@ -37,7 +39,7 @@ export function LiveGraph({ graph }: { graph: GraphPayload }) {
 
   if (graph.edges.length === 0) return <EmptyState title="No transactions linked to this alert." />;
 
-  const nodeLabel = (id: string) => graph.nodes.find((n) => n.id === id)?.account_ref ?? id.slice(0, 8);
+  const nodeLabel = (id: string) => mask.ref(graph.nodes.find((n) => n.id === id)?.account_ref ?? id.slice(0, 8));
   const edge = graph.edges.find((e) => e.id === selected) ?? null;
 
   return (

@@ -2,10 +2,14 @@
 
 import { useSyncExternalStore } from "react";
 import { API_BASE_URL } from "@/lib/api/client";
+import { resetPrivacy } from "@/lib/privacy/store";
 
 /**
  * Live-mode session: Supabase Auth (email + password) plus the backend profile from `GET /me`.
  * Only the public publishable key is used here; the service-role key stays on the backend.
+ *
+ * Privacy: tokens live in sessionStorage (cleared when the tab closes, never shared with other
+ * tabs or kept across browser restarts) and the persisted copy never includes the user's email.
  */
 
 export const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
@@ -38,9 +42,22 @@ type Listener = () => void;
 const listeners = new Set<Listener>();
 let session: LiveSession | null | undefined;
 
+/** Sessions saved by earlier builds in localStorage are removed on first load. */
+function dropLegacyCopy(): void {
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Storage unavailable: nothing to remove.
+  }
+}
+
+function persisted(next: LiveSession): LiveSession {
+  return next.profile ? { ...next, profile: { ...next.profile, email: null } } : next;
+}
+
 function load(): LiveSession | null {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
     return raw ? (JSON.parse(raw) as LiveSession) : null;
   } catch {
     return null;
@@ -48,22 +65,26 @@ function load(): LiveSession | null {
 }
 
 export function getSession(): LiveSession | null {
-  if (session === undefined) session = typeof window === "undefined" ? null : load();
+  if (session === undefined) {
+    if (typeof window !== "undefined") dropLegacyCopy();
+    session = typeof window === "undefined" ? null : load();
+  }
   return session;
 }
 
 function setSession(next: LiveSession | null): void {
+  if ((session?.profile?.id ?? null) !== (next?.profile?.id ?? null)) resetPrivacy();
   session = next;
   try {
-    if (next) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    else window.localStorage.removeItem(STORAGE_KEY);
+    if (next) window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(persisted(next)));
+    else window.sessionStorage.removeItem(STORAGE_KEY);
   } catch {
     // Storage unavailable: the session lives in memory for this tab.
   }
   listeners.forEach((listener) => listener());
 }
 
-/** Another tab rotated or cleared the tokens: adopt its copy so this tab never reuses a revoked refresh token. */
+/** Another document rotated or cleared the tokens: adopt its copy so this tab never reuses a revoked refresh token. */
 function onStorage(event: StorageEvent): void {
   if (event.key !== STORAGE_KEY) return;
   session = load();

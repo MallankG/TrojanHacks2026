@@ -21,6 +21,7 @@ import {
 import { alertLabel, caseLabel, money, utc, words } from "@/lib/live/format";
 import { LIVE_ROLES } from "@/lib/live/roles";
 import { useLiveProfile } from "@/lib/live/session";
+import { useMaskers } from "@/lib/privacy/store";
 import { ROUTES } from "@/lib/routes";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
@@ -31,6 +32,7 @@ import { KeyValueList } from "@/components/ui/key-value";
 import { CodeBlock, EmptyState, Skeleton } from "@/components/ui/misc";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
+import { MaskedRef, SensitiveRef } from "@/components/ui/sensitive";
 import { DataTable, Td, Th, Tr } from "@/components/ui/table";
 import { LiveData } from "./live-state";
 import { LiveGraphCanvas, type GraphSelection } from "./live-graph-canvas";
@@ -75,6 +77,7 @@ interface Overlay {
 
 /** Live graph workbench: real accounts and transactions, bounded by the backend's caps. */
 export function LiveGraphWorkbench() {
+  const mask = useMaskers();
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -117,7 +120,8 @@ export function LiveGraphWorkbench() {
   const shown = useMemo(() => (hood.data ? mergeGraphs(hood.data, overlay?.graph) : null), [hood.data, overlay]);
   const highlight = useMemo(() => new Set(overlay?.transactionIds ?? []), [overlay]);
   const toggleRail = (rail: Rail) => setRails((list) => (list.includes(rail) ? list.filter((r) => r !== rail) : [...list, rail]));
-  const refOf = (id: string) => shown?.nodes.find((n) => n.id === id)?.account_ref ?? id.slice(0, 8);
+  // Every label below (edges, hops, patterns, inspector) goes through refOf, so masking here covers them.
+  const refOf = (id: string) => mask.ref(shown?.nodes.find((n) => n.id === id)?.account_ref ?? id.slice(0, 8));
 
   return (
     <>
@@ -146,7 +150,7 @@ export function LiveGraphWorkbench() {
             Alert accounts (dashed ring):
             {alert.data.accounts.map(({ role: r, accounts: a }) => (
               <Chip key={a.id} mono pressed={a.id === focus} onClick={() => focusOn(a.id)}>
-                {a.account_ref} · {words(r)}
+                <MaskedRef value={a.account_ref} /> · {words(r)}
               </Chip>
             ))}
           </span>
@@ -271,7 +275,7 @@ export function LiveGraphWorkbench() {
             <PathTracer
               key={`paths:${focus}`}
               focus={focus}
-              accounts={shown.nodes.filter((n) => n.id !== focus).map((n) => ({ id: n.id, ref: n.account_ref ?? n.id.slice(0, 8) }))}
+              accounts={shown.nodes.filter((n) => n.id !== focus).map((n) => ({ id: n.id, ref: refOf(n.id) }))}
               preferredTarget={selection?.kind === "node" && selection.id !== focus ? selection.id : null}
               filters={filters}
               refOf={refOf}
@@ -339,7 +343,7 @@ function AccountPicker({ focus, onPick, start, startError }: { focus: string | n
       <div className="flex flex-wrap gap-1.5">
         {list.map((a) => (
           <Chip key={a.id} mono pressed={a.id === focus} onClick={() => onPick(a.id)} title={`${a.in_count} in, ${a.out_count} out, ${a.counterparty_count} counterparties, ${money(a.volume_usd)} volume`}>
-            {a.account_ref}
+            <MaskedRef value={a.account_ref} />
             <span className="font-sans text-[11.5px] font-medium opacity-80">
               {a.degree} txns · {money(a.volume_usd).replace(/\.00$/, "")}
             </span>
@@ -401,10 +405,10 @@ function Inspector({ graph, selection, refOf, onFocus, isFocus }: { graph: Workb
     return (
       <Panel>
         <div className="eyebrow">Selected account</div>
-        <h2 className="font-mono text-base font-semibold">{n.account_ref ?? n.id}</h2>
+        <h2 className="font-mono text-base font-semibold"><SensitiveRef value={n.account_ref ?? n.id} /></h2>
         <KeyValueList
           items={[
-            ["Account", n.account_ref ?? "Not recorded"],
+            ["Account", <MaskedRef key="ref" value={n.account_ref} />],
             ["Institution", n.institution_ref ?? "Not recorded"],
             ["Type", n.is_internal === false ? "External" : "Internal"],
             ["Shown in", `${inShown} transaction${inShown === 1 ? "" : "s"}`],
@@ -458,6 +462,7 @@ function Inspector({ graph, selection, refOf, onFocus, isFocus }: { graph: Workb
 /** Lineage drill-through: the raw source row behind a transaction and its data-quality findings. */
 function SourceRowPeek({ rowId }: { rowId: string }) {
   const row = useLive(() => liveApi.sourceRow(rowId), `row:${rowId}`);
+  const mask = useMaskers();
   return (
     <LiveData query={row} label="source row">
       {(d) => (
@@ -474,11 +479,11 @@ function SourceRowPeek({ rowId }: { rowId: string }) {
           />
           {d.issues.length > 0 ? (
             <Callout tone="warn" title="This row has data-quality findings." action={<Link href={ROUTES.dataQuality} className={buttonClasses("link")}>Review in quality exceptions</Link>}>
-              {d.issues.map((i) => `${i.rule_id}: ${i.message}`).join(" · ")}
+              {d.issues.map((i) => `${i.rule_id}: ${mask.text(i.message)}`).join(" · ")}
             </Callout>
           ) : null}
           <b className="text-[13px]">Original values</b>
-          <CodeBlock>{JSON.stringify(d.source_row.raw_data, null, 2)}</CodeBlock>
+          <CodeBlock>{JSON.stringify(mask.record(d.source_row.raw_data), null, 2)}</CodeBlock>
         </div>
       )}
     </LiveData>

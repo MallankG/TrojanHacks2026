@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format";
+import { useMaskers } from "@/lib/privacy/store";
 import { ROUTES } from "@/lib/routes";
 import { dailyFlows, ENTITIES, ENTITY_ORDER } from "@/lib/seed/entities";
 import { decideEntityLink, decideScreening, openEvidence, selectGraphNode, setCopilotFocus, toast } from "@/lib/store/actions";
@@ -17,6 +18,7 @@ import { KeyValueList } from "@/components/ui/key-value";
 import { Legend, Swatch } from "@/components/ui/misc";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
+import { MaskedRef, SensitiveRef, SensitiveText } from "@/components/ui/sensitive";
 import { DataTable, Td, Th } from "@/components/ui/table";
 
 const CHART_HEIGHT = 130;
@@ -27,6 +29,7 @@ function FlowChart({ entityKey }: { entityKey: AccountKey }) {
   const max = Math.max(1, ...days.map((d) => Math.max(d.inflow, d.outflow)));
   const height = (v: number) => (v > 0 ? Math.max(2, Math.round(Math.sqrt(v / max) * CHART_HEIGHT)) : 0);
   const baseline = height(Math.max(entity.baseIn, entity.baseOut));
+  const mask = useMaskers();
 
   return (
     <Panel>
@@ -34,7 +37,7 @@ function FlowChart({ entityKey }: { entityKey: AccountKey }) {
         <h2 className="text-base font-semibold">Daily flow, last 30 days</h2>
         <span className="text-xs text-muted">Square-root scale. Dashed line = baseline.</span>
       </div>
-      <div className="relative flex h-[140px] items-end gap-[3px] border-b border-[#d5dce6]" role="img" aria-label={`Daily inflow and outflow for ${entity.id} over 30 days, with a spike on ${days[entity.spikeDay]?.label}.`}>
+      <div className="relative flex h-[140px] items-end gap-[3px] border-b border-[#d5dce6]" role="img" aria-label={`Daily inflow and outflow for ${mask.ref(entity.id)} over 30 days, with a spike on ${days[entity.spikeDay]?.label}.`}>
         <div aria-hidden="true" className="absolute inset-x-0 border-t-2 border-dashed border-[#8a97ab]" style={{ bottom: baseline }} />
         {days.map((day) => (
           <div key={day.label} title={`${day.label}: in ${formatMoney(day.inflow)}, out ${formatMoney(day.outflow)}`} className="flex h-full flex-1 items-end gap-px">
@@ -66,6 +69,7 @@ export function EntityProfile({ entityKey }: { entityKey: AccountKey }) {
   const fixed = state.data.driftFixed;
   const entity = ENTITIES[entityKey];
   const dataWarning = Boolean(entity.dataHeld) && !fixed;
+  const mask = useMaskers();
 
   return (
     <>
@@ -83,7 +87,7 @@ export function EntityProfile({ entityKey }: { entityKey: AccountKey }) {
                   aria-current={active ? "page" : undefined}
                   className={cn("inline-flex min-h-9 items-center rounded-full border px-3 font-mono text-[13px] font-semibold", active ? "border-ink bg-ink text-white" : "border-line-strong bg-white text-ink-2 hover:border-[#8a97ab]")}
                 >
-                  {ENTITIES[key].id}
+                  <MaskedRef value={ENTITIES[key].id} />
                 </Link>
               );
             })}
@@ -94,7 +98,7 @@ export function EntityProfile({ entityKey }: { entityKey: AccountKey }) {
       <Panel className="flex-row flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1.5">
           <div className="eyebrow">{entity.role}</div>
-          <h2 className="font-mono text-[22px] font-semibold">{entity.id}</h2>
+          <h2 className="font-mono text-[22px] font-semibold"><SensitiveRef value={entity.id} /></h2>
           <span className="text-[13.5px] text-muted">
             {entity.kind} · {entity.segment}
           </span>
@@ -120,7 +124,7 @@ export function EntityProfile({ entityKey }: { entityKey: AccountKey }) {
             size="sm"
             onClick={() => {
               setCopilotFocus(entity.id);
-              toast(`Copilot context refreshed: ${entity.id} is now selected.`);
+              toast(`Copilot context refreshed: ${mask.ref(entity.id)} is now selected.`);
               router.push(ROUTES.copilot);
             }}
           >
@@ -131,9 +135,13 @@ export function EntityProfile({ entityKey }: { entityKey: AccountKey }) {
 
       {dataWarning ? (
         <Callout tone="warn" title="Data-quality warning." action={<Link href={ROUTES.data} className={buttonClasses("link")}>Open data operations</Link>}>
-          {entityKey === "C"
-            ? "The outbound transfer to ACC-4471 is in quarantined batch ach_2026_10_06_b. Flow ratios are partial."
-            : "The inbound transfer from ACC-3315 is in quarantined batch ach_2026_10_06_b. This profile is incomplete."}
+          <SensitiveText
+            value={
+              entityKey === "C"
+                ? "The outbound transfer to ACC-4471 is in quarantined batch ach_2026_10_06_b. Flow ratios are partial."
+                : "The inbound transfer from ACC-3315 is in quarantined batch ach_2026_10_06_b. This profile is incomplete."
+            }
+          />
         </Callout>
       ) : null}
 
@@ -195,7 +203,7 @@ export function EntityProfile({ entityKey }: { entityKey: AccountKey }) {
                 <tr key={c.id}>
                   <Td>
                     <button type="button" className={buttonClasses("link", "md", "font-mono")} onClick={() => openEvidence(c.id)}>
-                      {c.id}
+                      <MaskedRef value={c.id} />
                     </button>
                   </Td>
                   <Td>{c.direction}</Td>

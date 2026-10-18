@@ -5,11 +5,14 @@ import sample from "@/lib/seed/enterprise-demo.json";
 import { ApiError, apiRequest } from "@/lib/api/client";
 import { call } from "@/lib/live/api";
 import { getSession, useLiveSession } from "@/lib/live/session";
+import { findPii, redactText } from "@/lib/privacy/pii";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { CardHeader, Panel } from "@/components/ui/card";
 import { Field, Select, TextArea, TextInput } from "@/components/ui/field";
 import { Callout } from "@/components/ui/callout";
 import { Pill } from "@/components/ui/pill";
+import { PiiWarning } from "@/components/ui/pii-warning";
+import { SensitiveText } from "@/components/ui/sensitive";
 
 type Kind = "comment" | "assignment" | "bookmark" | "hypothesis" | "vote" | "review_request" | "conflict" | "resolution";
 type Payload = { kind: Kind; text: string; evidence_ids: string[]; mentions: string[]; target_id: string | null; target_user_id: string | null; vote: string | null };
@@ -36,6 +39,9 @@ function EnterpriseWorkspaceContent({ signedIn }: { signedIn: boolean }) {
   const [caseId, setCaseId] = useState(sample.case_id);
   const [kind, setKind] = useState<Kind>("comment");
   const [text, setText] = useState("");
+  // Notes are stored in an append-only room, so personal data is caught before it is posted.
+  const [piiHeld, setPiiHeld] = useState(false);
+  const piiFound = findPii(text);
   const [mention, setMention] = useState("");
   const [targetUser, setTargetUser] = useState(sample.reviewer_id);
   const [evidenceId, setEvidenceId] = useState(sample.evidence[0].id);
@@ -83,8 +89,8 @@ function EnterpriseWorkspaceContent({ signedIn }: { signedIn: boolean }) {
     setMessage("Case room loaded. Only authorized members can read or contribute.");
   }
   function reset() { setRoom(newDemo()); setCaseId(sample.case_id); setLive(false); setBriefing(null); setMetrics(sample.operations); setOperationsLive(false); setRelease(null); setEnvironment(null); setMessage("Synthetic room reset. Tenant records were not changed."); pending.current = null; }
-  async function addEvent() {
-    const payload: Payload = { kind, text, mentions: mention ? [mention] : [], evidence_ids: kind === "bookmark" && evidenceId ? [evidenceId] : [], target_id: ["vote", "resolution"].includes(kind) ? targetEvent || null : null, target_user_id: kind === "assignment" ? targetUser || null : null, vote: kind === "vote" ? vote : null };
+  async function addEvent(noteText = text) {
+    const payload: Payload = { kind, text: noteText, mentions: mention ? [mention] : [], evidence_ids: kind === "bookmark" && evidenceId ? [evidenceId] : [], target_id: ["vote", "resolution"].includes(kind) ? targetEvent || null : null, target_user_id: kind === "assignment" ? targetUser || null : null, vote: kind === "vote" ? vote : null };
     const signature = JSON.stringify(payload);
     if (pending.current?.signature !== signature) pending.current = { signature, key: crypto.randomUUID() };
     if (live) {
@@ -95,7 +101,7 @@ function EnterpriseWorkspaceContent({ signedIn }: { signedIn: boolean }) {
       setRoom(r => ({ ...r, revision: r.revision + 1, events: [event, ...r.events] }));
       setMessage("Synthetic action recorded for this page session only.");
     }
-    pending.current = null; setText(""); setBriefing(null);
+    pending.current = null; setText(""); setBriefing(null); setPiiHeld(false);
   }
   const canPost = writable && !busy && (!(["comment", "hypothesis", "review_request", "conflict", "resolution"] as Kind[]).includes(kind) || text.trim().length >= 5) && (kind !== "bookmark" || Boolean(evidenceId)) && (!["vote", "resolution"].includes(kind) || Boolean(targetEvent)) && (kind !== "assignment" || Boolean(targetUser));
   async function handoff() {
@@ -124,21 +130,22 @@ function EnterpriseWorkspaceContent({ signedIn }: { signedIn: boolean }) {
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel><CardHeader title="Contribute to the investigation" description="Hypotheses and votes are review input; they never become verified evidence automatically." />
           <Field label="Action">{p => <Select {...p} value={kind} onChange={e => { setKind(e.target.value as Kind); setTargetEvent(""); }}>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>}</Field>
-          <Field label="Note or rationale">{p => <TextArea {...p} rows={4} maxLength={2000} value={text} onChange={e => setText(e.target.value)} />}</Field>
+          <Field label="Note or rationale">{p => <TextArea {...p} rows={4} maxLength={2000} value={text} onChange={e => { setText(e.target.value); setPiiHeld(false); }} />}</Field>
           <Field label="Mention a case collaborator">{p => <Select {...p} value={mention} onChange={e => setMention(e.target.value)}><option value="">No mention</option>{room.members.map(m => <option key={m.user_id} value={m.user_id}>{m.case_role} · {m.user_id}</option>)}</Select>}</Field>
           {kind === "bookmark" && <Field label="Case evidence">{p => <Select {...p} value={evidenceId} onChange={e => setEvidenceId(e.target.value)}><option value="">Choose evidence</option>{room.evidence.map(e => <option key={e.id} value={e.id}>{e.evidence_type} · {e.explanation}</option>)}</Select>}</Field>}
           {kind === "assignment" && <Field label="Assign to collaborator">{p => <Select {...p} value={targetUser} onChange={e => setTargetUser(e.target.value)}><option value="">Choose assignee</option>{room.members.map(m => <option key={m.user_id} value={m.user_id}>{m.case_role} · {m.user_id}</option>)}</Select>}</Field>}
           {["vote", "resolution"].includes(kind) && <Field label={kind === "vote" ? "Hypothesis to vote on" : "Conflict to resolve"}>{p => <Select {...p} value={targetEvent} onChange={e => setTargetEvent(e.target.value)}><option value="">Choose a recorded item</option>{targets.map(e => <option key={e.id} value={e.id}>#{e.revision} · {e.payload.text}</option>)}</Select>}</Field>}
           {kind === "vote" && <Field label="Vote">{p => <Select {...p} value={vote} onChange={e => setVote(e.target.value)}><option value="support">Support</option><option value="challenge">Challenge</option><option value="abstain">Abstain</option></Select>}</Field>}
-          <Button disabled={!canPost} onClick={() => work(addEvent)}>Record {labels[kind].toLowerCase()}</Button>
+          {piiHeld && piiFound.length > 0 && <PiiWarning found={piiFound} onSendRedacted={() => work(() => addEvent(redactText(text)))} onEdit={() => setPiiHeld(false)} />}
+          <Button disabled={!canPost} onClick={() => (piiFound.length > 0 ? setPiiHeld(true) : work(() => addEvent()))}>Record {labels[kind].toLowerCase()}</Button>
         </Panel>
         <Panel><CardHeader title="Case activity and evidence bookmarks" description="Live actions have immutable event IDs, payload hashes and request IDs. This view shows the latest 100 events." />
           {room.events.length === 0 && <p className="text-sm text-muted">No collaboration events yet. Add a comment, bookmark or hypothesis to start.</p>}
-          <ol className="flex max-h-[650px] flex-col gap-4 overflow-auto">{room.events.map(event => <li key={event.id} className="border-t border-line pt-3 text-sm"><div className="flex justify-between gap-2"><b>#{event.revision} · {labels[event.kind]}</b><span className="text-xs text-muted">{new Date(event.created_at).toLocaleString()}</span></div><p className="mt-2 whitespace-pre-wrap break-words">{event.payload.text || event.payload.vote || "Evidence bookmarked"}</p>{event.payload.mentions.length > 0 && <p className="mt-1 break-all text-xs text-muted">Mentions: {event.payload.mentions.join(", ")}</p>}{event.payload.evidence_ids.map(id => <p className="mt-1 break-all text-xs" key={id}>Evidence: {id}</p>)}{event.payload.target_id && <p className="text-xs text-muted">Refers to {event.payload.target_id}</p>}{event.payload_hash && <details className="mt-1"><summary className="cursor-pointer text-xs">Audit receipt</summary><code className="break-all text-xs">{event.payload_hash}</code></details>}</li>)}</ol>
+          <ol className="flex max-h-[650px] flex-col gap-4 overflow-auto">{room.events.map(event => <li key={event.id} className="border-t border-line pt-3 text-sm"><div className="flex justify-between gap-2"><b>#{event.revision} · {labels[event.kind]}</b><span className="text-xs text-muted">{new Date(event.created_at).toLocaleString()}</span></div><p className="mt-2 whitespace-pre-wrap break-words"><SensitiveText value={event.payload.text || event.payload.vote || "Evidence bookmarked"} /></p>{event.payload.mentions.length > 0 && <p className="mt-1 break-all text-xs text-muted">Mentions: {event.payload.mentions.join(", ")}</p>}{event.payload.evidence_ids.map(id => <p className="mt-1 break-all text-xs" key={id}>Evidence: {id}</p>)}{event.payload.target_id && <p className="text-xs text-muted">Refers to {event.payload.target_id}</p>}{event.payload_hash && <details className="mt-1"><summary className="cursor-pointer text-xs">Audit receipt</summary><code className="break-all text-xs">{event.payload_hash}</code></details>}</li>)}</ol>
         </Panel>
       </div>
       <Panel><CardHeader title="Shift briefing and handoff" description="The recipient must already have access. This prepares a briefing; it does not send it." /><Field label="Briefing recipient">{p => <Select {...p} value={targetUser} onChange={e => { setTargetUser(e.target.value); setBriefing(null); }}>{room.members.map(m => <option key={m.user_id} value={m.user_id}>{m.case_role} · {m.user_id}</option>)}</Select>}</Field><Button disabled={busy || !targetUser} className="self-start" onClick={() => work(handoff)}>Prepare permitted handoff</Button>
-        {briefing && <div className="flex flex-col gap-3 text-sm"><h3 className="font-semibold">Verified developments</h3>{briefing.verified_developments.length ? briefing.verified_developments.map((d, i) => <p key={i}>{d.text} <span className="text-xs">Evidence: {d.evidence_refs.join(", ")}</span></p>) : <p>No supported factual claims available.</p>}<h3 className="font-semibold">Pending questions and review</h3>{briefing.pending_questions.map((q, i) => <p key={i}>{q.kind}: {q.note} <Pill tone="warn">Unverified note</Pill></p>)}<p>Review date: {briefing.review_at ?? "Not set"}</p><p className="text-xs text-muted">{briefing.caveats.join(" ")}</p></div>}
+        {briefing && <div className="flex flex-col gap-3 text-sm"><h3 className="font-semibold">Verified developments</h3>{briefing.verified_developments.length ? briefing.verified_developments.map((d, i) => <p key={i}><SensitiveText value={d.text} /> <span className="text-xs">Evidence: {d.evidence_refs.join(", ")}</span></p>) : <p>No supported factual claims available.</p>}<h3 className="font-semibold">Pending questions and review</h3>{briefing.pending_questions.map((q, i) => <p key={i}>{q.kind}: <SensitiveText value={q.note} /> <Pill tone="warn">Unverified note</Pill></p>)}<p>Review date: {briefing.review_at ?? "Not set"}</p><p className="text-xs text-muted">{briefing.caveats.join(" ")}</p></div>}
       </Panel>
       <Panel><CardHeader title="Open evidence and interoperability" description="Versioned JSON preserves canonical IDs, source references, supported claims and dispositions. No vendor integration is implied." /><Button variant="ghost" disabled={busy || !live} className="self-start" onClick={() => work(async () => {
         const result = await request<unknown>(`/enterprise/cases/${room.case.id}/evidence/v1?purpose=${encodeURIComponent(room.policy.purpose)}`, { headers });

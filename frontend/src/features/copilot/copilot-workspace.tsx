@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { CASE_EVIDENCE_IDS, evidenceOrFallback } from "@/lib/domain/evidence";
 import { PROMPT_CHIPS } from "@/lib/domain/copilot";
 import { formatMoney } from "@/lib/format";
+import { findPii, redactText } from "@/lib/privacy/pii";
 import { ROUTES } from "@/lib/routes";
 import { EDGES, edgeByTx, NODES } from "@/lib/seed/graph";
 import { askCopilot, clearChat, copilotBlockedReason, openModal, setCopilotFocus, switchCopilotCase, updateGraph } from "@/lib/store/actions";
@@ -17,6 +18,7 @@ import { CiteChip } from "@/components/ui/cite";
 import { Chip, OptionCard } from "@/components/ui/controls";
 import { TextInput } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
+import { PiiWarning } from "@/components/ui/pii-warning";
 import { Pill } from "@/components/ui/pill";
 import { EvidenceBody } from "@/features/evidence/evidence-body";
 import { ChatMessageView } from "./chat-message";
@@ -29,6 +31,8 @@ export function CopilotWorkspace() {
   const role = useRole();
   const registry = useEvidenceRegistry();
   const [draft, setDraft] = useState("");
+  const piiFound = findPii(draft);
+  const [piiHeld, setPiiHeld] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const { messages, focus, contextCase } = state.copilot;
   const fixed = state.data.driftFixed;
@@ -47,8 +51,19 @@ export function CopilotWorkspace() {
     event.preventDefault();
     const text = draft.trim();
     if (text.length < MIN_QUESTION_LENGTH) return;
+    // Questions go to the language model, so personal data is held back until the user redacts or edits it.
+    if (findPii(text).length > 0) {
+      setPiiHeld(true);
+      return;
+    }
     askCopilot(text);
     setDraft("");
+  };
+
+  const sendRedacted = () => {
+    askCopilot(redactText(draft.trim()));
+    setDraft("");
+    setPiiHeld(false);
   };
 
   const hops = EDGES.filter((e) => !e.cycle);
@@ -170,13 +185,14 @@ export function CopilotWorkspace() {
             <div className="flex gap-2">
               <label className="flex-1">
                 <span className="sr-only">Ask a question about this case</span>
-                <TextInput value={draft} disabled={Boolean(blocked)} onChange={(e) => setDraft(e.target.value)} placeholder="Ask about CASE-0412, for example: where did the funds go next?" />
+                <TextInput value={draft} disabled={Boolean(blocked)} onChange={(e) => { setDraft(e.target.value); setPiiHeld(false); }} placeholder="For example: where did the funds go next?" />
               </label>
               <Button type="submit" disabled={Boolean(blocked) || draft.trim().length < MIN_QUESTION_LENGTH}>
                 Send
               </Button>
             </div>
-            <span className={cn("text-xs text-muted")}>The copilot cannot file reports, freeze accounts or contact customers. Questions outside your case scope are refused and logged.</span>
+            {piiHeld && piiFound.length > 0 ? <PiiWarning found={piiFound} onSendRedacted={sendRedacted} onEdit={() => setPiiHeld(false)} /> : null}
+            <span className={cn("text-xs text-muted")}>The copilot cannot file reports, freeze accounts or contact customers. Questions outside your case scope are refused and logged. Emails, SSNs, card and phone numbers are never sent.</span>
           </form>
         </Card>
       </div>

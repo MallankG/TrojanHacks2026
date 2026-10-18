@@ -15,6 +15,7 @@ import { KeyValueList } from "@/components/ui/key-value";
 import { CodeBlock, EmptyState } from "@/components/ui/misc";
 import { Pill } from "@/components/ui/pill";
 import { DataTable, Td, Th, Tr } from "@/components/ui/table";
+import { SensitiveText } from "@/components/ui/sensitive";
 
 type Filter = "all" | BadRowGroup;
 
@@ -121,7 +122,7 @@ export function QualityExceptions() {
                 </Td>
                 <Td>{r.type}</Td>
                 <Td className="font-mono">{r.field}</Td>
-                <Td className="text-xs text-muted">{r.original}</Td>
+                <Td className="text-xs text-muted"><SensitiveText value={r.original} /></Td>
                 <Td>
                   <Pill tone={r.tone}>{r.state}</Pill>
                 </Td>
@@ -145,7 +146,7 @@ export function QualityExceptions() {
         <KeyValueList
           items={[
             ["Source row", `ach_2026_10_06_b.csv, row ${row.row}`],
-            ["Original value", <span key="o" className="font-mono">{row.original}</span>],
+            ["Original value", <SensitiveText key="o" className="font-mono" value={row.original} />],
             ["Validation result", row.resultText],
             ["Normalized value", row.normalizedText],
           ]}
@@ -167,7 +168,7 @@ export function QualityExceptions() {
           {impact.map((item) => (
             <div key={`${item.kind}-${item.value}`} className="flex justify-between gap-2 border-t border-line-soft py-1.5 text-[13px]">
               <span>
-                <span className="text-xs text-muted">{item.kind}:</span> {item.value}
+                <span className="text-xs text-muted">{item.kind}:</span> <SensitiveText value={item.value} />
               </span>
               <Pill tone={["Stale", "Missing", "Evidence partial"].includes(item.status) ? "warn" : "ok"}>{item.status}</Pill>
             </div>
