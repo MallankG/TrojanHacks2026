@@ -40,7 +40,8 @@ Every write forwards the acting user to Postgres (`X-Actor-Id`), so audit trigge
 | Graph | `GET /graph/accounts/{id}/neighborhood`, `GET /graph/paths` (time-respecting, bounded) |
 | Model runs & signals | `POST/GET /model-runs`, `GET/PATCH /model-runs/{id}`, `POST /features`, `POST/GET /model-runs/{id}/signals` |
 | Alerts | `POST /alerts` (publish batch), `GET /alerts` (queue; defaults to the latest completed ranker run), `GET/PATCH /alerts/{id}`, `GET /alerts/{id}/timeline`, `GET /alerts/{id}/graph` |
-| Cases | `POST/GET /cases`, `GET/PATCH /cases/{id}`, `POST /cases/{id}/alerts`, `POST /cases/{id}/evidence`, `GET /cases/{id}/evidence-bundle`, `POST/GET /cases/{id}/decisions`, `GET /cases/{id}/export-url` |
+| Cases | `POST/GET /cases`, `GET/PATCH /cases/{id}`, `POST /cases/{id}/alerts`, `POST /cases/{id}/evidence`, `GET /cases/{id}/evidence-bundle`, `GET /cases/{id}/evidence-passport`, `POST/GET /cases/{id}/decisions`, `GET /cases/{id}/export-url` |
+| Evidence passport | `POST /evidence-passports/verify` (stateless; recomputes section and package hashes) |
 | Agent integration | `POST /cases/{id}/agent-runs`, `GET/PATCH /agent-runs/{id}`, `POST/GET /cases/{id}/narratives`, `GET /narratives/{id}`, `PUT /narratives/{id}/verification` |
 | Policy (RAG) | `POST/GET /policy/documents`, `GET /policy/documents/{id}`, `GET /policy/chunks/{id}`, `POST /policy/search` |
 | Lineage & audit | `GET /lineage/transactions/{id}`, `GET /lineage/alerts/{id}`, `GET /audit/events` |
@@ -73,6 +74,14 @@ with your own read-only credentials.
    transaction/account ids and cited chunk ids), `citations` and `llm_model`/`prompt_version`.
 5. `PUT /narratives/{id}/verification` with the verifier result (`passed|flagged|failed`) and per-claim results.
 6. A human reviewer then records `POST /cases/{id}/decisions` (accept/edit/reject/escalate and disposition).
+
+## Evidence passport
+
+`GET /cases/{id}/evidence-passport` returns a `tracelayer.evidence-passport/v1` document: eight sections (source
+references, data quality, model, feature contributions, graph paths, policy passages, copilot claims, human
+decisions), a SHA-256 hash per section over canonical JSON (sorted keys, compact, UTF-8) and a package hash over the
+header plus the section hashes. It is not signed. `POST /evidence-passports/verify` names the sections that changed.
+The frontend builds and verifies passports in the same format (`frontend/src/lib/domain/passport.ts`).
 
 ## Policy corpus note
 

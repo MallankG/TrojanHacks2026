@@ -99,6 +99,33 @@ def evidence_bundle(tenant_id: str, case_id: str) -> dict:
     })
 
 
+def evidence_passport(user: CurrentUser, case_id: str) -> dict:
+    """Seal the evidence bundle, model runs, latest narrative claims and human decisions into a passport."""
+    from datetime import UTC, datetime
+
+    from app.services import passport
+
+    db = get_db()
+    tid = user.tenant_id
+    bundle = evidence_bundle(tid, case_id)
+    run_ids = {a["model_run_id"] for a in bundle["alerts"]} | {s["model_run_id"] for s in bundle["risk_signals"]}
+    model_runs = fetch_by_ids("model_runs", tid, run_ids,
+                              "id, model_name, model_kind, model_version, feature_set_version, dataset_version, code_version")
+    narratives = (db.table("case_narratives").select("id, version, verification_status").eq("tenant_id", tid)
+                  .eq("case_id", case_id).order("version", desc=True).limit(1).execute().data)
+    narrative = narratives[0] if narratives else None
+    claims = (db.table("narrative_claims").select("*").eq("tenant_id", tid).eq("narrative_id", narrative["id"]).execute().data
+              if narrative else [])
+    decisions = db.table("case_decisions").select("*").eq("tenant_id", tid).eq("case_id", case_id).execute().data
+    header = {
+        "format": passport.FORMAT,
+        "subject": {"type": "case", "id": case_id},
+        "issued_at": datetime.now(UTC).isoformat(),
+        "issued_by": user.id or user.service_name,
+    }
+    return passport.seal(header, to_json(passport.build_sections(bundle, model_runs, narrative, claims, decisions)))
+
+
 def next_narrative_version(tenant_id: str, case_id: str) -> int:
     rows = (get_db().table("case_narratives").select("version").eq("tenant_id", tenant_id).eq("case_id", case_id)
             .order("version", desc=True).limit(1).execute().data)

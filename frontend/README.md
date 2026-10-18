@@ -23,6 +23,23 @@ Sign in with any work email, a password of 8+ characters and code `123456`.
 5. **Cases** – use the verified value, record a disposition, switch the Role menu to *BSA officer* to approve, generate the bundle and verify its hash.
 6. **Governance** – lineage, model registry, drift, agents, audit trail, exports and policy settings.
 
+### Stretch features (PRD v3.3 section 20.1)
+
+Each is a separate module behind a feature flag in **Governance → Policy and settings** (BSA officer role).
+
+| Feature | Where |
+|---|---|
+| Evidence passport (SHA-256 manifest, download, verify, tamper demo) | Alert → *Evidence passport* (`/risk/AL-1027/passport`) |
+| Money-flow time machine (as-of snapshots, A/B diff, leakage check) | Graph workbench → Lens: *Time machine* |
+| Why this alert, paired with why it might be benign | Alert detail |
+| Alert diff and decision change log | Risk → *Alert changes*, and on each alert |
+| One-click investigation replay | Governance → *Investigation replay* |
+| Policy and threshold what-if sandbox (seeded synthetic benchmark) | Governance → *What-if sandbox* |
+| Data-quality impact radar | Data operations → *Impact radar* |
+| Animated flow explanation (verified storyboard) | Graph workbench → Lens: *Storyboard* |
+
+Domain logic lives in `src/lib/domain/{passport,time-machine,counter-evidence,alert-diff,replay,sandbox,impact-radar,storyboard}.ts`.
+
 The sidebar's prototype controls simulate LLM and GraphBase outages, a session timeout and a full reset.
 
 ## Structure

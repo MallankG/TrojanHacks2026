@@ -43,10 +43,16 @@ export const SEED_EXPORTS: ExportRecord[] = [
 
 export const FEATURE_FLAGS = [
   { key: "propagation", label: "Network propagation (1 to 2 hop re-review)" },
-  { key: "passport", label: "Evidence passport export" },
+  { key: "passport", label: "Evidence passport per alert" },
   { key: "snapshotDiff", label: "Graph snapshot diff" },
-  { key: "gnn", label: "GraphSAGE challenger (shadow)" },
+  { key: "timeMachine", label: "Money-flow time machine (point-in-time replay)" },
+  { key: "counterEvidence", label: "Why this alert, paired with why it might be benign" },
+  { key: "alertDiff", label: "Alert diff and decision change log" },
+  { key: "replay", label: "One-click investigation replay" },
   { key: "sandbox", label: "Policy and threshold what-if sandbox" },
+  { key: "impactRadar", label: "Data-quality impact radar" },
+  { key: "storyboard", label: "Animated flow explanation" },
+  { key: "gnn", label: "GraphSAGE challenger (shadow)" },
 ] as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAGS)[number]["key"];

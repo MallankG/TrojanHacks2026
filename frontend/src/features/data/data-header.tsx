@@ -36,6 +36,7 @@ export function DataHeader() {
           { href: ROUTES.data, label: "Sources and batches" },
           { href: ROUTES.dataQuality, label: "Quality exceptions" },
           { href: ROUTES.dataContracts, label: "Contracts and catalog" },
+          { href: ROUTES.dataImpact, label: "Impact radar" },
         ]}
       />
     </>
