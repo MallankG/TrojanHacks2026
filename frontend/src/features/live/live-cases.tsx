@@ -67,7 +67,7 @@ export function LiveCaseEntries({ selectedId }: { selectedId: string }) {
               <Pill tone={CASE_TONE[c.status]} className="self-start">
                 {words(c.status)}
               </Pill>
-              <span className="text-xs text-muted">Owner {c.assignee?.display_name ?? "unassigned"}</span>
+              <span className="text-xs text-muted">Owner {c.assignee?.display_name ?? (c.assigned_to ? c.assigned_to === profile.id ? "You" : "Assigned colleague" : "unassigned")}</span>
             </Link>
           );
         })
@@ -139,7 +139,7 @@ export function LiveCaseDetail({ caseId }: { caseId: string }) {
             <CardHeader
               eyebrow="Live case"
               title={`${caseLabel(c.case_number)} · ${c.title}`}
-              description={`Opened ${utc(c.created_at)} · owner ${c.assignee?.display_name ?? "unassigned"}${c.due_at ? ` · review due ${utc(c.due_at)}` : ""}`}
+              description={`Opened ${utc(c.created_at)} · owner ${c.assignee?.display_name ?? (c.assigned_to ? c.assigned_to === profile.id ? "You" : "Assigned colleague" : "unassigned")}${c.due_at ? ` · review due ${utc(c.due_at)}` : ""}`}
               actions={
                 <>
                   <Pill tone={CASE_TONE[c.status]}>{words(c.status)}</Pill>

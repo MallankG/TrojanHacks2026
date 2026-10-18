@@ -140,6 +140,7 @@ export type Disposition = "no_further_action" | "false_positive" | "monitor" | "
 
 export interface LiveCase {
   id: string;
+  assigned_to?: string | null;
   case_number: number;
   title: string;
   summary: string | null;
