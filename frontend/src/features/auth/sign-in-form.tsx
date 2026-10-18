@@ -66,7 +66,11 @@ export function SignInForm() {
       setStep("code");
       return;
     }
-    // Live backend: Supabase Auth checks the password; the role comes from the user's profile.
+    // Live backend: Supabase Auth checks the password (and rate-limits); the role comes from the user's profile.
+    if (locked) {
+      setError("Too many attempts. Sign-in is locked for 15 minutes. Contact your administrator.");
+      return;
+    }
     setBusy(true);
     try {
       const profile = await liveSignIn(email.trim(), password);
@@ -75,7 +79,11 @@ export function SignInForm() {
       signIn(LIVE_ROLES[profile.role].uiRole);
       router.replace(ROUTES.command);
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "Sign-in failed.");
+      const next = attempts + 1;
+      setAttempts(next);
+      setPassword("");
+      const message = failure instanceof Error ? failure.message : "Sign-in failed.";
+      setError(next >= MAX_ATTEMPTS ? "Too many attempts. Sign-in is locked for 15 minutes. Contact your administrator." : `${message} ${MAX_ATTEMPTS - next} attempt(s) left.`);
     } finally {
       setBusy(false);
     }

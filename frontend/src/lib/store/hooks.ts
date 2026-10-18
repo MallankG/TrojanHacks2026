@@ -18,7 +18,14 @@ export function useRole(): Role {
     if (!profile) return ROLES[state.role];
     // Live session: the backend role decides; the seeded role only supplies the UI's permission flags.
     const live = LIVE_ROLES[profile.role];
-    return { ...ROLES[live.uiRole], name: profile.display_name ?? profile.email ?? "Signed in", label: live.label };
+    // Backend permissions win wherever the backend enforces them (an admin maps to "officer" but can upload).
+    return {
+      ...ROLES[live.uiRole],
+      name: profile.display_name ?? profile.email ?? "Signed in",
+      label: live.label,
+      canUpload: live.canUpload,
+      canAccessCases: live.canInvestigate,
+    };
   }, [profile, state.role]);
 }
 

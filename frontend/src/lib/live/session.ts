@@ -63,9 +63,20 @@ function setSession(next: LiveSession | null): void {
   listeners.forEach((listener) => listener());
 }
 
+/** Another tab rotated or cleared the tokens: adopt its copy so this tab never reuses a revoked refresh token. */
+function onStorage(event: StorageEvent): void {
+  if (event.key !== STORAGE_KEY) return;
+  session = load();
+  listeners.forEach((listener) => listener());
+}
+
 function subscribe(listener: Listener): () => void {
+  if (listeners.size === 0 && typeof window !== "undefined") window.addEventListener("storage", onStorage);
   listeners.add(listener);
-  return () => listeners.delete(listener);
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0 && typeof window !== "undefined") window.removeEventListener("storage", onStorage);
+  };
 }
 
 export function useLiveSession(): LiveSession | null {
@@ -84,6 +95,9 @@ interface TokenResponse {
   expires_at?: number;
 }
 
+/** Supabase rejected the credentials or refresh token (as opposed to a network or server failure). */
+class AuthRejected extends Error {}
+
 async function tokenRequest(grant: "password" | "refresh_token", body: Record<string, string>): Promise<TokenResponse> {
   const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=${grant}`, {
     method: "POST",
@@ -92,7 +106,8 @@ async function tokenRequest(grant: "password" | "refresh_token", body: Record<st
   });
   const data = (await response.json().catch(() => ({}))) as Partial<TokenResponse> & { error_description?: string; msg?: string };
   if (!response.ok || !data.access_token || !data.refresh_token) {
-    throw new Error(data.error_description ?? data.msg ?? "Sign-in failed");
+    const message = data.error_description ?? data.msg ?? "Sign-in failed";
+    throw response.status >= 400 && response.status < 500 ? new AuthRejected(message) : new Error(message);
   }
   return data as TokenResponse;
 }
@@ -132,9 +147,13 @@ export async function getAccessToken(): Promise<string | null> {
       setSession(toSession(t, current.profile));
       return t.access_token;
     })
-    .catch(() => {
-      setSession(null);
-      return null;
+    .catch((error: unknown) => {
+      // Only a rejected refresh token ends the session; a network blip keeps it for the next attempt.
+      if (error instanceof AuthRejected) {
+        setSession(null);
+        return null;
+      }
+      throw error;
     })
     .finally(() => {
       refreshing = null;

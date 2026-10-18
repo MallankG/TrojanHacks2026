@@ -34,9 +34,15 @@ def main() -> int:
         "user_metadata": {"display_name": args.name or args.email},
     })
     # The on_auth_user_created trigger inserted a tenant-less profile; provision it.
-    db.table("profiles").update({
+    updated = db.table("profiles").update({
         "tenant_id": tenant[0]["id"], "role": args.role, "display_name": args.name or args.email,
-    }).eq("id", created.user.id).execute()
+    }).eq("id", created.user.id).execute().data
+    if not updated:
+        # No profile row (trigger missing): undo the auth user so the email can be retried.
+        db.auth.admin.delete_user(created.user.id)
+        print("Profile was not created for the new user; the auth user was removed. Check the "
+              "on_auth_user_created trigger.", file=sys.stderr)
+        return 1
     print(f"Created {args.email} as {args.role} in {tenant[0]['name']} ({created.user.id})")
     return 0
 

@@ -14,7 +14,7 @@ import { DataTable, Td, Th } from "@/components/ui/table";
 
 type Filter = "all" | AuditType;
 
-const FILTERS: Filter[] = ["all", "Data", "Model", "AI", "Case", "Graph", "Access", "Export", "Policy", "Entity"];
+const FILTERS: Filter[] = ["all", "Data", "Model", "Alert", "AI", "Case", "Graph", "Access", "Export", "Policy", "Entity"];
 
 export function AuditTrail() {
   const seeded = useDemoState().events;

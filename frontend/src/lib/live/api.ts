@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, apiRequest } from "@/lib/api/client";
-import { getAccessToken } from "./session";
+import { getAccessToken, useLiveSession } from "./session";
 
 /** Live-mode calls to the FastAPI backend, authenticated with the user's Supabase access token. */
 
@@ -199,7 +199,18 @@ export function query(params: Record<string, string | number | boolean | undefin
 
 export const liveApi = {
   runs: (limit = 50) => call<Page<IngestionRun>>(`/ingestion/runs${query({ limit })}`),
-  runIssues: (runId: string, limit = 200) => call<Page<DqIssue>>(`/ingestion/runs/${runId}/issues${query({ limit })}`),
+  /** Every issue of a run, paged 500 at a time up to `cap`; `total` is the true count even when capped. */
+  runIssues: async (runId: string, cap = 5000): Promise<Page<DqIssue>> => {
+    const items: DqIssue[] = [];
+    let total: number | null = null;
+    while (items.length < cap) {
+      const page = await call<Page<DqIssue>>(`/ingestion/runs/${runId}/issues${query({ limit: 500, offset: items.length })}`);
+      items.push(...page.items);
+      total = page.total;
+      if (page.items.length < 500 || (total !== null && items.length >= total)) break;
+    }
+    return { items, total, limit: items.length, offset: 0 };
+  },
   upload: (form: FormData) => call<UploadResult>("/ingestion/upload", { method: "POST", body: form, timeoutMs: 120_000 }),
   issues: (status?: string, limit = 100) => call<Page<DqIssue>>(`/data-quality/issues${query({ status, limit })}`),
   updateIssue: (id: string, body: { status: DqIssue["status"]; remediation_note?: string }) =>
@@ -238,26 +249,38 @@ export function invalidateLive(prefix: string): void {
   invalidators.forEach((fn) => fn(prefix));
 }
 
-/** Loads data for a live screen; `key` changes refetch. Errors are shown, never thrown. */
-export function useLive<T>(load: () => Promise<T>, key: string): Loadable<T> {
-  const [state, setState] = useState<{ key: string; data: T | null; error: string | null; done: boolean }>({ key, data: null, error: null, done: false });
+/** Last good result per (user, key), so remounted screens render immediately while they revalidate. */
+const lastResults = new Map<string, unknown>();
+
+/**
+ * Loads data for a live screen; `key` changes refetch. Errors are shown, never thrown.
+ * The signed-in user is part of the cache key, so another user (or signing in after a failed
+ * attempt) never sees a previous session's results.
+ */
+export function useLive<T>(load: () => Promise<T>, baseKey: string): Loadable<T> {
+  const user = useLiveSession()?.profile?.id ?? "signed-out";
+  const key = `${user}|${baseKey}`;
+  const initial = (): { key: string; data: T | null; error: string | null; done: boolean } =>
+    lastResults.has(key) ? { key, data: lastResults.get(key) as T, error: null, done: true } : { key, data: null, error: null, done: false };
+  const [state, setState] = useState(initial);
   const [tick, setTick] = useState(0);
   const reload = useCallback(() => setTick((t) => t + 1), []);
 
   useEffect(() => {
     const onInvalidate = (prefix: string) => {
-      if (key.startsWith(prefix)) reload();
+      if (baseKey.startsWith(prefix)) reload();
     };
     invalidators.add(onInvalidate);
     return () => {
       invalidators.delete(onInvalidate);
     };
-  }, [key, reload]);
+  }, [baseKey, reload]);
 
   useEffect(() => {
     let cancelled = false;
     load()
       .then((data) => {
+        lastResults.set(key, data);
         if (!cancelled) setState({ key, data, error: null, done: true });
       })
       .catch((error: unknown) => {
@@ -271,7 +294,8 @@ export function useLive<T>(load: () => Promise<T>, key: string): Loadable<T> {
   }, [key, tick]);
 
   const fresh = state.key === key;
-  return { data: fresh ? state.data : null, error: fresh ? state.error : null, loading: !fresh || !state.done, reload };
+  const cached = fresh ? null : ((lastResults.get(key) as T | undefined) ?? null);
+  return { data: fresh ? state.data : cached, error: fresh ? state.error : null, loading: !fresh ? cached === null : !state.done, reload };
 }
 
 export function errorMessage(error: unknown): string {

@@ -33,6 +33,8 @@ export function LiveRunChecks({ runId }: { runId: string }) {
           {issuesToChecks(page.items).map((check) => (
             <CheckRow key={check.label} check={check} />
           ))}
+          <CappedNote shown={page.items.length} total={page.total} />
+
           <Link href={ROUTES.dataQuality} className="text-[13px] font-semibold text-brand-link underline underline-offset-2">
             See row-level exceptions
           </Link>
@@ -150,7 +152,11 @@ export function LiveExceptions() {
         title="Row-level exceptions"
         description="Findings from your uploaded files. Rejected rows never reach the transaction table; warnings are kept with a caveat."
       />
-      {runs.loading ? (
+      {runs.error ? (
+        <Callout tone="bad" role="alert" title="Could not load ingestion runs.">
+          {runs.error}
+        </Callout>
+      ) : runs.loading ? (
         <Skeleton label="Loading runs" />
       ) : !runs.data || runs.data.length === 0 ? (
         <EmptyState title="No live uploads yet." description="Use Upload CSV batch to load a synthetic file." />
@@ -179,6 +185,8 @@ function RunIssues({ runId, canSteward, onSelectRow }: { runId: string; canStewa
         page.items.length === 0 ? (
           <EmptyState title="This run has no data-quality issues." />
         ) : (
+          <>
+          <CappedNote shown={page.items.length} total={page.total} />
           <DataTable caption="Data-quality issues">
             <thead>
               <tr>
@@ -224,6 +232,7 @@ function RunIssues({ runId, canSteward, onSelectRow }: { runId: string; canStewa
               ))}
             </tbody>
           </DataTable>
+          </>
         )
       }
     </LiveData>
@@ -309,5 +318,15 @@ function SourceRow({ rowId }: { rowId: string }) {
         )}
       </LiveData>
     </div>
+  );
+}
+
+/** Says so when a run has more issues than were loaded, so counts are never silently partial. */
+function CappedNote({ shown, total }: { shown: number; total: number | null }) {
+  if (total === null || total <= shown) return null;
+  return (
+    <p className="text-xs font-semibold text-attention-ink">
+      Showing the first {shown.toLocaleString("en-US")} of {total.toLocaleString("en-US")} issues; counts above cover the loaded issues only.
+    </p>
   );
 }
