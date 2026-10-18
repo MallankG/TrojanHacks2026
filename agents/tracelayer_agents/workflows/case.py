@@ -67,7 +67,7 @@ def route_after_save(state: CaseState) -> Literal["redraft", "done"]:
 
 
 def build_case_workflow(
-    services: Services, config: AgentConfig | None = None
+    services: Services, config: AgentConfig | None = None, *, checkpointer=None
 ) -> CompiledStateGraph:
     """`services` must be fully resolved (see `registry.get_services`)."""
     ctx = NodeContext(services=services, config=config or AgentConfig.from_env())
@@ -86,7 +86,7 @@ def build_case_workflow(
     builder.add_edge("human_decision", "record_decision")
     builder.add_edge("record_decision", END)
     # thread_id = case_id, so the human_decision step can pause and resume this run.
-    return builder.compile(checkpointer=CHECKPOINTER)
+    return builder.compile(checkpointer=checkpointer if checkpointer is not None else CHECKPOINTER)
 
 
 def _resolve(services: Services | None) -> Services:
@@ -100,6 +100,7 @@ async def start_case(
     alert_id: str,
     services: Services | None = None,
     config: AgentConfig | None = None,
+    *, case_id: str | None = None, thread_id: str | None = None, checkpointer=None,
 ) -> CaseDraftResult:
     """Open a case for one alert whose evidence bundle `investigate_flows` saved, draft and verify
     its narrative, and pause at `human_decision` for the reviewer.
@@ -107,10 +108,10 @@ async def start_case(
     Raises `NodeError` if a node fails (e.g. `load_case` for an unknown alert); its `.state` holds
     the last committed state with the node's error `TraceEvent` appended.
     """
-    workflow = build_case_workflow(_resolve(services), config)
+    workflow = build_case_workflow(_resolve(services), config, checkpointer=checkpointer)
     trace_id = f"tr_{uuid.uuid4().hex}"
-    case_id = f"case_{uuid.uuid4().hex[:12]}"
-    run_cfg: dict[str, Any] = {"configurable": {"thread_id": case_id}}
+    case_id = case_id or f"case_{uuid.uuid4().hex[:12]}"
+    run_cfg: dict[str, Any] = {"configurable": {"thread_id": thread_id or case_id}}
 
     initial: CaseState = {
         "trace_id": trace_id, "case_id": case_id, "alert_id": alert_id, "draft_attempts": 0,
@@ -143,6 +144,7 @@ async def resume_case(
     decision: Decision | dict[str, Any],
     services: Services | None = None,
     config: AgentConfig | None = None,
+    *, thread_id: str | None = None, checkpointer=None,
 ) -> CaseDecisionResult:
     """Resume the case `start_case` paused, with the reviewer's decision. `services` must be the
     ones `start_case` used (the case and audit repositories hold the case).
@@ -152,8 +154,8 @@ async def resume_case(
     decision can be submitted), and `NodeError` if `record_decision` fails (the decision is then
     in the checkpoint; that case needs operator attention).
     """
-    workflow = build_case_workflow(_resolve(services), config)
-    run_cfg: dict[str, Any] = {"configurable": {"thread_id": case_id}}
+    workflow = build_case_workflow(_resolve(services), config, checkpointer=checkpointer)
+    run_cfg: dict[str, Any] = {"configurable": {"thread_id": thread_id or case_id}}
     snapshot = await workflow.aget_state(run_cfg)
     if not snapshot.values:
         raise KeyError(f"unknown case_id {case_id!r}")
@@ -184,3 +186,21 @@ async def resume_case(
         audit_event=event,
         trace=state.get("trace_events", []),
     )
+
+async def recover_case(case_id, alert_id, services, config, *, thread_id, checkpointer):
+    """Continue an interrupted run from its last durable checkpoint, preserving pending writes."""
+    workflow = build_case_workflow(services, config, checkpointer=checkpointer)
+    cfg = {'configurable': {'thread_id':thread_id}}
+    snapshot = await workflow.aget_state(cfg)
+    if not snapshot.values:
+        return await start_case(alert_id,services,config,case_id=case_id,thread_id=thread_id,checkpointer=checkpointer)
+    if 'human_decision' in snapshot.next:
+        state = snapshot.values
+    else:
+        state = await workflow.ainvoke(None,cfg) if snapshot.next else snapshot.values
+    decision = next((e for e in reversed(state.get('audit_events',[])) if e.action=='case.decision'),None)
+    if decision:
+        return CaseDecisionResult(case_id=case_id,case_status=state['case_status'],audit_event=decision,trace=state.get('trace_events',[]))
+    return CaseDraftResult(trace_id=state['trace_id'],case_id=case_id,alert_id=alert_id,
+        draft=state['draft_narrative'],verifier_errors=state.get('verifier_errors',[]),flagged_claims=state.get('flagged_claims',[]),
+        llm_meta=state['llm_meta'],case_status=state['case_status'],trace=state.get('trace_events',[]))

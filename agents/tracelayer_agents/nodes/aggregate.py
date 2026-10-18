@@ -87,7 +87,8 @@ async def aggregate(state: Mapping[str, Any], ctx: NodeContext) -> AggregateOutp
     services = ctx.services
     model_scores: dict[str, DetectorOutput] = state.get("model_scores") or {}
     fusion = await asyncio.to_thread(services.fusion.fuse, model_scores)
-    alerts = build_alerts(
+    builder = getattr(services.fusion, "build_alerts", None)
+    alerts = await asyncio.to_thread(builder, fusion, model_scores, state, ctx.config) if builder else build_alerts(
         fusion,
         model_scores,
         snapshot_id=state["graph_snapshot_id"],

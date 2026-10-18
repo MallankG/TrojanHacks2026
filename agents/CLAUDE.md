@@ -10,19 +10,18 @@ The full PRD is at `../docs/trace_layer_prd.md` (repo root). Relevant sections: 
 §11 multi-agent and RAG architecture, §12 Supabase architecture, §13 data model (tables), §15 security.
 The facade/API contract is defined in this file (below), not in the PRD.
 
-## Current repo state (as of 2026-10-17)
+## Current repo state (2026-10-18)
 
-The repo is a skeleton. Do not assume anything below exists until a teammate ships it.
-- `backend/main.py` is the FastAPI entrypoint (FastAPI 0.118.0, uvicorn 0.37.0, deps in
-  `backend/requirements.txt`). It has a single inline `GET /health` route: no routers, no auth,
-  no DB, no ORM, no migrations. Pydantic is not pinned there; it arrives transitively as v2.
-- No Python version is pinned anywhere in the repo. This package targets **Python 3.11+**
-  (developed on 3.12).
-- **No DB, ingestion, quality, ML or RAG code exists yet.** Every external dependency goes through
-  the Protocols in `tracelayer_agents/interfaces/` with mocks in `tracelayer_agents/mocks/`; the
-  mocks are the default until the backend injects real implementations.
-- `frontend/` is a fresh Next.js 16 app.
-- "api.py" always means `tracelayer_agents/api.py` (this package's facade), never a backend file.
+- `backend/main.py` runs the FastAPI app with authenticated tenant-scoped ingestion, detection,
+  graph, case, policy, governance and enterprise APIs.
+- `agents/` is the standalone package; live integration uses `api.AgentRuntime` with explicit
+  adapters under `backend/app/services/orchestration/`. The legacy facade remains for demos.
+- `frontend/` is the Next.js web app. Live Risk analysis, case drafting/review and Copilot call
+  persisted `/agents` jobs. Demo sessions retain the seeded UI.
+- Live case checkpoints, traces and audit receipts require migration
+  `20261018000004_agent_orchestration.sql`. Private checkpoint tables are server-only.
+- Python 3.11+ is required. Install backend requirements from `backend/`, including `../agents`.
+- Read `docs/INTEGRATION.md` for the production runtime and standalone demo differences.
 
 ## What this workstream owns
 

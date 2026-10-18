@@ -273,6 +273,8 @@ class FlowFindings(Contract):
     fan_out: list[FlowPattern] = Field(default_factory=list)
     pass_through: list[FlowPattern] = Field(default_factory=list)
     evidence_tx_ids: list[str] = Field(default_factory=list)
+    query_caveats: list[str] = Field(default_factory=list)
+    truncated: bool = False
 
     @model_validator(mode="after")
     def _patterns_cite_evidence(self) -> FlowFindings:
@@ -312,6 +314,7 @@ class EvidenceBundle(Contract):
     flow_findings: FlowFindings | None = None
     quality_caveats: list[QualityIssue] = Field(default_factory=list)
     lineage_refs: list[str] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
     bundle_hash: Sha256Hex
 
     @model_validator(mode="after")

@@ -25,9 +25,13 @@ async def save_draft(state: Mapping[str, Any], ctx: NodeContext) -> SaveDraftOut
         case = cases.get_case(case_id)
         if case is None:
             raise KeyError(f"case {case_id!r} was not opened by load_case")
-        cases.save_draft(case_id, draft)
-        cases.update_case(case.model_copy(update={"status": status,
-                                                  "updated_at": datetime.now(UTC)}))
+        receipt_writer = getattr(cases, "save_draft_receipt", None)
+        if receipt_writer:
+            receipt_writer(case_id, draft, state)
+        else:
+            cases.save_draft(case_id, draft)
+            cases.update_case(case.model_copy(update={"status": status,
+                                                      "updated_at": datetime.now(UTC)}))
         # metadata must be flat JSON scalars, so lists are comma-joined
         drafted = audit.record(
             repo, action="case.draft_generated", object_type="case", object_id=case_id,

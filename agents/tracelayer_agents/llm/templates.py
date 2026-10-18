@@ -241,7 +241,7 @@ def narrative_policy_claims(variables: dict[str, Any]) -> list[NarrativeClaim]:
 def narrative_fixed_uncertainties(variables: dict[str, Any]) -> list[str]:
     """Uncertainties every draft carries whatever the synthesis says: data-quality caveats
     (CLAUDE.md rule 4), un-itemized transactions and missing policy sources."""
-    out = []
+    out = list(variables.get("limitations") or [])
     for issue in variables.get("quality_caveats") or []:
         rule = issue.get("rule_id") if _quotable(issue.get("rule_id")) else "a data contract rule"
         out.append(

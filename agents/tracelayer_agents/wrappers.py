@@ -113,7 +113,11 @@ class TracedNode(Generic[M]):
                 )
             output = self.output_model.model_validate(result)
         except SkipNode as skip:
-            return {"trace_events": [event("skipped", error=str(skip) or None)]}
+            skipped = event("skipped", error=str(skip) or None)
+            sink = getattr(ctx.services.audit, "record_trace", None)
+            if sink:
+                await asyncio.to_thread(sink, skipped)
+            return {"trace_events": [skipped]}
         except GraphBubbleUp:
             raise  # LangGraph control flow (e.g. `interrupt()` pausing for a human), not a failure
         except Exception as exc:
@@ -121,14 +125,22 @@ class TracedNode(Generic[M]):
                 message = f"TimeoutError: exceeded {self.timeout_s(ctx.config)}s"
             else:
                 message = f"{type(exc).__name__}: {exc}"
-            raise NodeError(self.name, event("error", error=message), message) from exc
+            failed = event("error", error=message)
+            sink = getattr(ctx.services.audit, "record_trace", None)
+            if sink:
+                await asyncio.to_thread(sink, failed)
+            raise NodeError(self.name, failed, message) from exc
 
         update = {
             name: getattr(output, name)
             for name in type(output).model_fields
             if getattr(output, name) is not None
         }
-        return {**update, "trace_events": [event("ok", output_hash=sha256_json(output))]}
+        completed = event("ok", output_hash=sha256_json(output))
+        sink = getattr(ctx.services.audit, "record_trace", None)
+        if sink:
+            await asyncio.to_thread(sink, completed)
+        return {**update, "trace_events": [completed]}
 
 
 def traced_node(
