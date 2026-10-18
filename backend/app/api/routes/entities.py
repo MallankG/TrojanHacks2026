@@ -22,7 +22,7 @@ TXN_SELECT = (
 
 @router.get("/accounts")
 def list_accounts(
-    q: str | None = Query(default=None, max_length=64, description="Prefix of account_ref"),
+    q: str | None = Query(default=None, max_length=64, description="Part of account_ref (case-insensitive)"),
     is_internal: bool | None = None,
     limit: Limit = 50,
     offset: Offset = 0,
@@ -33,7 +33,10 @@ def list_accounts(
         .eq("tenant_id", user.tenant_id).order("account_ref")
     )
     if q:
-        query = query.ilike("account_ref", f"{q.replace('%', '').replace('_', '')}%")
+        # Substring match so "7011" finds ACC-7011; LIKE wildcards and filter syntax in q are stripped.
+        term = "".join(ch for ch in q.strip() if ch not in "%_*,()")
+        if term:
+            query = query.ilike("account_ref", f"%{term}%")
     if is_internal is not None:
         query = query.eq("is_internal", is_internal)
     return page(query, limit, offset)

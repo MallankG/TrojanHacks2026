@@ -18,6 +18,7 @@ import { Pill } from "@/components/ui/pill";
 import { DataTable, Td, Th, Tr } from "@/components/ui/table";
 import { LiveData } from "./live-state";
 import { LiveGraph } from "./live-graph";
+import { LiveAccountLink } from "./live-entity";
 
 /** Live alerts from the latest completed ranker run, at the top of the alert queue. */
 export function LiveAlertEntries({ selectedId }: { selectedId: string }) {
@@ -188,6 +189,18 @@ export function LiveAlertDetail({ alertId }: { alertId: string }) {
                   />
                   {a.explanation ? <p className="text-[13.5px]">{a.explanation}</p> : null}
                   {a.limitations ? <p className="text-xs text-muted">Limitations: {a.limitations}</p> : null}
+                  {a.accounts.length > 0 ? (
+                    <div className="flex flex-col gap-1.5">
+                      <b className="text-[13px]">Accounts (open a profile)</b>
+                      <ul className="flex flex-wrap gap-x-3 gap-y-1.5 text-[13px]">
+                        {a.accounts.map(({ role: r, accounts: acc }) => (
+                          <li key={acc.id}>
+                            <LiveAccountLink id={acc.id} label={acc.account_ref} /> <span className="text-xs text-muted">{words(r)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                 </Panel>
                 <Panel>
                   <CardHeader title="Component signals" description="Each detector's output, shown separately." />

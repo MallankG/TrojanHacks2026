@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { ApiError } from "@/lib/api/client";
 import { issuesToChecks, runToBatch, useLiveBatches } from "@/lib/live/adapters";
 import { errorMessage, invalidateLive, liveApi, useLive, type DqIssue, type UploadResult } from "@/lib/live/api";
@@ -23,6 +23,7 @@ import { Pill } from "@/components/ui/pill";
 import { DataTable, Td, Th, Tr } from "@/components/ui/table";
 import { CheckRow } from "@/features/data/check-row";
 import { LiveData } from "./live-state";
+import { LiveAccountLink } from "./live-entity";
 
 /** Contract checks for a live ingestion run, derived from its data-quality issues. */
 export function LiveRunChecks({ runId }: { runId: string }) {
@@ -198,6 +199,12 @@ function SourceRow({ rowId }: { rowId: string }) {
                   ["File", d.source_row.ingestion_runs?.source_files?.filename ?? "Not recorded"],
                   ["Schema", d.source_row.ingestion_runs?.schema_version ?? "Not recorded"],
                   ["Canonical transaction", d.transaction ? d.transaction.transaction_ref : "None (row rejected)"],
+                  ...(d.transaction
+                    ? ([
+                        ["Sender", <LiveAccountLink key="o" id={d.transaction.origin_account_id} label="Open account profile" />],
+                        ["Receiver", <LiveAccountLink key="d" id={d.transaction.destination_account_id} label="Open account profile" />],
+                      ] as Array<[string, ReactNode]>)
+                    : []),
                 ]}
               />
               <b className="mt-1 text-[13px]">Original values</b>
