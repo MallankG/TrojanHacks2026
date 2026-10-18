@@ -71,9 +71,9 @@ function LiveSourceCard({ source }: { source: SourceFeed }) {
           <Pill tone={tone}>{label}</Pill>
         </span>
       </div>
-      <span className="text-xs text-muted">Owner: {source.owners.map(friendlyOwner).join(", ") || "Compliance Data Operations"}</span>
+      <span className="text-xs text-muted">Owner: {source.owners.join(", ") || "Not recorded"}</span>
       <span className="text-xs text-muted">
-        Schema {source.schema_versions.map(friendlySchema).join(", ") || "Canonical Transactions Schema (v1.0)"} · last upload {age(source.hours_since_upload)} · SLA {source.freshness_sla_hours} h
+        Schema {source.schema_versions.map(friendlySchema).join(", ") || "Not recorded"} · last upload {age(source.hours_since_upload)} · SLA {source.freshness_sla_hours} h
       </span>
       <span className="text-[12.5px]">
         {source.run_count} run{source.run_count === 1 ? "" : "s"} · {source.rows.toLocaleString("en-US")} rows · Accepted {pct(source.accepted_rate)} · Warnings {pct(source.warning_rate)} · Rejected{" "}
@@ -107,14 +107,14 @@ export function LiveBatchFacts({ runId }: { runId: string }) {
               items={[
                 ["Run status", <Pill key="s" tone={RUN_TONE[run.status] ?? "mute"}>{words(run.status)}</Pill>],
                 ["File", file?.filename ?? "Not recorded"],
-                ["File integrity", <span key="h" className="text-xs font-medium text-emerald-700 dark:text-emerald-400">✓ {friendlyHash(file?.checksum_sha256)}</span>],
+                ["File checksum (recorded at upload)", <span key="h" className="font-mono text-xs">{friendlyHash(file?.checksum_sha256)}</span>],
                 ["Schema", friendlySchema(run.schema_version)],
                 ["Pipeline", friendlyPipeline(run.pipeline_version)],
                 ["Source system", friendlySystem(file?.source_system)],
                 ["Owner", friendlyOwner(file?.data_owner)],
                 ["Uploaded", utc(file?.uploaded_at)],
                 ["Size", friendlyFileSize(file?.byte_size)],
-                ["Data classification", file ? (file.is_synthetic ? "Synthetic Testing Data" : "Production Financial Records") : "Not recorded"],
+                ["Data classification", file ? (file.is_synthetic ? "Synthetic test data" : "Not marked synthetic") : "Not recorded"],
               ]}
             />
             <div className="flex flex-wrap gap-2">
@@ -235,7 +235,7 @@ export function LiveContracts() {
                     ["Schema", friendlySchema(schema.data?.schema_version)],
                     ["Rules engine", friendlyPipeline(rules.data?.rules_version)],
                     ["Source feeds", src.total],
-                    ["Owners", [...new Set(src.items.flatMap((s) => s.owners))].map(friendlyOwner).join(", ") || "Compliance Data Operations"],
+                    ["Owners", [...new Set(src.items.flatMap((s) => s.owners))].join(", ") || "None yet"],
                     ["Purpose", "Transaction monitoring and investigation (synthetic data)"],
                     ["Freshness SLA", `${src.freshness_sla_hours} h per source`],
                     ["Last upload", utc(src.items[0]?.last_upload_at)],

@@ -85,7 +85,7 @@ function RunReceipt({ run }: { run: AgentRun | null }) {
     {run.error_message ? <Callout tone="bad">{run.error_message}</Callout> : null}
     {r?.draft ? <>
       <p className="text-sm"><SensitiveText value={r.draft.summary} /></p>
-      <p className="text-xs text-muted">{r.draft.fallback_used ? "Rule-based analysis engine · human review required" : "AI Agent Synthesis"} · {friendlyModel(r.draft.model)}</p>
+      <p className="text-xs text-muted">{r.draft.fallback_used ? "Deterministic template (fallback) · human review required" : "Model synthesis"} · {r.draft.provider} / {friendlyModel(r.draft.model)}</p>
       <ol className="flex list-decimal flex-col gap-3 pl-5 text-sm">{r.draft.observed_facts.map((c,i)=><li key={i}>
         <p><SensitiveText value={c.text} /></p><details><summary className="cursor-pointer text-xs font-semibold">Claim {i+1} · {c.claim_type} · Evidence references</summary>
           <p className="break-all text-xs">Transactions: {c.transaction_ids.join(", ") || "None"}</p>
@@ -98,7 +98,7 @@ function RunReceipt({ run }: { run: AgentRun | null }) {
     </> : null}
     {r?.answer ? <>
       <p className="whitespace-pre-wrap text-sm"><SensitiveText value={r.answer.answer} /></p>
-      <p className="text-xs text-muted">{r.answer.no_answer ? "No supported policy answer" : "Policy passages retrieved"} · {friendlyModel(r.answer.model)}{r.answer.fallback_used ? " · rule-based engine" : ""}</p>
+      <p className="text-xs text-muted">{r.answer.no_answer ? "No supported policy answer" : "Policy passages retrieved"} · {r.answer.provider} / {friendlyModel(r.answer.model)}{r.answer.fallback_used ? " · deterministic fallback" : ""}</p>
       {r.answer.unknowns.map((u,i)=><p key={i} className="text-xs text-muted"><SensitiveText value={u} /></p>)}
       {r.sources?.map(s=><blockquote key={s.chunk_id} className="border-l-2 border-line pl-3 text-sm"><b>{s.doc_title}</b><p>{s.excerpt}</p><span className="break-all text-xs text-muted">{s.source_uri} · {s.chunk_id}</span></blockquote>)}
     </> : null}

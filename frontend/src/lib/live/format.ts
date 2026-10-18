@@ -47,50 +47,44 @@ export const RUN_TONE: Record<string, Tone> = { completed: "ok", completed_with_
 
 export const CASE_TONE: Record<string, Tone> = { open: "info", in_review: "info", pending_review: "warn", escalated: "bad", closed: "ok" };
 
-/** Human-friendly pipeline display name. Replaces raw technical strings like 'ingest-pipeline-1.0.0+dq-rules-1.0.0' */
+// Display helpers keep the recorded value visible: they only make it readable, never fill in or upgrade it
+// (a governance screen must not show a version, owner, source or verification that was not recorded).
+
+const WORKFLOWS: Record<string, string> = {
+  case_workflow: "Case Investigation Agent",
+  copilot_workflow: "Investigation Copilot",
+  analysis_workflow: "Batch AML Analysis Pipeline",
+};
+
+/** 'ingest-pipeline-1.0.0+dq-rules-1.0.0' -> 'Ingestion pipeline 1.0.0 · DQ rules 1.0.0'; other names unchanged. */
 export function friendlyPipeline(name: string | null | undefined): string {
-  if (!name) return "Automated Ingestion Pipeline";
-  if (name.includes("ingest-pipeline") || name.includes("dq-rules") || name.includes("ingest")) {
-    return "Core Ingestion & Quality Pipeline (v1.0)";
-  }
-  if (name === "case_workflow") return "Case Investigation Agent";
-  if (name === "copilot_workflow") return "Investigation Copilot";
-  if (name === "analysis_workflow") return "Batch AML Analysis Pipeline";
-  return words(name.replace(/-v?\d+(\.\d+)*/gi, "").replace(/[+_]/g, " "));
+  if (!name) return "Not recorded";
+  if (WORKFLOWS[name]) return WORKFLOWS[name];
+  const parts = name.split("+").map((p) => {
+    const m = /^(ingest-pipeline|dq-rules)-(.+)$/.exec(p);
+    return m ? `${m[1] === "dq-rules" ? "DQ rules" : "Ingestion pipeline"} ${m[2]}` : p;
+  });
+  return parts.join(" · ");
 }
 
-/** Human-friendly schema display name. Replaces raw technical strings like 'canonical-transactions-1.0.0' */
+/** 'canonical-txn-v1' -> 'Canonical transactions (canonical-txn-v1)'; the recorded version stays visible. */
 export function friendlySchema(schema: string | null | undefined): string {
-  if (!schema) return "Canonical Financial Schema";
-  if (schema.includes("canonical-transactions") || schema.includes("canonical")) {
-    return "Canonical Transactions Schema (v1.0)";
-  }
-  return words(schema.replace(/-v?\d+(\.\d+)*/gi, "").replace(/[+_]/g, " "));
+  if (!schema) return "Not recorded";
+  return schema.startsWith("canonical") ? `Canonical transactions (${schema})` : schema;
 }
 
-/** Formats a SHA-256 hash or checksum to a clean human-readable verification state */
+/** A stored checksum, shortened. It is what was recorded at upload, not a fresh verification. */
 export function friendlyHash(hash: string | null | undefined): string {
-  if (!hash) return "Integrity Verified";
-  const short = hash.length > 12 ? `${hash.slice(0, 6)}…${hash.slice(-4)}` : hash;
-  return `SHA-256 Verified (${short})`;
+  if (!hash) return "Not recorded";
+  return `SHA-256 ${hash.length > 12 ? `${hash.slice(0, 6)}…${hash.slice(-4)}` : hash}`;
 }
 
-/** Human-friendly system names */
 export function friendlySystem(sys: string | null | undefined): string {
-  if (!sys) return "Core Banking System";
-  if (sys.includes("local") || sys.includes("upload") || sys.includes("csv") || sys.includes("fs")) {
-    return "Core Banking System (ACH / Wires)";
-  }
-  return words(sys);
+  return sys ? words(sys) : "Not recorded";
 }
 
-/** Human-friendly owner */
 export function friendlyOwner(owner: string | null | undefined): string {
-  if (!owner) return "Compliance Operations";
-  if (owner.includes("local") || owner.includes("operations@")) {
-    return "Compliance Data Operations";
-  }
-  return owner;
+  return owner || "Not recorded";
 }
 
 /** Human-friendly file size */
@@ -103,20 +97,20 @@ export function friendlyFileSize(bytes: number | null | undefined): string {
 
 /** Human-friendly model name */
 export function friendlyModel(name: string | null | undefined): string {
-  if (!name) return "AI Detection Engine";
-  const map: Record<string, string> = {
-    "isolation_forest": "Isolation Forest Anomaly Detector",
-    "xgboost": "XGBoost AML Classifier",
-    "gnn": "Graph Neural Network (GNN)",
-    "rules": "Regulatory Typology Rules",
-    "fusion": "Multi-Model Risk Fusion",
-    "template": "Standard Compliance Rules Engine",
-    "qwen3.5:0.8b": "Qwen 3.5 AI Copilot",
-    "qwen3.5:9b": "Qwen 3.5 9B AML Model",
-    "nomic-embed-text": "Regulatory Semantic Embedding",
-    "case_workflow": "Case Investigation Agent",
-    "copilot_workflow": "Investigation Copilot",
-    "analysis_workflow": "Batch AML Analysis Pipeline",
-  };
-  return map[name] ?? words(name);
+  if (!name) return "Not recorded";
+  return MODEL_NAMES[name] ?? WORKFLOWS[name] ?? words(name);
 }
+
+const MODEL_NAMES: Record<string, string> = {
+  "isolation_forest": "Isolation Forest Anomaly Detector",
+  "xgboost": "XGBoost AML Classifier",
+  "gnn": "Graph Neural Network (GNN)",
+  "rules": "Regulatory Typology Rules",
+  "fusion": "Multi-Model Risk Fusion",
+  "template": "Deterministic template (no model)",
+  "qwen3.5:0.8b": "Qwen 3.5 AI Copilot",
+  "qwen3.5:9b": "Qwen 3.5 9B AML Model",
+  "nomic-embed-text": "Regulatory Semantic Embedding",
+  "openai/gpt-oss-20b": "GPT-OSS 20B",
+  "openai/gpt-oss-120b": "GPT-OSS 120B",
+};
