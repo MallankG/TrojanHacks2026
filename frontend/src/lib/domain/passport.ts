@@ -13,7 +13,7 @@ import type { EvidenceItem, ScoredAlert } from "@/lib/types";
  * plus the section hashes. Amounts travel as decimal strings so both sides canonicalize identically.
  */
 export const PASSPORT_FORMAT = "tracelayer.evidence-passport/v1";
-export const CANONICALIZATION = "json-sorted-keys-compact-utf8";
+export const CANONICALIZATION = "rfc8785-jcs";
 export const SIGNATURE_NOTE = "Not signed: key management is not configured for this prototype. Hashes give tamper evidence only.";
 
 export const PASSPORT_SECTIONS = [
@@ -73,7 +73,7 @@ export interface PassportVerification {
   packageHashMatches: boolean;
 }
 
-/** Sorted keys, no whitespace. Matches Python `json.dumps(sort_keys=True, separators=(",", ":"), ensure_ascii=False)`. */
+/** RFC 8785 canonical JSON with UTF-16 key ordering and ECMAScript numbers. */
 export function canonicalJson(value: unknown): string {
   if (value === null || typeof value === "boolean" || typeof value === "string") return JSON.stringify(value);
   if (typeof value === "number") {

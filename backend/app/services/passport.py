@@ -7,11 +7,11 @@ The frontend builds passports in the same format, so either side can verify the 
 """
 
 import hashlib
-import json
+import rfc8785
 from typing import Any
 
 FORMAT = "tracelayer.evidence-passport/v1"
-CANONICALIZATION = "json-sorted-keys-compact-utf8"
+CANONICALIZATION = "rfc8785-jcs"
 SECTIONS = (
     "source_references",
     "data_quality",
@@ -27,7 +27,7 @@ SIGNATURE_NOTE = "Not signed: key management is not configured for this prototyp
 
 
 def canonical_json(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+    return rfc8785.dumps(value).decode("utf-8")
 
 
 def sha256_hex(value: Any) -> str:
@@ -59,6 +59,23 @@ def seal(header: dict, sections: dict[str, Any]) -> dict:
 
 
 def verify(passport: dict) -> dict:
+    """Malformed JSON is an invalid passport, never a server error."""
+    invalid = {"valid": False, "reason": "Malformed passport manifest or sections", "sections": [], "package_hash_matches": False}
+    if not isinstance(passport, dict):
+        return invalid
+    manifest = passport.get("manifest")
+    if (not isinstance(manifest, dict) or not isinstance(manifest.get("sections"), dict)
+            or not isinstance(passport.get("sections"), dict)
+            or manifest.get("algorithm") != "sha256"
+            or manifest.get("canonicalization") != CANONICALIZATION):
+        return invalid
+    try:
+        return _verify(passport)
+    except (rfc8785.CanonicalizationError, TypeError, ValueError, UnicodeError):
+        return invalid
+
+
+def _verify(passport: dict) -> dict:
     """Recompute every hash. Reports which sections changed rather than a single pass/fail."""
     if not isinstance(passport, dict) or passport.get("format") != FORMAT:
         return {"valid": False, "reason": f"Not a {FORMAT} document", "sections": [], "package_hash_matches": False}

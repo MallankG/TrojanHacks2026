@@ -99,3 +99,21 @@ def test_verify_endpoint_is_stateless():
                                         headers={"X-Service-Key": "test-worker-key", "X-Tenant-Id": TENANT})
     assert response.status_code == 200
     assert response.json()["valid"] is True
+
+
+def test_ecmascript_numeric_and_utf16_canonicalization():
+    value = {"numbers": [1.0, 1e-7, 1e-6, -0.0, 1e20], "\ue000": 1, "\U0001f600": 2}
+    assert passport.canonical_json(value) == '{"numbers":[1,1e-7,0.000001,0,100000000000000000000],"😀":2,"\ue000":1}'
+
+
+def test_malformed_passport_containers_are_invalid():
+    for field, value in [("manifest", "edited"), ("manifest", []), ("sections", []), ("sections", "edited")]:
+        doc = passport.seal(HEADER, _sections())
+        doc[field] = value
+        assert passport.verify(doc)["valid"] is False
+    doc = passport.seal(HEADER, _sections())
+    doc["manifest"]["sections"] = ["edited"]
+    assert passport.verify(doc)["valid"] is False
+    doc = passport.seal(HEADER, _sections())
+    doc["sections"]["model"] = float("inf")
+    assert passport.verify(doc)["valid"] is False
