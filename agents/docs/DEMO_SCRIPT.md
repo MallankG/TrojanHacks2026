@@ -78,6 +78,25 @@ Point at: each claim's `cites:` chunk_id and the citations list with document ti
 > "The copilot answers only from retrieved policy. A claim citing anything that wasn't retrieved is
 > dropped. If nothing supports an answer, it says so."
 
+### Optional (+1 min): case chat
+
+```bash
+python -m tracelayer_agents.demo --scenario fan_out --chat
+```
+
+This runs three chips (`explain_alert`, `trace_forward`, `benign_explanations`) and then the
+free-text question "Where did the money go after it left the hub account?" on the fan_out case.
+Point at: the read-only tool calls behind each turn, every claim's source ids, and the `gaps`
+list, which holds statements the verifier dropped (for example, a benign explanation the tools
+don't support).
+
+> "The chat is bound to this one case. It can only run read-only lookups inside the case's scope.
+> Python writes the facts; the model only writes the prose around them. Anything it can't trace
+> back to a tool result is dropped, and we show that gap instead."
+
+If Ollama is slow, the same command in the `TRACELAYER_PRECOMPUTED=1` terminal serves these four
+turns from the recording (`precomputed: True`). Tools, the verifier and audit still run live.
+
 ### 4:00–4:45 Human decision and audit chain
 
 ```bash
@@ -98,7 +117,7 @@ python -m tracelayer_agents.demo --golden --decide escalate --reason "$REASON"
 ```
 
 > "One command replays the whole story deterministically: clean batch, governance halt, caveated
-> exploratory run, a cycle, the case, the copilot, the decision and a verified audit chain, with
+> exploratory run, a cycle, the case, the copilot, the case chat, the decision and a verified audit chain, with
 > dataset and config hashes."
 
 ---
@@ -113,11 +132,12 @@ Cues: `draft_narrative` takes more than ~20 s, or the output shows `fallback: Tr
 3. Point at `precomputed: True` next to `provider: ollama  model: qwen3.5:9b`. This is real Ollama
    output recorded earlier, and the verifier, audit chain and decision still run live. Say so.
 
-Only the fan_out top alert and the exact question above are precomputed. Any other alert or question
+Only the fan_out top alert, the copilot question above, and the four chat turns (the three chips
+plus the hub question, on the fan_out case) are precomputed. Any other alert or question
 runs live, so stick to the script. If Ollama is completely down, the template fallback answers in
 milliseconds with the same schema and a passing verifier (`fallback: True`).
 
-Refresh the recording before the demo (needs Ollama up, takes ~1–2 min):
+Refresh the recording before the demo (needs Ollama up, takes ~4 min with the chat):
 
 ```bash
 python -m tracelayer_agents.demo --golden --decide escalate --reason "$REASON" --save

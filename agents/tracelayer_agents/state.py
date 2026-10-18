@@ -116,6 +116,7 @@ class ChatState(_TracedState, total=False):
     synthesis: ChatSynthesis
     benign_support: dict[str, list[str]]
     llm_meta: Annotated[list[LLMMeta], operator.add]
+    precomputed: Annotated[bool, operator.or_]
     claims: list[ChatClaim]
     gaps: list[ChatGap]
     verifier_errors: list[VerifierError]

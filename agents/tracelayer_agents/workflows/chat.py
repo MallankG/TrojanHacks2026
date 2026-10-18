@@ -101,6 +101,7 @@ async def run_chat_turn(
         verification_status=("unverified" if clarified
                              else state.get("verification_status") or "unverified"),
         llm_meta=state.get("llm_meta") or [],
+        precomputed=bool(state.get("precomputed")),
     )
     with entry.lock:
         session.turns.append(turn)

@@ -254,7 +254,8 @@ def _latency_table(steps: list[tuple[str, list[TraceEvent]]]) -> str:
 async def run_golden(decision: dict[str, Any] | None, config: AgentConfig) -> dict[str, Any]:
     """The fixed demo sequence, through the public facade only: reset → fan_out → bad_batch
     strict (halt) → bad_batch exploratory (caveated) → cycle → start_case on the fan_out top
-    alert → copilot on the golden question → optional decision → audit chain check."""
+    alert → copilot on the golden question → case chat (golden chips, then the golden question)
+    → optional decision → audit chain check."""
     random.seed(GOLDEN_SEED)  # the mocks are hash-deterministic; this pins anything that isn't
     api.configure(config=config)  # fresh in-memory services, repositories and audit chain
 
@@ -273,12 +274,28 @@ async def run_golden(decision: dict[str, Any] | None, config: AgentConfig) -> di
     t0 = time.perf_counter()
     run["copilot"] = await api.copilot_query(precomputed.GOLDEN_QUESTION, top.alert_id)
     run["timings"]["copilot"] = (time.perf_counter() - t0) * 1000
+    if run["case"].status == "ok":
+        t0 = time.perf_counter()
+        with precomputed.record_chat() as outputs:
+            run["chat"] = await _golden_chat(run["case"].case_id)
+        run["chat_outputs"] = dict(outputs)
+        run["timings"]["chat"] = (time.perf_counter() - t0) * 1000
     if decision is not None and run["case"].status == "ok":
         t0 = time.perf_counter()
         run["decision"] = await api.resume_case(run["case"].case_id, decision)
         run["timings"]["decision"] = (time.perf_counter() - t0) * 1000
     run["audit"] = api.verify_audit_chain()
     return run
+
+
+async def _golden_chat(case_id: str) -> list[ChatTurnResult]:
+    chat = await api.start_chat(case_id, "analyst_demo", "analyst")
+    if chat.status != "ok" or chat.chat is None:
+        return []
+    chat_id = chat.chat.chat_id
+    turns = [await api.send_message(chat_id, chip=c) for c in precomputed.GOLDEN_CHAT_CHIPS]
+    turns.append(await api.send_message(chat_id, text=precomputed.GOLDEN_CHAT_QUESTION))
+    return turns
 
 
 def _golden_report(run: dict[str, Any], config: AgentConfig) -> None:
@@ -329,6 +346,27 @@ def _golden_report(run: dict[str, Any], config: AgentConfig) -> None:
         print(f"    error: {copilot.error}")
     steps.append(("copilot", copilot.trace))
 
+    turns: list[ChatTurnResult] = run.get("chat") or []
+    if turns:
+        n += 1
+        print(f"[{n}] chat  {len(turns)} turns  {run['timings']['chat']:,.0f} ms")
+        for t in turns:
+            turn = t.turn
+            if turn is None:
+                print(f"    {t.status}: {t.error}")
+                continue
+            ask = f"chip {turn.chip}" if turn.chip else f"Q: {turn.question}"
+            metas = "  ".join(
+                f"{m.provider}/{m.model} {m.prompt_version} fallback={m.fallback_used}"
+                for m in turn.llm_meta
+            )
+            print(f"    {ask}  {turn.status}  {turn.verification_status}  "
+                  f"claims={len(turn.claims)}  gaps={len(turn.gaps)}  "
+                  f"precomputed={turn.precomputed}")
+            print(f"      {metas}")
+            print(f"      {turn.answer[:160]}")
+            steps.append((f"chat/{turn.chip or 'question'}", t.trace))
+
     decided: CaseDecisionResult | None = run.get("decision")
     if decided is not None:
         n += 1
@@ -357,7 +395,13 @@ def _save_golden(run: dict[str, Any], config: AgentConfig) -> str | None:
     if case is None or case.status != "ok" or copilot is None or copilot.status != "ok":
         return "case or copilot step failed; nothing saved"
     assert case.llm_meta is not None and copilot.answer is not None
-    if case.llm_meta.fallback_used or copilot.answer.fallback_used:
+    turns: list[ChatTurnResult] = run.get("chat") or []
+    if len(turns) != len(precomputed.GOLDEN_CHAT_CHIPS) + 1 or any(
+        t.status != "ok" or t.turn is None for t in turns
+    ):
+        return "chat step failed; nothing saved"
+    chat_fallback = any(m.fallback_used for t in turns for m in t.turn.llm_meta)
+    if case.llm_meta.fallback_used or copilot.answer.fallback_used or chat_fallback:
         return ("the template answered (Ollama down or too slow); start Ollama with "
                 f"{os.environ.get('OLLAMA_MODEL') or 'the team model'} and rerun")
     datasets, config_hash = golden_hashes(config)
@@ -373,13 +417,15 @@ def _save_golden(run: dict[str, Any], config: AgentConfig) -> str | None:
         case=case,
         copilot=copilot,
         decision=run.get("decision"),
+        chat_turns=turns,
+        chat_outputs=run.get("chat_outputs") or {},
     )
     precomputed.GOLDEN_RUN_PATH.write_text(golden.model_dump_json(indent=2) + "\n")
     return None
 
 
-CHAT_DEMO_CHIPS = ("explain_alert", "trace_forward", "benign_explanations")
-CHAT_DEMO_QUESTION = "Where did the money go after it left the hub account?"
+CHAT_DEMO_CHIPS = precomputed.GOLDEN_CHAT_CHIPS
+CHAT_DEMO_QUESTION = precomputed.GOLDEN_CHAT_QUESTION
 
 
 def _chat_turn_report(label: str, result: ChatTurnResult) -> None:
@@ -391,7 +437,8 @@ def _chat_turn_report(label: str, result: ChatTurnResult) -> None:
     print(f"status: {turn.status}   intent: {turn.intent}   verification: "
           f"{turn.verification_status}   llm: "
           + ", ".join(f"{m.provider}{' (fallback)' if m.fallback_used else ''}"
-                      for m in turn.llm_meta))
+                      for m in turn.llm_meta)
+          + f"   precomputed: {turn.precomputed}")
     for call in turn.tool_calls:
         print(f"  tool {call.tool:<22} {call.status:<8} rows={call.row_count:<3} "
               f"{call.duration_ms:>8.1f} ms  {call.error or ''}")

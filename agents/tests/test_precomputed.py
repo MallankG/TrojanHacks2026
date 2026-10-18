@@ -17,6 +17,8 @@ from tracelayer_agents.schemas import CaseStatus
 
 GOLDEN_SUMMARY = "Precomputed golden summary of the outgoing transfers under review."
 GOLDEN_ANSWER = "Precomputed golden answer about escalation documentation."
+CHAT_MARK = "Precomputed golden chat summary."
+OVERCLAIM = "All listed transfers are supported by payroll data."
 ON = AgentConfig(use_precomputed=True)
 OFF = AgentConfig()
 
@@ -40,6 +42,12 @@ async def golden_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> precom
     copilot = copilot.model_copy(update={
         "answer": copilot.answer.model_copy(update={"answer": GOLDEN_ANSWER, **ollama}),
     })
+    chat_outputs = {}
+    for key, out in run["chat_outputs"].items():
+        if out.prompt == "chat_answer":  # marker text, plus an overclaim the live verifier drops
+            out = out.model_copy(update={
+                "output": {**out.output, "summary": f"{CHAT_MARK} {OVERCLAIM}"}})
+        chat_outputs[key] = out.model_copy(update={"meta": out.meta.model_copy(update=ollama)})
     datasets, config_hash = golden_hashes(OFF)
     golden = precomputed.GoldenRun(
         created_at=datetime.now(UTC), seed=GOLDEN_SEED, dataset_hashes=datasets,
@@ -47,6 +55,7 @@ async def golden_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> precom
         golden_question=precomputed.GOLDEN_QUESTION,
         copilot_source_ids=[c.chunk_id for c in copilot.sources],
         analyses=run["analyses"], case=case, copilot=copilot,
+        chat_turns=run["chat"], chat_outputs=chat_outputs,
     )
     path = tmp_path / "golden_run.json"
     path.write_text(golden.model_dump_json())
@@ -129,6 +138,53 @@ async def test_copilot_live_when_flag_off(golden_file: precomputed.GoldenRun) ->
     assert result.answer.provider == "template"
 
 
+async def _golden_chat(config: AgentConfig, alert_index: int = 0) -> str:
+    alerts = await _fan_out_alerts(config)
+    case = await api.start_case(alerts[alert_index])
+    return (await api.start_chat(case.case_id, "u1", "analyst")).chat.chat_id
+
+
+async def test_chat_served_for_golden_chips_and_question(
+    golden_file: precomputed.GoldenRun,
+) -> None:
+    assert len(golden_file.chat_outputs) == len(precomputed.GOLDEN_CHAT_CHIPS) + 2  # +plan
+    chat_id = await _golden_chat(ON)
+    turns = [await api.send_message(chat_id, chip=c) for c in precomputed.GOLDEN_CHAT_CHIPS]
+    # whitespace and case don't matter for the question
+    turns.append(await api.send_message(
+        chat_id, text="  " + precomputed.GOLDEN_CHAT_QUESTION.upper()))
+    for result in turns:
+        turn = result.turn
+        assert result.status == "ok" and turn.precomputed is True
+        assert {m.provider for m in turn.llm_meta} == {"ollama"}
+        # the verifier ran live on the served output: the overclaim is dropped as a gap
+        assert turn.answer == CHAT_MARK and OVERCLAIM not in result.model_dump_json()
+        assert "ASSERTED_BENIGN" in {c for g in turn.gaps for c in g.codes}
+        assert turn.claims and turn.tool_calls
+    assert len(turns[-1].turn.llm_meta) == 2  # plan and answer both served
+    assert api.verify_audit_chain().ok
+
+
+async def test_chat_live_for_other_requests(golden_file: precomputed.GoldenRun) -> None:
+    chat_id = await _golden_chat(ON)
+    other_chip = await api.send_message(chat_id, chip="trace_backward")
+    other_text = await api.send_message(chat_id, text="Which accounts sent money to the hub?")
+    for result in (other_chip, other_text):
+        assert result.turn.precomputed is False
+        assert CHAT_MARK not in result.turn.answer
+        assert {m.provider for m in result.turn.llm_meta} <= {"template"}
+
+    other_case = await _golden_chat(ON, alert_index=1)
+    elsewhere = await api.send_message(other_case, chip="explain_alert")
+    assert elsewhere.turn.precomputed is False
+
+
+async def test_chat_live_when_flag_off(golden_file: precomputed.GoldenRun) -> None:
+    chat_id = await _golden_chat(OFF)
+    result = await api.send_message(chat_id, chip="explain_alert")
+    assert result.turn.precomputed is False and CHAT_MARK not in result.turn.answer
+
+
 def test_flag_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("TRACELAYER_PRECOMPUTED", raising=False)
     assert AgentConfig.from_env().use_precomputed is False
@@ -146,3 +202,6 @@ async def test_shipped_golden_run_matches_fixtures() -> None:
     assert run["case"].alert_id == golden.golden_alert_id
     assert golden.case.draft is not None and not golden.case.draft.fallback_used
     assert golden.copilot.answer is not None and not golden.copilot.answer.fallback_used
+    assert [t.turn.chip for t in golden.chat_turns] == [*precomputed.GOLDEN_CHAT_CHIPS, None]
+    assert golden.chat_outputs and not any(o.meta.fallback_used
+                                           for o in golden.chat_outputs.values())

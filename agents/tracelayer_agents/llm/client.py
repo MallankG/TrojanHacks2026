@@ -65,6 +65,11 @@ def _discover_prompts() -> dict[str, Path]:
 
 PROMPTS = _discover_prompts()
 
+
+def prompt_input_hash(prompt_name: str, variables: dict[str, Any]) -> str:
+    """`LLMMeta.input_hash`: sha256 of the canonical JSON of prompt_version + variables."""
+    return sha256_json({"prompt_version": PROMPTS[prompt_name].stem, "variables": variables})
+
 _missing_templates = sorted(PROMPTS.keys() - TEMPLATES.keys())
 if _missing_templates:
     raise RuntimeError(f"prompts without a deterministic template: {_missing_templates}")
@@ -130,7 +135,7 @@ class LLMClient:
         if prompt_name not in PROMPTS:
             raise ValueError(f"unknown prompt {prompt_name!r}")
         prompt_version = PROMPTS[prompt_name].stem
-        input_hash = sha256_json({"prompt_version": prompt_version, "variables": variables})
+        input_hash = prompt_input_hash(prompt_name, variables)
         started = time.perf_counter()
         run = _Attempt(trace_id=trace_id)
 

@@ -10,11 +10,11 @@ from __future__ import annotations
 import html
 import json
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, TypeVar
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
-from tracelayer_agents import audit
+from tracelayer_agents import audit, precomputed
 from tracelayer_agents.audit import canonical_json, sha256_json
 from tracelayer_agents.chat.claims import benign_support, tool_claims
 from tracelayer_agents.chat.plans import chip_plan
@@ -40,6 +40,7 @@ from tracelayer_agents.schemas import (
     ChatSynthesis,
     ChatToolQueryOutput,
     ChatVerifyOutput,
+    LLMMeta,
     ToolResult,
 )
 from tracelayer_agents.tools import REGISTRY, run_tool, validate_call
@@ -50,6 +51,7 @@ HYPOTHESIS_CHIPS = frozenset({"explain_alert", "why_connected", "evidence_per_si
                               "benign_explanations", "next_steps"})
 CLARIFY = ("I can only answer with read-only lookups inside this case. Please ask a narrower "
            "question (one account, transaction or signal), or use a chip.")
+M = TypeVar("M", bound=BaseModel)
 SUGGESTED_CHIPS = ["explain_alert", "trace_forward", "trace_backward", "missing_data"]
 
 
@@ -70,6 +72,24 @@ def _case_context(scope: CaseScope, pinned: list[str]) -> dict[str, Any]:
     }
 
 
+async def _generate(
+    state: Mapping[str, Any], ctx: NodeContext, prompt: precomputed.ChatPrompt,
+    variables: dict[str, Any], model: type[M],
+) -> tuple[M, LLMMeta, bool]:
+    """The LLM call, or the precomputed golden output when the flag is on and the request is the
+    golden one; live outputs are recorded while `precomputed.record_chat` is open."""
+    chip, question = state.get("chip"), state.get("question")
+    if ctx.config.use_precomputed:
+        served = precomputed.golden_chat_output(
+            prompt, state["scope"].alert.alert_id, chip, question, variables, model)
+        if served is not None:
+            return served[0], served[1], True
+    output, meta = await llm.generate_structured(
+        prompt, variables, model, trace_id=state.get("trace_id") or "untraced")
+    precomputed.record(prompt, variables, question, output, meta)
+    return output, meta, False
+
+
 @traced_node("chat_classify", ChatClassifyOutput, llm=True)
 async def chat_classify(state: Mapping[str, Any], ctx: NodeContext) -> ChatClassifyOutput:
     scope: CaseScope = state["scope"]
@@ -87,27 +107,26 @@ async def chat_classify(state: Mapping[str, Any], ctx: NodeContext) -> ChatClass
         "case_context": _case_context(scope, pinned),
         "chip_plans": _plans_json(scope, pinned),
     }
-    raw, meta = await llm.generate_structured(
-        "chat_plan", variables, ChatPlanDraft, trace_id=state.get("trace_id") or "untraced"
-    )
+    raw, meta, served = await _generate(state, ctx, "chat_plan", variables, ChatPlanDraft)
     try:
         plan = ChatPlan.model_validate(raw.model_dump())
     except ValidationError:
         return ChatClassifyOutput(
-            intent=raw.intent or "invalid", plan=[], llm_meta=[meta],
+            intent=raw.intent or "invalid", plan=[], llm_meta=[meta], precomputed=served,
             clarification=f"{CLARIFY} (The question mapped to an invalid or too large plan; at "
                           "most 3 allowlisted tool calls are allowed.)",
         )
     if plan.intent == "unclear" or not plan.tool_calls:
         return ChatClassifyOutput(intent=plan.intent, plan=[], clarification=CLARIFY,
-                                  llm_meta=[meta])
+                                  llm_meta=[meta], precomputed=served)
     problems = [p for p in (validate_call(c, scope) for c in plan.tool_calls) if p]
     if problems:
         return ChatClassifyOutput(
-            intent=plan.intent, plan=[], llm_meta=[meta],
+            intent=plan.intent, plan=[], llm_meta=[meta], precomputed=served,
             clarification=f"{CLARIFY} (Not run: {'; '.join(dict.fromkeys(problems))}.)",
         )
-    return ChatClassifyOutput(intent=plan.intent, plan=plan.tool_calls, llm_meta=[meta])
+    return ChatClassifyOutput(intent=plan.intent, plan=plan.tool_calls, llm_meta=[meta],
+                              precomputed=served)
 
 
 @traced_node("chat_tool_query", ChatToolQueryOutput)
@@ -161,12 +180,12 @@ async def chat_draft_answer(state: Mapping[str, Any], ctx: NodeContext) -> ChatD
         "hub_account": scope.hub_accounts[0],
         "allow_hypotheses": chip is None or chip in HYPOTHESIS_CHIPS,
     }
-    synthesis, meta = await llm.generate_structured(
-        "chat_answer", variables, ChatSynthesis, trace_id=state.get("trace_id") or "untraced"
+    synthesis, meta, served = await _generate(
+        state, ctx, "chat_answer", variables, ChatSynthesis
     )
     return ChatDraftOutput(
         draft_claims=[*facts, *_hypothesis_claims(synthesis, facts)],
-        synthesis=synthesis, benign_support=support, llm_meta=[meta],
+        synthesis=synthesis, benign_support=support, llm_meta=[meta], precomputed=served,
     )
 
 

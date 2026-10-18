@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "created_at": "2026-10-18T00:00:49.874635Z",
+  "created_at": "2026-10-18T06:01:53.759421Z",
   "seed": 20261017,
   "dataset_hashes": {
     "fan_out.csv": "ce08c0c644f430709b59cece035104b191834444c68f39158fa9f794951d5d44",
@@ -9,7 +9,7 @@
     "accounts.csv": "3716306645b626448bfe03e631c041a205c268f483818e32bdb0b9c4e28c27de",
     "policy_chunks.json": "755ae12ef63940ecb5e692b21a9149e4886b8408561f0a01105a6016fb58144d"
   },
-  "config_hash": "5cf66f2e2ee49388a59302253374caf09bbac75c1068150bb625975caab66bbf",
+  "config_hash": "c2cdb8286d67d2aa03343fceaac2403e478979eae9de06675c580ff60fb43e0d",
   "golden_alert_id": "alrt_a812f90d1b25",
   "golden_question": "What should an analyst document when escalating an alert for supervisor review?",
   "copilot_source_ids": [
@@ -21,7 +21,7 @@
     "fan_out/strict": {
       "status": "ok",
       "error": null,
-      "trace_id": "tr_e3cf0202e350433494ea44bc2853e9a9",
+      "trace_id": "tr_cdbf30d5cf8746959a94aee75f684808",
       "governance_status": "pass",
       "halted": false,
       "alerts": [
@@ -334,79 +334,79 @@
       ],
       "trace": [
         {
-          "trace_id": "tr_e3cf0202e350433494ea44bc2853e9a9",
+          "trace_id": "tr_cdbf30d5cf8746959a94aee75f684808",
           "node": "ingest",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.013244Z",
-          "ended_at": "2026-10-17T23:59:16.014757Z",
-          "duration_ms": 1.515,
-          "input_hash": "7abacce61f81c477d70ce4ad10ab499429ad7a7a808dedf7b03757ab1a0d6804",
+          "started_at": "2026-10-18T05:57:45.622812Z",
+          "ended_at": "2026-10-18T05:57:45.624479Z",
+          "duration_ms": 1.667,
+          "input_hash": "16ffff24780bad12727a19255d4d8e51633e81393f61d782d74a9593087fa3ef",
           "output_hash": "f6a036ce4d5a0887e683ced27b3579aa7d05e29e51608b6af38b226f7512454c",
           "error": null
         },
         {
-          "trace_id": "tr_e3cf0202e350433494ea44bc2853e9a9",
+          "trace_id": "tr_cdbf30d5cf8746959a94aee75f684808",
           "node": "governance",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.015125Z",
-          "ended_at": "2026-10-17T23:59:16.016956Z",
-          "duration_ms": 1.831,
-          "input_hash": "5f28b560dc527630101c1d36a6a903967bd6441c7540b11c58cc9c08db2dfe95",
+          "started_at": "2026-10-18T05:57:45.624808Z",
+          "ended_at": "2026-10-18T05:57:45.626722Z",
+          "duration_ms": 1.915,
+          "input_hash": "ba75930c08492e396965eee1646897ebd84ac3f39552a9d63974b313b1850933",
           "output_hash": "b9e819c4529478776ff83df4c45ed9e036d30296145b03ff49dc9085728669bd",
           "error": null
         },
         {
-          "trace_id": "tr_e3cf0202e350433494ea44bc2853e9a9",
+          "trace_id": "tr_cdbf30d5cf8746959a94aee75f684808",
           "node": "build_graph",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.017456Z",
-          "ended_at": "2026-10-17T23:59:16.017750Z",
-          "duration_ms": 0.294,
-          "input_hash": "53ca52aab9e4eb0ad1e10761d9653eb557dc79957f61424beaa30b95a19b9b71",
+          "started_at": "2026-10-18T05:57:45.627235Z",
+          "ended_at": "2026-10-18T05:57:45.627502Z",
+          "duration_ms": 0.267,
+          "input_hash": "0d3815328de21627d630d7fdb367be14204b37ea5c1c488a2e84cf1e6a4f4175",
           "output_hash": "bd504aaaffd91118223fbd9894b6621f180e2a919e7d18655d60be2b05b856e5",
           "error": null
         },
         {
-          "trace_id": "tr_e3cf0202e350433494ea44bc2853e9a9",
+          "trace_id": "tr_cdbf30d5cf8746959a94aee75f684808",
           "node": "detect_behavior",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.018097Z",
-          "ended_at": "2026-10-17T23:59:16.019699Z",
-          "duration_ms": 1.602,
-          "input_hash": "4b6d38b430d89c6c4357ff0b55dcd2ce7823442081ae70b5f0710ad2caf8b19a",
+          "started_at": "2026-10-18T05:57:45.627845Z",
+          "ended_at": "2026-10-18T05:57:45.629781Z",
+          "duration_ms": 1.936,
+          "input_hash": "1c18f5940490cd6a24638c7409b1bdbf3c82127400853becbee56e1f5cfc0fa5",
           "output_hash": "5c6da8c9545f9b6fe7004fc2d82d369ccbf504a6e08b46518e0780ae9486fc5c",
           "error": null
         },
         {
-          "trace_id": "tr_e3cf0202e350433494ea44bc2853e9a9",
+          "trace_id": "tr_cdbf30d5cf8746959a94aee75f684808",
           "node": "detect_graphml",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.018119Z",
-          "ended_at": "2026-10-17T23:59:16.019858Z",
-          "duration_ms": 1.739,
-          "input_hash": "4b6d38b430d89c6c4357ff0b55dcd2ce7823442081ae70b5f0710ad2caf8b19a",
+          "started_at": "2026-10-18T05:57:45.627864Z",
+          "ended_at": "2026-10-18T05:57:45.629917Z",
+          "duration_ms": 2.053,
+          "input_hash": "1c18f5940490cd6a24638c7409b1bdbf3c82127400853becbee56e1f5cfc0fa5",
           "output_hash": "207580754592e866e068fc073c5a26077fcd420372c07fe24272927aa29e0ac3",
           "error": null
         },
         {
-          "trace_id": "tr_e3cf0202e350433494ea44bc2853e9a9",
+          "trace_id": "tr_cdbf30d5cf8746959a94aee75f684808",
           "node": "aggregate",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.020723Z",
-          "ended_at": "2026-10-17T23:59:16.022144Z",
-          "duration_ms": 1.421,
-          "input_hash": "979c70ec38070d4caf7a6f52d2e4a3980fe4a967f66e1be72f07d5578908431b",
-          "output_hash": "956b56bcb701cbebe8da13a8812aa6870a6b25c5d0c5c28a4b6f523d15c448ab",
+          "started_at": "2026-10-18T05:57:45.630782Z",
+          "ended_at": "2026-10-18T05:57:45.632198Z",
+          "duration_ms": 1.416,
+          "input_hash": "177bce99b9094bcaa866be8181e9732eb53a6cf5e7ad37c6646620551457509f",
+          "output_hash": "33ec054575b2d94111350d4a5915adf215275c21c3e0b38345b2c8aa1dc4cff6",
           "error": null
         },
         {
-          "trace_id": "tr_e3cf0202e350433494ea44bc2853e9a9",
+          "trace_id": "tr_cdbf30d5cf8746959a94aee75f684808",
           "node": "investigate_flows",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.022928Z",
-          "ended_at": "2026-10-17T23:59:16.027103Z",
-          "duration_ms": 4.175,
-          "input_hash": "3685069c83e05161e669c2d6a08cb175b01cbbfa744773daf2fb841dc9718dd9",
+          "started_at": "2026-10-18T05:57:45.633021Z",
+          "ended_at": "2026-10-18T05:57:45.637333Z",
+          "duration_ms": 4.312,
+          "input_hash": "e6c9fb1e5080363d81f715e219485790e84a07dd8d85d775c829caa914a03387",
           "output_hash": "baf2cc86b942300264d09bf96c1e4da28638d0d9ad7f9b7f8bc497b091a9e26a",
           "error": null
         }
@@ -415,30 +415,30 @@
     "bad_batch/strict": {
       "status": "halted",
       "error": null,
-      "trace_id": "tr_78b133be3c754d5f84172b74b205d6ce",
+      "trace_id": "tr_a15fdca5247c4c199e146d7996b72df1",
       "governance_status": "fail",
       "halted": true,
       "alerts": [],
       "trace": [
         {
-          "trace_id": "tr_78b133be3c754d5f84172b74b205d6ce",
+          "trace_id": "tr_a15fdca5247c4c199e146d7996b72df1",
           "node": "ingest",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.028994Z",
-          "ended_at": "2026-10-17T23:59:16.030027Z",
-          "duration_ms": 1.033,
-          "input_hash": "eecab23d0fc53051190b64aa2f314a1e612f55aae6ce706aa40937f8d55752b3",
+          "started_at": "2026-10-18T05:57:45.639239Z",
+          "ended_at": "2026-10-18T05:57:45.640401Z",
+          "duration_ms": 1.162,
+          "input_hash": "5725996f4e8144440f02ffbf3e6daa54f4f8c38c7829be924431a1687e1d5183",
           "output_hash": "82f4c145fe63416447b22be851e63c3e76d45f99d274442c08b80b38bd283d3c",
           "error": null
         },
         {
-          "trace_id": "tr_78b133be3c754d5f84172b74b205d6ce",
+          "trace_id": "tr_a15fdca5247c4c199e146d7996b72df1",
           "node": "governance",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.030314Z",
-          "ended_at": "2026-10-17T23:59:16.032626Z",
-          "duration_ms": 2.312,
-          "input_hash": "17ed099a282774aba41abe1e8bcdedd972b7e71976e906e78b2cd793cccc78ef",
+          "started_at": "2026-10-18T05:57:45.640678Z",
+          "ended_at": "2026-10-18T05:57:45.643060Z",
+          "duration_ms": 2.383,
+          "input_hash": "728d536145900b9244626ea1fc85e102e790e0b72c8953936dc2abd96fd56802",
           "output_hash": "6ad67ebe56400554d021289fbacb6d530506064e84b82d36eaccc2139a17c555",
           "error": null
         }
@@ -447,7 +447,7 @@
     "bad_batch/exploratory": {
       "status": "ok",
       "error": null,
-      "trace_id": "tr_50574a77395d41169c5ee443755bd942",
+      "trace_id": "tr_5f98507b0dad43a4bb49ac113b377612",
       "governance_status": "fail",
       "halted": false,
       "alerts": [
@@ -982,79 +982,79 @@
       ],
       "trace": [
         {
-          "trace_id": "tr_50574a77395d41169c5ee443755bd942",
+          "trace_id": "tr_5f98507b0dad43a4bb49ac113b377612",
           "node": "ingest",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.034470Z",
-          "ended_at": "2026-10-17T23:59:16.034575Z",
-          "duration_ms": 0.106,
-          "input_hash": "0968185b497d84a5586154bd7831f9378b157118e494d774e48a45ca02962329",
+          "started_at": "2026-10-18T05:57:45.645021Z",
+          "ended_at": "2026-10-18T05:57:45.645146Z",
+          "duration_ms": 0.125,
+          "input_hash": "0358b1f17df0ef71244d53a16b7eebed7e431306cd15163eb94cca22161e1dde",
           "output_hash": "82f4c145fe63416447b22be851e63c3e76d45f99d274442c08b80b38bd283d3c",
           "error": null
         },
         {
-          "trace_id": "tr_50574a77395d41169c5ee443755bd942",
+          "trace_id": "tr_5f98507b0dad43a4bb49ac113b377612",
           "node": "governance",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.034823Z",
-          "ended_at": "2026-10-17T23:59:16.036952Z",
-          "duration_ms": 2.129,
-          "input_hash": "68ce6b8bd95abbbe1dce87bd24ef8b26b2354341765970daef104d849b600aa1",
+          "started_at": "2026-10-18T05:57:45.645388Z",
+          "ended_at": "2026-10-18T05:57:45.647365Z",
+          "duration_ms": 1.978,
+          "input_hash": "ccb64a02c0847c0f138b07a2eb57610f4d3b52255afb80738ac094b83e9f6bf6",
           "output_hash": "ab613cb16a7ba335c307b4811b5b964afd9957cce948f265afef371311a600fc",
           "error": null
         },
         {
-          "trace_id": "tr_50574a77395d41169c5ee443755bd942",
+          "trace_id": "tr_5f98507b0dad43a4bb49ac113b377612",
           "node": "build_graph",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.037428Z",
-          "ended_at": "2026-10-17T23:59:16.037604Z",
-          "duration_ms": 0.177,
-          "input_hash": "f62b73bda819a48e9d6ca04c1fc88014beee898a98fd992f455f868d3360dd8f",
+          "started_at": "2026-10-18T05:57:45.647891Z",
+          "ended_at": "2026-10-18T05:57:45.648094Z",
+          "duration_ms": 0.204,
+          "input_hash": "e4adf7743bb78610f10531406d57d095f119f75bbe5c1e0f78e7f440d88cc8a4",
           "output_hash": "6bf804e42cdf38868f8704d8868da163539f4b73e2ad9aad8a36d66030a467b3",
           "error": null
         },
         {
-          "trace_id": "tr_50574a77395d41169c5ee443755bd942",
+          "trace_id": "tr_5f98507b0dad43a4bb49ac113b377612",
           "node": "detect_behavior",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.037953Z",
-          "ended_at": "2026-10-17T23:59:16.039000Z",
-          "duration_ms": 1.046,
-          "input_hash": "49e31e5160aab2a96dd0d16ded1c787dc10700299769e67185a80503a13e37d4",
+          "started_at": "2026-10-18T05:57:45.648448Z",
+          "ended_at": "2026-10-18T05:57:45.649489Z",
+          "duration_ms": 1.041,
+          "input_hash": "8a3578f1129857307aff80d3d637c28df60066536838954814d01d42a126808e",
           "output_hash": "c2fbdbd4594921646e19b116735e3f85e64521bbdd792d2f6cb771dd49207189",
           "error": null
         },
         {
-          "trace_id": "tr_50574a77395d41169c5ee443755bd942",
+          "trace_id": "tr_5f98507b0dad43a4bb49ac113b377612",
           "node": "detect_graphml",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.037992Z",
-          "ended_at": "2026-10-17T23:59:16.039119Z",
-          "duration_ms": 1.127,
-          "input_hash": "49e31e5160aab2a96dd0d16ded1c787dc10700299769e67185a80503a13e37d4",
+          "started_at": "2026-10-18T05:57:45.648482Z",
+          "ended_at": "2026-10-18T05:57:45.649607Z",
+          "duration_ms": 1.125,
+          "input_hash": "8a3578f1129857307aff80d3d637c28df60066536838954814d01d42a126808e",
           "output_hash": "6d1f9b062974fe79fd0f6c2510fbdf7c53adb494fb51e46864a0cac4ad1008f7",
           "error": null
         },
         {
-          "trace_id": "tr_50574a77395d41169c5ee443755bd942",
+          "trace_id": "tr_5f98507b0dad43a4bb49ac113b377612",
           "node": "aggregate",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.039848Z",
-          "ended_at": "2026-10-17T23:59:16.041774Z",
-          "duration_ms": 1.927,
-          "input_hash": "dc089a557e87af4a0b8c1d435b3a518f70eb5e9c5af83949f1237886fc50899f",
-          "output_hash": "cfd688bc459d063180a7755965fd78c2c48501a9128a07b17a3aecdd172f82a5",
+          "started_at": "2026-10-18T05:57:45.650338Z",
+          "ended_at": "2026-10-18T05:57:45.652006Z",
+          "duration_ms": 1.668,
+          "input_hash": "c3767a9bfa7cf98d6591e1335f575ca4e9ddcd031510a7a61ec617ab56311ab0",
+          "output_hash": "6073d5e98e3799afc2d7208d003a20f7bdfe2f057eb5e4c2103590e3bf2b01a6",
           "error": null
         },
         {
-          "trace_id": "tr_50574a77395d41169c5ee443755bd942",
+          "trace_id": "tr_5f98507b0dad43a4bb49ac113b377612",
           "node": "investigate_flows",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.042645Z",
-          "ended_at": "2026-10-17T23:59:16.044244Z",
-          "duration_ms": 1.6,
-          "input_hash": "bdb184dd3b1ffce60811a8d8c9962a427d6d61caf7bfe36d8ba14efe7a485e78",
+          "started_at": "2026-10-18T05:57:45.652856Z",
+          "ended_at": "2026-10-18T05:57:45.654392Z",
+          "duration_ms": 1.536,
+          "input_hash": "8dbc97de70e95e84e968cb9d7a35d4086755dcb3ad763aa85911d82e72dbcb5e",
           "output_hash": "62363569a5168f9331b891b3ca3c3100bdc5f0ae30e19f2aee20647b1d3b32e5",
           "error": null
         }
@@ -1063,7 +1063,7 @@
     "cycle/strict": {
       "status": "ok",
       "error": null,
-      "trace_id": "tr_a50e110f3b9f4b729b63ee9233a137a8",
+      "trace_id": "tr_befe7bbe7fd845fa8dc48d8d81826454",
       "governance_status": "pass",
       "halted": false,
       "alerts": [
@@ -1438,79 +1438,79 @@
       ],
       "trace": [
         {
-          "trace_id": "tr_a50e110f3b9f4b729b63ee9233a137a8",
+          "trace_id": "tr_befe7bbe7fd845fa8dc48d8d81826454",
           "node": "ingest",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.045929Z",
-          "ended_at": "2026-10-17T23:59:16.046855Z",
-          "duration_ms": 0.926,
-          "input_hash": "36460c66c7096785e554045d794d6ac80cb68c7ac4f2fff8fa8ad4caadad23c2",
+          "started_at": "2026-10-18T05:57:45.656201Z",
+          "ended_at": "2026-10-18T05:57:45.657196Z",
+          "duration_ms": 0.995,
+          "input_hash": "4b77bdf1fc4ba131e252524e7040c24b51e4cd1afba3c36a861a70b6bdf1c44c",
           "output_hash": "ef6a5bd10b4d1bb62f8d251c418f9b68ee9ac70a56c0a55c1b564f9c0b3db1ab",
           "error": null
         },
         {
-          "trace_id": "tr_a50e110f3b9f4b729b63ee9233a137a8",
+          "trace_id": "tr_befe7bbe7fd845fa8dc48d8d81826454",
           "node": "governance",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.047109Z",
-          "ended_at": "2026-10-17T23:59:16.048501Z",
-          "duration_ms": 1.392,
-          "input_hash": "17f65405c8cc7572a39bdca76769170bccf4e7ed97268e2f8e3327b0dced8124",
+          "started_at": "2026-10-18T05:57:45.657446Z",
+          "ended_at": "2026-10-18T05:57:45.658962Z",
+          "duration_ms": 1.516,
+          "input_hash": "54923590320a9f22d25d2e830bad39c4d3c4facaaedeead6fdf31a653bb872a7",
           "output_hash": "b9e819c4529478776ff83df4c45ed9e036d30296145b03ff49dc9085728669bd",
           "error": null
         },
         {
-          "trace_id": "tr_a50e110f3b9f4b729b63ee9233a137a8",
+          "trace_id": "tr_befe7bbe7fd845fa8dc48d8d81826454",
           "node": "build_graph",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.048957Z",
-          "ended_at": "2026-10-17T23:59:16.049127Z",
-          "duration_ms": 0.17,
-          "input_hash": "f6ba6fba072b4c2506d64f1c301f05f55dafcf7d99cf26b5e0fcabbb09dd1c11",
+          "started_at": "2026-10-18T05:57:45.659408Z",
+          "ended_at": "2026-10-18T05:57:45.659619Z",
+          "duration_ms": 0.212,
+          "input_hash": "a34be0858935ea0dff96161769938cd0d5314f1c90cf2b72a5c7fbced7448485",
           "output_hash": "4a83eb1619452174dcabb81e43e5649d9edf9e687e035d7c922430603dfc4e83",
           "error": null
         },
         {
-          "trace_id": "tr_a50e110f3b9f4b729b63ee9233a137a8",
+          "trace_id": "tr_befe7bbe7fd845fa8dc48d8d81826454",
           "node": "detect_behavior",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.049446Z",
-          "ended_at": "2026-10-17T23:59:16.050530Z",
-          "duration_ms": 1.083,
-          "input_hash": "e7f202b63eb4187724c52edfefed9b2649e25371c7d11998f8d373e6beae7f3d",
+          "started_at": "2026-10-18T05:57:45.659973Z",
+          "ended_at": "2026-10-18T05:57:45.661302Z",
+          "duration_ms": 1.329,
+          "input_hash": "25e95a4317f2d81bb9f6e95f16aacee47a233b012ca77c9aba52462ccb261f3f",
           "output_hash": "e5192ebe901331724aec254d532de89b120df7c18230f212d001b37c46f1b071",
           "error": null
         },
         {
-          "trace_id": "tr_a50e110f3b9f4b729b63ee9233a137a8",
+          "trace_id": "tr_befe7bbe7fd845fa8dc48d8d81826454",
           "node": "detect_graphml",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.049504Z",
-          "ended_at": "2026-10-17T23:59:16.050651Z",
-          "duration_ms": 1.147,
-          "input_hash": "e7f202b63eb4187724c52edfefed9b2649e25371c7d11998f8d373e6beae7f3d",
+          "started_at": "2026-10-18T05:57:45.660043Z",
+          "ended_at": "2026-10-18T05:57:45.661428Z",
+          "duration_ms": 1.385,
+          "input_hash": "25e95a4317f2d81bb9f6e95f16aacee47a233b012ca77c9aba52462ccb261f3f",
           "output_hash": "4987d1e32542e62eb24f36d05a8f55804046fa78732b7a7001e6f59b500e94e9",
           "error": null
         },
         {
-          "trace_id": "tr_a50e110f3b9f4b729b63ee9233a137a8",
+          "trace_id": "tr_befe7bbe7fd845fa8dc48d8d81826454",
           "node": "aggregate",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.051386Z",
-          "ended_at": "2026-10-17T23:59:16.052695Z",
-          "duration_ms": 1.309,
-          "input_hash": "c7e67e46c9431e95f2362d71a042cd48bdd2bd8ccc207607501ee32566acf403",
-          "output_hash": "4ec9a5933e74b2102e0fc211cc11f3cc77cd050f4a01b235df09b699c62c0557",
+          "started_at": "2026-10-18T05:57:45.662189Z",
+          "ended_at": "2026-10-18T05:57:45.663460Z",
+          "duration_ms": 1.272,
+          "input_hash": "f014dfe6d7d3609500d379bf226c86608a2e8cfd655469cbe824ba0fc16be474",
+          "output_hash": "3c9015a9fcc020e22f69d39da1896a6e863355db91f771d9db9e0e88b10ddb32",
           "error": null
         },
         {
-          "trace_id": "tr_a50e110f3b9f4b729b63ee9233a137a8",
+          "trace_id": "tr_befe7bbe7fd845fa8dc48d8d81826454",
           "node": "investigate_flows",
           "status": "ok",
-          "started_at": "2026-10-17T23:59:16.053452Z",
-          "ended_at": "2026-10-17T23:59:16.056085Z",
-          "duration_ms": 2.633,
-          "input_hash": "6cf9cc4268fc6a0ae2e6010de422cb38c2e4b400c21519bcc79578f956e6a848",
+          "started_at": "2026-10-18T05:57:45.664244Z",
+          "ended_at": "2026-10-18T05:57:45.666965Z",
+          "duration_ms": 2.721,
+          "input_hash": "473f1555012172364c1447acaddc4f96e201c0d60af0339c88ae2f4735684c38",
           "output_hash": "9b434abcfc31affa51ff0bbd860c7d6f458a769290aa7841cf110bef9ad275b5",
           "error": null
         }
@@ -1520,11 +1520,11 @@
   "case": {
     "status": "ok",
     "error": null,
-    "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
-    "case_id": "case_a5ac520bf1ef",
+    "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
+    "case_id": "case_8de205a7c2e5",
     "alert_id": "alrt_a812f90d1b25",
     "draft": {
-      "summary": "The evidence documents a series of outgoing transfers from account ACC-3001 to nine distinct receiving accounts, all executed on the same date within a span of approximately two hours. The total value involved in this specific sequence is $43,855.00.",
+      "summary": "The evidence documents a series of outgoing transfers from one account to nine distinct receiving accounts, all occurring within a short timeframe on the same date. The total value involved across these transactions is significant relative to typical reporting thresholds.",
       "observed_facts": [
         {
           "text": "A fan-out pattern links 9 transactions among accounts ACC-3001, ACC-3101, ACC-3102, ACC-3103, ACC-3104, ACC-3105, ACC-3106, ACC-3107, ACC-3108, ACC-3109, totaling $43,855.00, dated 2026-09-04.",
@@ -1776,7 +1776,7 @@
           "citation_chunk_ids": []
         },
         {
-          "text": "The rapid distribution of funds from one account to multiple others could indicate an attempt to disperse assets quickly; however, it may also represent a legitimate business operation such as payroll processing or vendor payments that coincidentally occurred on the same day. It may have a legitimate explanation; this requires reviewer assessment.",
+          "text": "This activity may represent structured payments intended to distribute funds among multiple recipients while staying below individual transaction limits; it could also be part of a legitimate business operation such as payroll distribution or vendor settlements. It may have a legitimate explanation; this requires reviewer assessment.",
           "claim_type": "hypothesis",
           "transaction_ids": [
             "TX-51001",
@@ -1806,7 +1806,7 @@
           "citation_chunk_ids": []
         },
         {
-          "text": "The transactions involve multiple accounts receiving funds from a single source in close temporal proximity, which warrants attention but does not confirm any illicit intent without further context regarding the nature of these relationships. It may have a legitimate explanation; this requires reviewer assessment.",
+          "text": "The rapid succession of transfers to unrelated accounts might indicate an attempt to obscure the origin or destination of funds through layering; however, this could also reflect normal high-volume cash management practices. It may have a legitimate explanation; this requires reviewer assessment.",
           "claim_type": "hypothesis",
           "transaction_ids": [
             "TX-51001",
@@ -1836,7 +1836,7 @@
           "citation_chunk_ids": []
         },
         {
-          "text": "The pattern shows funds moving from one account to several others, which could be part of normal commercial activity or potentially related to structuring if the amounts were specifically chosen for regulatory reasons. It may have a legitimate explanation; this requires reviewer assessment.",
+          "text": "The pattern of sending funds to multiple accounts could be consistent with a known commercial relationship or investment strategy; without further context on the nature of these relationships, no adverse inference can be drawn. It may have a legitimate explanation; this requires reviewer assessment.",
           "claim_type": "hypothesis",
           "transaction_ids": [
             "TX-51001",
@@ -1889,14 +1889,13 @@
         }
       ],
       "uncertainties": [
-        "The identity and relationship status between account ACC-3001 and the nine receiving accounts are not established in the current evidence set.",
-        "There is no information available regarding the source of funds deposited into or held by account ACC-3001 prior to these outgoing transfers.",
-        "It remains unclear whether any of the receiving accounts have been previously flagged for suspicious activity within this institution's records."
+        "The identity and relationship of the account holders for ACC-3001 through ACC-3109 are not described in the provided fact claims.",
+        "There is no information regarding the source of funds deposited into or withdrawn from these accounts prior to this activity.",
+        "It is unclear whether any of the receiving accounts have been previously flagged by internal systems or external authorities."
       ],
       "follow_up_questions": [
-        "What is the known business purpose and relationship between the sender (ACC-3001) and each recipient account?",
-        "Are there corresponding deposits or other inflows to ACC-3001 that explain the availability of funds for these specific transfers?",
-        "Have any of the receiving accounts been involved in similar transaction patterns on different dates?"
+        "What are the beneficial owners and business purposes associated with account ACC-3001?",
+        "Do the nine receiving accounts share common characteristics, such as being linked to a specific industry or geographic region?"
       ],
       "citations": [
         "mock_ffiec_red_flags_003",
@@ -1924,100 +1923,100 @@
       "provider": "ollama",
       "model": "qwen3.5:9b",
       "prompt_version": "narrative_v3",
-      "input_hash": "a5a83f7645db337b278934cb3227a89174c250e8ac93ade4eb8d9a810471e9b5",
+      "input_hash": "57f16ecfa5b63e9a012b459573a78a00d557b81113cdee9b29e769c34be4532a",
       "attempts": 1,
       "fallback_used": false,
-      "latency_ms": 32120.591,
+      "latency_ms": 33536.995,
       "errors": []
     },
     "case_status": "awaiting_review",
     "trace": [
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "load_case",
         "status": "ok",
-        "started_at": "2026-10-17T23:59:16.057732Z",
-        "ended_at": "2026-10-17T23:59:16.058269Z",
-        "duration_ms": 0.537,
-        "input_hash": "59bff4a16a208679e1ee1d511166cfbc340586e8bcaa8a2379cceb94dfa8e2bf",
+        "started_at": "2026-10-18T05:57:45.668610Z",
+        "ended_at": "2026-10-18T05:57:45.669153Z",
+        "duration_ms": 0.544,
+        "input_hash": "278cace76355ab77144ee5cae3f79d42b62fa1ac6867843670b6cfce1c8fbb0f",
         "output_hash": "fdda6b00d7df7e76a2d23e9caa3a17bdf73451d486a5423d97e6d152631be7f0",
         "error": null
       },
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "retrieve_policy",
         "status": "ok",
-        "started_at": "2026-10-17T23:59:16.058734Z",
-        "ended_at": "2026-10-17T23:59:16.058960Z",
-        "duration_ms": 0.226,
-        "input_hash": "780f7fbc007d5fb943c4330081fe559d8e0bb5d0762259b45645c7689b82dfb9",
+        "started_at": "2026-10-18T05:57:45.669647Z",
+        "ended_at": "2026-10-18T05:57:45.669874Z",
+        "duration_ms": 0.228,
+        "input_hash": "098c05790fe0c20004d90f1a906030a7a635829dd200b42bd834fc311d4616ea",
         "output_hash": "228ac1851780a0195088e2b684a1f42106f474eb43c2b1e100da69fd26a3f523",
         "error": null
       },
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "draft_narrative",
         "status": "ok",
-        "started_at": "2026-10-17T23:59:16.059310Z",
-        "ended_at": "2026-10-18T00:00:02.281533Z",
-        "duration_ms": 46222.204,
-        "input_hash": "c1f8d4e0799f191b2df60cf8778b97b4eeb352bcfd20f0dcd8bcd995eed442ea",
-        "output_hash": "90440c4617ca7f02a1467b036c4d6e93fb958c3a9e2c77785950829a6f2b91e0",
+        "started_at": "2026-10-18T05:57:45.670237Z",
+        "ended_at": "2026-10-18T05:58:20.659777Z",
+        "duration_ms": 34989.639,
+        "input_hash": "674f417ba8f969bb96941785b525656293c5e1de7f84f038ff44aab9dd5e1be3",
+        "output_hash": "3228fc81b54e0d36132d79ec89a95725187642c6ff20c1bd78e9bafdcf175272",
         "error": null
       },
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "verify_evidence",
         "status": "ok",
-        "started_at": "2026-10-18T00:00:02.290159Z",
-        "ended_at": "2026-10-18T00:00:02.293629Z",
-        "duration_ms": 3.469,
-        "input_hash": "16f2610243abaceeb04129d7db74408e138d203286525dbe0c4047dcbd48dfe0",
-        "output_hash": "70cf4ce2602bd1c1ecc2b25552a520fe4fabe86241e5b77fec999f0eb833520e",
+        "started_at": "2026-10-18T05:58:20.668020Z",
+        "ended_at": "2026-10-18T05:58:20.670895Z",
+        "duration_ms": 2.869,
+        "input_hash": "5a70f76452e6ff97f3fa893aacf59128109fbe2a34bd00aaa1474235107480ff",
+        "output_hash": "0c69f8163d04723e8b9593af61d83fe11f6e7a0f66f8cfa81c44ef34f40ba347",
         "error": null
       },
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "save_draft",
         "status": "ok",
-        "started_at": "2026-10-18T00:00:02.294405Z",
-        "ended_at": "2026-10-18T00:00:02.295635Z",
-        "duration_ms": 1.229,
-        "input_hash": "34fd31bbe4c2e9c44068127626eaba0369225b4aebf8a7281cde4927c67a2ec0",
-        "output_hash": "8edba4aea4761fc128c79f7a74d97625db34e0cdaaf48643041d03b3e4d30e81",
+        "started_at": "2026-10-18T05:58:20.671826Z",
+        "ended_at": "2026-10-18T05:58:20.672849Z",
+        "duration_ms": 1.023,
+        "input_hash": "36e14b1e8e40b8974f8c891a83f881fe654d4ed6cfa91752396ba9fe3d393048",
+        "output_hash": "d55ec5a934e60bb2ee381dd6da5b406e6073bb27145526632591d321a85a6a85",
         "error": null
       },
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "draft_narrative",
         "status": "ok",
-        "started_at": "2026-10-18T00:00:02.296662Z",
-        "ended_at": "2026-10-18T00:00:34.416997Z",
-        "duration_ms": 32122.838,
-        "input_hash": "34fd31bbe4c2e9c44068127626eaba0369225b4aebf8a7281cde4927c67a2ec0",
-        "output_hash": "3f34c882b16bc34067bf5fa1a7305b1157d86d306dd15161ee46fd0c91901b28",
+        "started_at": "2026-10-18T05:58:20.673821Z",
+        "ended_at": "2026-10-18T05:58:54.212374Z",
+        "duration_ms": 33538.64,
+        "input_hash": "36e14b1e8e40b8974f8c891a83f881fe654d4ed6cfa91752396ba9fe3d393048",
+        "output_hash": "d5651bfde265217510c8a9c184b0c0e6ba298afa7dcb7dd4305a5468c8c057ba",
         "error": null
       },
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "verify_evidence",
         "status": "ok",
-        "started_at": "2026-10-18T00:00:34.420658Z",
-        "ended_at": "2026-10-18T00:00:34.422719Z",
-        "duration_ms": 2.062,
-        "input_hash": "b307acc0f30e3fa05f3a7a550a19be692aec898ea71a15bc82f57a48d3acad7e",
+        "started_at": "2026-10-18T05:58:54.215194Z",
+        "ended_at": "2026-10-18T05:58:54.216371Z",
+        "duration_ms": 1.177,
+        "input_hash": "b692abb4a2b3af9a2495fcb434660fdcc8247a154af8584131f4c4d7a731b040",
         "output_hash": "7f55989101d119429a06c1a373c56a39bbe648b38f396d75ac20c496788791e1",
         "error": null
       },
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "save_draft",
         "status": "ok",
-        "started_at": "2026-10-18T00:00:34.423894Z",
-        "ended_at": "2026-10-18T00:00:34.425207Z",
-        "duration_ms": 1.313,
-        "input_hash": "2b65b2a33b35f5d84a145e9c064969dfa3cca852ca4b12952c0e959d7148d64e",
-        "output_hash": "6c3b662b67b6d22dc410578da29ebb2a0dfe8ef9020554c2f4b24681c120a747",
+        "started_at": "2026-10-18T05:58:54.217066Z",
+        "ended_at": "2026-10-18T05:58:54.217831Z",
+        "duration_ms": 0.765,
+        "input_hash": "5b3b53b68005b300d347b15bffdf52b82b298d82a84538f63fb4b869893c0820",
+        "output_hash": "da4c3b168d463a1581adf43bd43ddd4909d68ad009b1e758f3b820d72a6590b0",
         "error": null
       }
     ],
@@ -2026,7 +2025,7 @@
   "copilot": {
     "status": "ok",
     "error": null,
-    "trace_id": "tr_1d44641bd2924dc5ade83b2fc8c11828",
+    "trace_id": "tr_bc9ca3d64f19443699772608844358ae",
     "answer": {
       "question": "What should an analyst document when escalating an alert for supervisor review?",
       "answer": "When escalating an alert for supervisor review, the analyst should document the evidence reviewed and provide a written rationale. This documentation supports internal escalation steps where investigators either dismiss alerts or request more data before final filing decisions are made by senior officers.",
@@ -2090,35 +2089,35 @@
     "verifier_errors": [],
     "trace": [
       {
-        "trace_id": "tr_1d44641bd2924dc5ade83b2fc8c11828",
+        "trace_id": "tr_bc9ca3d64f19443699772608844358ae",
         "node": "retrieve_policy",
         "status": "ok",
-        "started_at": "2026-10-18T00:00:34.442363Z",
-        "ended_at": "2026-10-18T00:00:34.445065Z",
-        "duration_ms": 2.704,
-        "input_hash": "e683cc44306313ce69955bd6b222be84629f5b2e9adcede8cb324fddf7ba5e15",
+        "started_at": "2026-10-18T05:58:54.225809Z",
+        "ended_at": "2026-10-18T05:58:54.227668Z",
+        "duration_ms": 1.859,
+        "input_hash": "27657f521f4ae5885aeb29e284a2dfa38e3f47bc86247100ea8c8a9bf01a2c68",
         "output_hash": "02c5d0df460e5c3baf324baeb976882e37530026651cae8450af945aaa5eea8d",
         "error": null
       },
       {
-        "trace_id": "tr_1d44641bd2924dc5ade83b2fc8c11828",
+        "trace_id": "tr_bc9ca3d64f19443699772608844358ae",
         "node": "copilot_answer",
         "status": "ok",
-        "started_at": "2026-10-18T00:00:34.445769Z",
-        "ended_at": "2026-10-18T00:00:49.848274Z",
-        "duration_ms": 15402.808,
-        "input_hash": "4cd9c734e6ccc0b4d90a06ae318cdc95672528852efec920a582a5aa2ed582a2",
+        "started_at": "2026-10-18T05:58:54.228084Z",
+        "ended_at": "2026-10-18T05:59:09.786359Z",
+        "duration_ms": 15558.349,
+        "input_hash": "4d780e6cd75539b9b11a0de2a749078df50cd4c2a30fe26463dee95ca78565a8",
         "output_hash": "8f00fe208b01b9331799768aa9a718aba7afa3f40aa94ef94cc4322808054bd2",
         "error": null
       },
       {
-        "trace_id": "tr_1d44641bd2924dc5ade83b2fc8c11828",
+        "trace_id": "tr_bc9ca3d64f19443699772608844358ae",
         "node": "verify_citations",
         "status": "ok",
-        "started_at": "2026-10-18T00:00:49.850594Z",
-        "ended_at": "2026-10-18T00:00:49.851292Z",
-        "duration_ms": 0.697,
-        "input_hash": "5954fee10f31d62ff3f517bf7c11ed6cb1609498aa8863d1c2b33afa03f037ab",
+        "started_at": "2026-10-18T05:59:09.790307Z",
+        "ended_at": "2026-10-18T05:59:09.791075Z",
+        "duration_ms": 0.768,
+        "input_hash": "1535ee0bcd8bc0bcc807eecba0f9c0e34714d339c81203fe9999043021485897",
         "output_hash": "f62155b07ba451df3fcfd8f3808cd9a2d46747603574124542feea473c7b477b",
         "error": null
       }
@@ -2128,29 +2127,29 @@
   "decision": {
     "status": "ok",
     "error": null,
-    "case_id": "case_a5ac520bf1ef",
+    "case_id": "case_8de205a7c2e5",
     "case_status": "escalated",
     "audit_event": {
-      "event_id": "evt_f384a877a2ec4a00be8f9921de74241e",
+      "event_id": "evt_674bfa6b9d4040339cc08ee17728c4d4",
       "actor_id": "demo_user",
       "actor_role": "analyst",
       "action": "case.decision",
       "object_type": "case",
-      "object_id": "case_a5ac520bf1ef",
-      "before_hash": "b1dac43021a632d27d57d6998522c97716a026fd0de95b73e5db83bad0c8f90d",
-      "after_hash": "5477fd88f8042ee91075480f3a4cc1f4854e3255a48d0bc619b3789a0594406a",
-      "prev_hash": "0094a6a31c7c45d3b82f6d228cb2959b1079c7bc36e6ddf71cf06c6c91c3f3c7",
-      "hash": "b9bba8406e5a82b3dc0eff2778f42c651251ff05354fdc3af28baacaaeb0ece6",
+      "object_id": "case_8de205a7c2e5",
+      "before_hash": "aabc692eff306073aca3650f17a0ad4a9da95fec9cbd67ec305f026839662868",
+      "after_hash": "f8ca27757a5d7cacd73520fe71490587025eaf1462f40045e0ca334934b9ea51",
+      "prev_hash": "f7223fcbef4626f69007de908d2a8f2a031494f2c18af1cbdd30ef37de03db5a",
+      "hash": "1c30fa80fb8672dbdc99c58340fc74cd5d89bf4c0848c9591a5c47fce2174877",
       "model_versions": {
         "mock_velocity": "mock-0",
         "mock_typology_rules": "mock-0",
         "mock_graph_risk": "mock-0"
       },
       "prompt_version": "narrative_v3",
-      "timestamp": "2026-10-18T00:00:49.866705Z",
-      "reason": "Rapid fan-out from one account to new accounts within hours; escalate for supervisor review.",
+      "timestamp": "2026-10-18T06:01:53.750982Z",
+      "reason": "Fan-out to new accounts within hours; escalate for supervisor review.",
       "metadata": {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "alert_id": "alrt_a812f90d1b25",
         "action": "escalate",
         "previous_status": "awaiting_review",
@@ -2161,115 +2160,4686 @@
     },
     "trace": [
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "load_case",
         "status": "ok",
-        "started_at": "2026-10-17T23:59:16.057732Z",
-        "ended_at": "2026-10-17T23:59:16.058269Z",
-        "duration_ms": 0.537,
-        "input_hash": "59bff4a16a208679e1ee1d511166cfbc340586e8bcaa8a2379cceb94dfa8e2bf",
+        "started_at": "2026-10-18T05:57:45.668610Z",
+        "ended_at": "2026-10-18T05:57:45.669153Z",
+        "duration_ms": 0.544,
+        "input_hash": "278cace76355ab77144ee5cae3f79d42b62fa1ac6867843670b6cfce1c8fbb0f",
         "output_hash": "fdda6b00d7df7e76a2d23e9caa3a17bdf73451d486a5423d97e6d152631be7f0",
         "error": null
       },
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "retrieve_policy",
         "status": "ok",
-        "started_at": "2026-10-17T23:59:16.058734Z",
-        "ended_at": "2026-10-17T23:59:16.058960Z",
-        "duration_ms": 0.226,
-        "input_hash": "780f7fbc007d5fb943c4330081fe559d8e0bb5d0762259b45645c7689b82dfb9",
+        "started_at": "2026-10-18T05:57:45.669647Z",
+        "ended_at": "2026-10-18T05:57:45.669874Z",
+        "duration_ms": 0.228,
+        "input_hash": "098c05790fe0c20004d90f1a906030a7a635829dd200b42bd834fc311d4616ea",
         "output_hash": "228ac1851780a0195088e2b684a1f42106f474eb43c2b1e100da69fd26a3f523",
         "error": null
       },
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "draft_narrative",
         "status": "ok",
-        "started_at": "2026-10-17T23:59:16.059310Z",
-        "ended_at": "2026-10-18T00:00:02.281533Z",
-        "duration_ms": 46222.204,
-        "input_hash": "c1f8d4e0799f191b2df60cf8778b97b4eeb352bcfd20f0dcd8bcd995eed442ea",
-        "output_hash": "90440c4617ca7f02a1467b036c4d6e93fb958c3a9e2c77785950829a6f2b91e0",
+        "started_at": "2026-10-18T05:57:45.670237Z",
+        "ended_at": "2026-10-18T05:58:20.659777Z",
+        "duration_ms": 34989.639,
+        "input_hash": "674f417ba8f969bb96941785b525656293c5e1de7f84f038ff44aab9dd5e1be3",
+        "output_hash": "3228fc81b54e0d36132d79ec89a95725187642c6ff20c1bd78e9bafdcf175272",
         "error": null
       },
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "verify_evidence",
         "status": "ok",
-        "started_at": "2026-10-18T00:00:02.290159Z",
-        "ended_at": "2026-10-18T00:00:02.293629Z",
-        "duration_ms": 3.469,
-        "input_hash": "16f2610243abaceeb04129d7db74408e138d203286525dbe0c4047dcbd48dfe0",
-        "output_hash": "70cf4ce2602bd1c1ecc2b25552a520fe4fabe86241e5b77fec999f0eb833520e",
+        "started_at": "2026-10-18T05:58:20.668020Z",
+        "ended_at": "2026-10-18T05:58:20.670895Z",
+        "duration_ms": 2.869,
+        "input_hash": "5a70f76452e6ff97f3fa893aacf59128109fbe2a34bd00aaa1474235107480ff",
+        "output_hash": "0c69f8163d04723e8b9593af61d83fe11f6e7a0f66f8cfa81c44ef34f40ba347",
         "error": null
       },
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "save_draft",
         "status": "ok",
-        "started_at": "2026-10-18T00:00:02.294405Z",
-        "ended_at": "2026-10-18T00:00:02.295635Z",
-        "duration_ms": 1.229,
-        "input_hash": "34fd31bbe4c2e9c44068127626eaba0369225b4aebf8a7281cde4927c67a2ec0",
-        "output_hash": "8edba4aea4761fc128c79f7a74d97625db34e0cdaaf48643041d03b3e4d30e81",
+        "started_at": "2026-10-18T05:58:20.671826Z",
+        "ended_at": "2026-10-18T05:58:20.672849Z",
+        "duration_ms": 1.023,
+        "input_hash": "36e14b1e8e40b8974f8c891a83f881fe654d4ed6cfa91752396ba9fe3d393048",
+        "output_hash": "d55ec5a934e60bb2ee381dd6da5b406e6073bb27145526632591d321a85a6a85",
         "error": null
       },
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "draft_narrative",
         "status": "ok",
-        "started_at": "2026-10-18T00:00:02.296662Z",
-        "ended_at": "2026-10-18T00:00:34.416997Z",
-        "duration_ms": 32122.838,
-        "input_hash": "34fd31bbe4c2e9c44068127626eaba0369225b4aebf8a7281cde4927c67a2ec0",
-        "output_hash": "3f34c882b16bc34067bf5fa1a7305b1157d86d306dd15161ee46fd0c91901b28",
+        "started_at": "2026-10-18T05:58:20.673821Z",
+        "ended_at": "2026-10-18T05:58:54.212374Z",
+        "duration_ms": 33538.64,
+        "input_hash": "36e14b1e8e40b8974f8c891a83f881fe654d4ed6cfa91752396ba9fe3d393048",
+        "output_hash": "d5651bfde265217510c8a9c184b0c0e6ba298afa7dcb7dd4305a5468c8c057ba",
         "error": null
       },
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "verify_evidence",
         "status": "ok",
-        "started_at": "2026-10-18T00:00:34.420658Z",
-        "ended_at": "2026-10-18T00:00:34.422719Z",
-        "duration_ms": 2.062,
-        "input_hash": "b307acc0f30e3fa05f3a7a550a19be692aec898ea71a15bc82f57a48d3acad7e",
+        "started_at": "2026-10-18T05:58:54.215194Z",
+        "ended_at": "2026-10-18T05:58:54.216371Z",
+        "duration_ms": 1.177,
+        "input_hash": "b692abb4a2b3af9a2495fcb434660fdcc8247a154af8584131f4c4d7a731b040",
         "output_hash": "7f55989101d119429a06c1a373c56a39bbe648b38f396d75ac20c496788791e1",
         "error": null
       },
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "save_draft",
         "status": "ok",
-        "started_at": "2026-10-18T00:00:34.423894Z",
-        "ended_at": "2026-10-18T00:00:34.425207Z",
-        "duration_ms": 1.313,
-        "input_hash": "2b65b2a33b35f5d84a145e9c064969dfa3cca852ca4b12952c0e959d7148d64e",
-        "output_hash": "6c3b662b67b6d22dc410578da29ebb2a0dfe8ef9020554c2f4b24681c120a747",
+        "started_at": "2026-10-18T05:58:54.217066Z",
+        "ended_at": "2026-10-18T05:58:54.217831Z",
+        "duration_ms": 0.765,
+        "input_hash": "5b3b53b68005b300d347b15bffdf52b82b298d82a84538f63fb4b869893c0820",
+        "output_hash": "da4c3b168d463a1581adf43bd43ddd4909d68ad009b1e758f3b820d72a6590b0",
         "error": null
       },
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "human_decision",
         "status": "ok",
-        "started_at": "2026-10-18T00:00:49.865607Z",
-        "ended_at": "2026-10-18T00:00:49.865698Z",
-        "duration_ms": 0.083,
-        "input_hash": "25a5515b92cb547ebed5fefdcf8be5a03d205e0c1d6c9b8ba488a5b2e6095273",
-        "output_hash": "1d064c488e28be5b5708828b621ee2aa36cc95c05cf62b251c9df2370c68d94f",
+        "started_at": "2026-10-18T06:01:53.749640Z",
+        "ended_at": "2026-10-18T06:01:53.749777Z",
+        "duration_ms": 0.132,
+        "input_hash": "f46a674522db977f2cf324c129d42eadea4db30ffadfbe5b63f54dd573686d75",
+        "output_hash": "c9eaf72a9f27d2ff5464b20af0918b29f8988675a058f1f3abc19b16951c8dd0",
         "error": null
       },
       {
-        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "trace_id": "tr_d5c21fe0a10a425db9c95d2afb1ec3c8",
         "node": "record_decision",
         "status": "ok",
-        "started_at": "2026-10-18T00:00:49.866364Z",
-        "ended_at": "2026-10-18T00:00:49.867010Z",
-        "duration_ms": 0.646,
-        "input_hash": "f6319456d01ac2db9635c25f5571794cd1b19d3f7e252dfece9ebbe3d90242a8",
-        "output_hash": "c94cd2bd6bd520a6269d9a401a942aa711b744d43731892982e3df11161c309f",
+        "started_at": "2026-10-18T06:01:53.750750Z",
+        "ended_at": "2026-10-18T06:01:53.751235Z",
+        "duration_ms": 0.485,
+        "input_hash": "89daab1a6364d8cdad336a354dd31f2398b8f17e1fdfb98b631b88642155f9c2",
+        "output_hash": "ea86980fae8ad08983e384bf8e3fa921f7b2126526dc620d32d417d3058f4863",
         "error": null
       }
     ]
+  },
+  "chat_turns": [
+    {
+      "status": "ok",
+      "error": null,
+      "chat_id": "chat_e8bdfdf8a487",
+      "turn": {
+        "turn_id": "turn_c40950d443cf",
+        "trace_id": "tr_9dba335be1974b9b8e32af9c5f733a57",
+        "created_at": "2026-10-18T05:59:43.449507Z",
+        "chip": "explain_alert",
+        "question": null,
+        "question_hash": "7333719fc4737f2cf991f3747829e196b0570fb8d5fd080f9bf593fc51a89082",
+        "status": "ok",
+        "intent": "explain_alert",
+        "answer": "The alert for transaction TX-51001 received a high composite score driven by model components related to fan-out, velocity, and graph risk. The specific factors contributing to the scores include distinct recipients at origin, outgoing activity within six hours, and the transfer of $4,850 from ACC-3001 to ACC-3101 on 2026-09-04. No KYC data or business purpose is available for this transaction.",
+        "claims": [
+          {
+            "text": "The alert's composite score is 0.9322 (tier high, rank 1); typology tags: fan_out. Scores rank activity for review; they are not findings of wrongdoing.",
+            "label": "model_inference",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [],
+            "source_tools": [
+              "model_explanation"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Detector mock_graph_risk (version mock-0) contributed a component score of 0.75.",
+            "label": "model_inference",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [],
+            "source_tools": [
+              "model_explanation"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Detector mock_typology_rules (version mock-0) contributed a component score of 0.7.",
+            "label": "model_inference",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [],
+            "source_tools": [
+              "model_explanation"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Detector mock_velocity (version mock-0) contributed a component score of 0.7273.",
+            "label": "model_inference",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [],
+            "source_tools": [
+              "model_explanation"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "For TX-51001, detector mock_graph_risk scored 0.75; top factors: origin_distinct_recipients=9.0; destination_distinct_senders=1.0.",
+            "label": "model_inference",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [],
+            "source_tools": [
+              "model_explanation"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "For TX-51001, detector mock_velocity scored 0.7273; top factors: origin_outgoing_6h=9.0; in_out_gap_minutes=None.",
+            "label": "model_inference",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [],
+            "source_tools": [
+              "model_explanation"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "For TX-51001, detector mock_typology_rules scored 0.7; top factors: fan_out=true.",
+            "label": "model_inference",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [],
+            "source_tools": [
+              "model_explanation"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "The governance gate status for this alert's data is pass.",
+            "label": "observed_fact",
+            "transaction_ids": [],
+            "account_ids": [],
+            "edge_ids": [],
+            "evidence_ids": [
+              "graph_snapshot:snap_60742743c1f42dee"
+            ],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [],
+            "source_tools": [
+              "quality_lineage"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "No KYC or customer profile is available to the agents.",
+            "label": "missing_evidence",
+            "transaction_ids": [],
+            "account_ids": [],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [],
+            "source_tools": [
+              "quality_lineage"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "No stated business purpose is available for these transfers.",
+            "label": "missing_evidence",
+            "transaction_ids": [],
+            "account_ids": [],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [],
+            "source_tools": [
+              "quality_lineage"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "No account ownership or relationship data is available, so treasury-sweep or shared-service explanations cannot be checked.",
+            "label": "missing_evidence",
+            "transaction_ids": [],
+            "account_ids": [],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [],
+            "source_tools": [
+              "quality_lineage"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Evidence lineage: ingestion_run:run_ce08c0c644f4, transaction_batch:batch_ce08c0c644f4, graph_snapshot:snap_60742743c1f42dee.",
+            "label": "observed_fact",
+            "transaction_ids": [],
+            "account_ids": [],
+            "edge_ids": [],
+            "evidence_ids": [
+              "ingestion_run:run_ce08c0c644f4",
+              "transaction_batch:batch_ce08c0c644f4",
+              "graph_snapshot:snap_60742743c1f42dee"
+            ],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [],
+            "source_tools": [
+              "quality_lineage"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "No data-quality issues were recorded on this alert's evidence bundle.",
+            "label": "observed_fact",
+            "transaction_ids": [],
+            "account_ids": [],
+            "edge_ids": [],
+            "evidence_ids": [
+              "ingestion_run:run_ce08c0c644f4",
+              "transaction_batch:batch_ce08c0c644f4",
+              "graph_snapshot:snap_60742743c1f42dee"
+            ],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [],
+            "source_tools": [
+              "quality_lineage"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Transaction TX-51001 moved $4,850.00 from ACC-3001 to ACC-3101 on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3101"
+            ],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4850.00"
+            ],
+            "source_tools": [
+              "transaction_lookup"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "The transaction exhibits high velocity characteristics that require reviewer assessment to determine if they indicate suspicious behavior or normal operational timing.",
+            "label": "hypothesis",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [],
+            "source_tools": [
+              "model_explanation"
+            ],
+            "benign_kind": null
+          }
+        ],
+        "gaps": [
+          {
+            "label": "hypothesis",
+            "text_hash": "98ff83ccc38d8f9fecb955d6041860bf4b268e4e95beff3b977b78daa29c29b2",
+            "codes": [
+              "MISSING_EVIDENCE"
+            ],
+            "detail": "cites no id",
+            "suggested_query": "Ask about one transaction or account in this case, e.g. ACC-3001."
+          },
+          {
+            "label": "hypothesis",
+            "text_hash": "632694a7b98652813b4cff6a2d539a73a0ac989cdd97d70197cc27fec3fe52cb",
+            "codes": [
+              "MISSING_ALTERNATIVE"
+            ],
+            "detail": "is one-sided: no benign reading and no neutral caveat",
+            "suggested_query": "Ask about one transaction or account in this case, e.g. ACC-3001."
+          }
+        ],
+        "failures": [],
+        "next_steps": [
+          "Obtain customer profile information for ACC-3001 to verify account ownership and identity.",
+          "Request the stated business purpose or transaction description from the originating system.",
+          "Review historical activity patterns for both ACC-3001 and ACC-3101 to establish baseline behavior.",
+          "Check if similar fan-out transactions occur regularly between these accounts during this period.",
+          "Verify whether any external relationships link the account holders or entities involved."
+        ],
+        "suggested_chips": [],
+        "tool_calls": [
+          {
+            "tool": "model_explanation",
+            "args": {
+              "tx_ids": [
+                "TX-51001"
+              ]
+            },
+            "status": "ok",
+            "row_count": 7,
+            "truncated": false,
+            "duration_ms": 2.874,
+            "error": null
+          },
+          {
+            "tool": "quality_lineage",
+            "args": {},
+            "status": "ok",
+            "row_count": 7,
+            "truncated": false,
+            "duration_ms": 0.129,
+            "error": null
+          },
+          {
+            "tool": "transaction_lookup",
+            "args": {
+              "tx_ids": [
+                "TX-51001"
+              ]
+            },
+            "status": "ok",
+            "row_count": 1,
+            "truncated": false,
+            "duration_ms": 0.209,
+            "error": null
+          }
+        ],
+        "verification_status": "partial",
+        "llm_meta": [
+          {
+            "provider": "ollama",
+            "model": "qwen3.5:9b",
+            "prompt_version": "chat_answer_v2",
+            "input_hash": "c1b61e6d2e41ee5a4826a75a662d9914b673b2ac59b7c6f9e7d8c764381b62ee",
+            "attempts": 1,
+            "fallback_used": false,
+            "latency_ms": 33626.878,
+            "errors": []
+          }
+        ],
+        "feedback": null,
+        "precomputed": false
+      },
+      "context": {
+        "case_id": "case_8de205a7c2e5",
+        "alert_id": "alrt_a812f90d1b25",
+        "alert": {
+          "alert_id": "alrt_a812f90d1b25",
+          "tx_ids": [
+            "TX-51001"
+          ],
+          "composite_score": 0.932203,
+          "component_scores": {
+            "mock_velocity": 0.727273,
+            "mock_typology_rules": 0.7,
+            "mock_graph_risk": 0.75
+          },
+          "typology_tags": [
+            "fan_out"
+          ],
+          "tier": "high",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_60742743c1f42dee",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 1,
+          "model_run_id": null
+        },
+        "evidence_bundle": {
+          "alert_id": "alrt_a812f90d1b25",
+          "transactions": [
+            {
+              "transaction_id": "TX-51001",
+              "source_row_ref": "row_0032",
+              "timestamp": "2026-09-04T13:05:00Z",
+              "amount": "4850.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3101",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51002",
+              "source_row_ref": "row_0034",
+              "timestamp": "2026-09-04T13:22:00Z",
+              "amount": "4920.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3102",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51003",
+              "source_row_ref": "row_0035",
+              "timestamp": "2026-09-04T13:39:00Z",
+              "amount": "4775.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3103",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51004",
+              "source_row_ref": "row_0036",
+              "timestamp": "2026-09-04T13:56:00Z",
+              "amount": "4990.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3104",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51005",
+              "source_row_ref": "row_0037",
+              "timestamp": "2026-09-04T14:13:00Z",
+              "amount": "4810.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3105",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51006",
+              "source_row_ref": "row_0038",
+              "timestamp": "2026-09-04T14:30:00Z",
+              "amount": "4905.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3106",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51007",
+              "source_row_ref": "row_0039",
+              "timestamp": "2026-09-04T14:47:00Z",
+              "amount": "4860.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3107",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51008",
+              "source_row_ref": "row_0040",
+              "timestamp": "2026-09-04T15:04:00Z",
+              "amount": "4950.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3108",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51009",
+              "source_row_ref": "row_0041",
+              "timestamp": "2026-09-04T15:21:00Z",
+              "amount": "4795.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3109",
+              "transaction_status": "posted"
+            }
+          ],
+          "flow_findings": {
+            "alert_id": "alrt_a812f90d1b25",
+            "graph_snapshot_id": "snap_60742743c1f42dee",
+            "paths": [],
+            "cycles": [],
+            "fan_in": [],
+            "fan_out": [
+              {
+                "account_ids": [
+                  "ACC-3001",
+                  "ACC-3101",
+                  "ACC-3102",
+                  "ACC-3103",
+                  "ACC-3104",
+                  "ACC-3105",
+                  "ACC-3106",
+                  "ACC-3107",
+                  "ACC-3108",
+                  "ACC-3109"
+                ],
+                "transaction_ids": [
+                  "TX-51001",
+                  "TX-51002",
+                  "TX-51003",
+                  "TX-51004",
+                  "TX-51005",
+                  "TX-51006",
+                  "TX-51007",
+                  "TX-51008",
+                  "TX-51009"
+                ],
+                "total_amount": "43855.00",
+                "currency": "USD",
+                "window_start": "2026-09-04T13:05:00Z",
+                "window_end": "2026-09-04T15:21:00Z"
+              }
+            ],
+            "pass_through": [],
+            "evidence_tx_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ]
+          },
+          "quality_caveats": [],
+          "lineage_refs": [
+            "ingestion_run:run_ce08c0c644f4",
+            "transaction_batch:batch_ce08c0c644f4",
+            "graph_snapshot:snap_60742743c1f42dee"
+          ],
+          "bundle_hash": "2fb828287f67bf7c7c9ba54d68510cff86752fb0b0190d4889dd701587ab72ee"
+        },
+        "derived_facts": [
+          {
+            "fact_id": "DF-1",
+            "label": "evidence transaction count",
+            "kind": "count",
+            "value": "9",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-2",
+            "label": "total amount of evidence transactions (USD)",
+            "kind": "amount",
+            "value": "43855.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-3",
+            "label": "distinct accounts in evidence",
+            "kind": "count",
+            "value": "10",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3101",
+              "ACC-3102",
+              "ACC-3103",
+              "ACC-3104",
+              "ACC-3105",
+              "ACC-3106",
+              "ACC-3107",
+              "ACC-3108",
+              "ACC-3109"
+            ]
+          },
+          {
+            "fact_id": "DF-4",
+            "label": "first evidence transaction time",
+            "kind": "timestamp",
+            "value": "2026-09-04T13:05:00Z",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-5",
+            "label": "last evidence transaction time",
+            "kind": "timestamp",
+            "value": "2026-09-04T15:21:00Z",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51009"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-6",
+            "label": "time span from first to last evidence transaction (hours)",
+            "kind": "duration_hours",
+            "value": "2.27",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51009"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-7",
+            "label": "ACC-3001 outflow total (USD)",
+            "kind": "amount",
+            "value": "43855.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001"
+            ]
+          },
+          {
+            "fact_id": "DF-8",
+            "label": "ACC-3001 outflow transaction count",
+            "kind": "count",
+            "value": "9",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001"
+            ]
+          },
+          {
+            "fact_id": "DF-9",
+            "label": "ACC-3101 inflow total (USD)",
+            "kind": "amount",
+            "value": "4850.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [
+              "ACC-3101"
+            ]
+          },
+          {
+            "fact_id": "DF-10",
+            "label": "ACC-3101 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [
+              "ACC-3101"
+            ]
+          },
+          {
+            "fact_id": "DF-11",
+            "label": "ACC-3102 inflow total (USD)",
+            "kind": "amount",
+            "value": "4920.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51002"
+            ],
+            "account_ids": [
+              "ACC-3102"
+            ]
+          },
+          {
+            "fact_id": "DF-12",
+            "label": "ACC-3102 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51002"
+            ],
+            "account_ids": [
+              "ACC-3102"
+            ]
+          },
+          {
+            "fact_id": "DF-13",
+            "label": "ACC-3103 inflow total (USD)",
+            "kind": "amount",
+            "value": "4775.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51003"
+            ],
+            "account_ids": [
+              "ACC-3103"
+            ]
+          },
+          {
+            "fact_id": "DF-14",
+            "label": "ACC-3103 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51003"
+            ],
+            "account_ids": [
+              "ACC-3103"
+            ]
+          },
+          {
+            "fact_id": "DF-15",
+            "label": "ACC-3104 inflow total (USD)",
+            "kind": "amount",
+            "value": "4990.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51004"
+            ],
+            "account_ids": [
+              "ACC-3104"
+            ]
+          },
+          {
+            "fact_id": "DF-16",
+            "label": "ACC-3104 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51004"
+            ],
+            "account_ids": [
+              "ACC-3104"
+            ]
+          },
+          {
+            "fact_id": "DF-17",
+            "label": "ACC-3105 inflow total (USD)",
+            "kind": "amount",
+            "value": "4810.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51005"
+            ],
+            "account_ids": [
+              "ACC-3105"
+            ]
+          },
+          {
+            "fact_id": "DF-18",
+            "label": "ACC-3105 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51005"
+            ],
+            "account_ids": [
+              "ACC-3105"
+            ]
+          },
+          {
+            "fact_id": "DF-19",
+            "label": "ACC-3106 inflow total (USD)",
+            "kind": "amount",
+            "value": "4905.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51006"
+            ],
+            "account_ids": [
+              "ACC-3106"
+            ]
+          },
+          {
+            "fact_id": "DF-20",
+            "label": "ACC-3106 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51006"
+            ],
+            "account_ids": [
+              "ACC-3106"
+            ]
+          },
+          {
+            "fact_id": "DF-21",
+            "label": "ACC-3107 inflow total (USD)",
+            "kind": "amount",
+            "value": "4860.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51007"
+            ],
+            "account_ids": [
+              "ACC-3107"
+            ]
+          },
+          {
+            "fact_id": "DF-22",
+            "label": "ACC-3107 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51007"
+            ],
+            "account_ids": [
+              "ACC-3107"
+            ]
+          },
+          {
+            "fact_id": "DF-23",
+            "label": "ACC-3108 inflow total (USD)",
+            "kind": "amount",
+            "value": "4950.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51008"
+            ],
+            "account_ids": [
+              "ACC-3108"
+            ]
+          },
+          {
+            "fact_id": "DF-24",
+            "label": "ACC-3108 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51008"
+            ],
+            "account_ids": [
+              "ACC-3108"
+            ]
+          },
+          {
+            "fact_id": "DF-25",
+            "label": "ACC-3109 inflow total (USD)",
+            "kind": "amount",
+            "value": "4795.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3109"
+            ]
+          },
+          {
+            "fact_id": "DF-26",
+            "label": "ACC-3109 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3109"
+            ]
+          },
+          {
+            "fact_id": "DF-27",
+            "label": "fan_out pattern 1 transaction count",
+            "kind": "count",
+            "value": "9",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3101",
+              "ACC-3102",
+              "ACC-3103",
+              "ACC-3104",
+              "ACC-3105",
+              "ACC-3106",
+              "ACC-3107",
+              "ACC-3108",
+              "ACC-3109"
+            ]
+          }
+        ],
+        "quality_issues": [],
+        "graph_snapshot_id": "snap_60742743c1f42dee",
+        "window_start": "2026-08-28T13:05:00Z",
+        "window_end": "2026-09-11T15:21:00Z",
+        "entity_scope": [
+          "ACC-3001",
+          "ACC-3101",
+          "ACC-3102",
+          "ACC-3103",
+          "ACC-3104",
+          "ACC-3105",
+          "ACC-3106",
+          "ACC-3107",
+          "ACC-3108",
+          "ACC-3109"
+        ],
+        "scope_transaction_count": 9,
+        "pinned_evidence_ids": [],
+        "scope_notes": []
+      },
+      "trace": [
+        {
+          "trace_id": "tr_9dba335be1974b9b8e32af9c5f733a57",
+          "node": "chat_classify",
+          "status": "ok",
+          "started_at": "2026-10-18T05:59:09.804148Z",
+          "ended_at": "2026-10-18T05:59:09.804327Z",
+          "duration_ms": 0.178,
+          "input_hash": "134c9baef67ee01e50337039adad10046bb56b4889e8fad6ee347032c910b350",
+          "output_hash": "e0761b53f0130dcc3f645d189a4fa2d89ba1284934fb6463864efe5b6837b483",
+          "error": null
+        },
+        {
+          "trace_id": "tr_9dba335be1974b9b8e32af9c5f733a57",
+          "node": "chat_tool_query",
+          "status": "ok",
+          "started_at": "2026-10-18T05:59:09.805650Z",
+          "ended_at": "2026-10-18T05:59:09.809056Z",
+          "duration_ms": 3.406,
+          "input_hash": "8c160c0063d5f7a15012ceffa0a4845b1a1463d3451ad289ee7b3ec0c2a3b4b5",
+          "output_hash": "6392088dc11cfd191343c2f2033545332fab93394faaf2f20e25b9691ad195f7",
+          "error": null
+        },
+        {
+          "trace_id": "tr_9dba335be1974b9b8e32af9c5f733a57",
+          "node": "chat_draft_answer",
+          "status": "ok",
+          "started_at": "2026-10-18T05:59:09.809768Z",
+          "ended_at": "2026-10-18T05:59:43.438666Z",
+          "duration_ms": 33629.014,
+          "input_hash": "8f943ccd72861f64bb066f7b0c9c711b86189da7d21021995c7475aca6656b01",
+          "output_hash": "c2bc2f2fdc3c7f0d9f22c9a42b55b0275149065f0e050dbfa44e4c5affc7e969",
+          "error": null
+        },
+        {
+          "trace_id": "tr_9dba335be1974b9b8e32af9c5f733a57",
+          "node": "chat_verify",
+          "status": "ok",
+          "started_at": "2026-10-18T05:59:43.443547Z",
+          "ended_at": "2026-10-18T05:59:43.446669Z",
+          "duration_ms": 3.131,
+          "input_hash": "21001cddfeee9522bb02b77fcf30b2d269b03759bebeb2cd285df429eb902899",
+          "output_hash": "7e5fc245125906bfb8db346aab5363a58fb0cc8299900f9ebdcd214905f6218e",
+          "error": null
+        },
+        {
+          "trace_id": "tr_9dba335be1974b9b8e32af9c5f733a57",
+          "node": "chat_respond",
+          "status": "ok",
+          "started_at": "2026-10-18T05:59:43.448276Z",
+          "ended_at": "2026-10-18T05:59:43.448954Z",
+          "duration_ms": 0.678,
+          "input_hash": "f891375631bd83642e3ef4531947e3c06306125510dd34c714a5b5cc32ab63b6",
+          "output_hash": "803ea707d81d82439d826bebe35fe744dcdec8c18fe01d41af629185436ca1b9",
+          "error": null
+        }
+      ]
+    },
+    {
+      "status": "ok",
+      "error": null,
+      "chat_id": "chat_e8bdfdf8a487",
+      "turn": {
+        "turn_id": "turn_8a18ca296fcd",
+        "trace_id": "tr_854aee312b9f442ba35af9f80075a4a1",
+        "created_at": "2026-10-18T06:00:08.716546Z",
+        "chip": "trace_forward",
+        "question": null,
+        "question_hash": "c99ae87f74df90d309a6b3d3f372174f936a36ac52f97ed7e8cd20c0fea09784",
+        "status": "ok",
+        "intent": "trace_forward",
+        "answer": "The trace_forward tool identified nine outgoing transactions from ACC-3001 to distinct accounts on 2026-09-04, with amounts ranging between $4,775.00 and $4,990.00.",
+        "claims": [
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3101 via TX-51001, totaling $4,850.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3101"
+            ],
+            "edge_ids": [
+              "TX-51001"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4850.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3102 via TX-51002, totaling $4,920.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51002"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3102"
+            ],
+            "edge_ids": [
+              "TX-51002"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4920.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3103 via TX-51003, totaling $4,775.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51003"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3103"
+            ],
+            "edge_ids": [
+              "TX-51003"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4775.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3104 via TX-51004, totaling $4,990.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51004"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3104"
+            ],
+            "edge_ids": [
+              "TX-51004"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4990.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3105 via TX-51005, totaling $4,810.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51005"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3105"
+            ],
+            "edge_ids": [
+              "TX-51005"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4810.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3106 via TX-51006, totaling $4,905.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51006"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3106"
+            ],
+            "edge_ids": [
+              "TX-51006"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4905.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3107 via TX-51007, totaling $4,860.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51007"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3107"
+            ],
+            "edge_ids": [
+              "TX-51007"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4860.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3108 via TX-51008, totaling $4,950.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51008"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3108"
+            ],
+            "edge_ids": [
+              "TX-51008"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4950.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3109 via TX-51009, totaling $4,795.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3109"
+            ],
+            "edge_ids": [
+              "TX-51009"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4795.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          }
+        ],
+        "gaps": [],
+        "failures": [],
+        "next_steps": [
+          "Obtain customer information for ACC-3001 to verify account ownership and expected activity patterns.",
+          "Review the transaction descriptions in TX-51001 through TX-51009 to identify any specific labels or references.",
+          "Check if the receiving accounts (ACC-3101 through ACC-3109) are known payroll recipients, vendors, or related entities.",
+          "Verify whether these transactions align with a scheduled bulk payment event such as a salary run or vendor settlement.",
+          "Confirm that no other outgoing transfers from ACC-3001 occurred on 2026-09-04 to ensure the trace is complete."
+        ],
+        "suggested_chips": [],
+        "tool_calls": [
+          {
+            "tool": "trace_forward",
+            "args": {
+              "account_id": "ACC-3001",
+              "hops": 2
+            },
+            "status": "ok",
+            "row_count": 9,
+            "truncated": false,
+            "duration_ms": 1.334,
+            "error": null
+          }
+        ],
+        "verification_status": "verified",
+        "llm_meta": [
+          {
+            "provider": "ollama",
+            "model": "qwen3.5:9b",
+            "prompt_version": "chat_answer_v2",
+            "input_hash": "bf4506b0c20cd6bcfae2d3de1452cce946ad52df2df336c0750743c3d788b9fa",
+            "attempts": 1,
+            "fallback_used": false,
+            "latency_ms": 25242.812,
+            "errors": []
+          }
+        ],
+        "feedback": null,
+        "precomputed": false
+      },
+      "context": {
+        "case_id": "case_8de205a7c2e5",
+        "alert_id": "alrt_a812f90d1b25",
+        "alert": {
+          "alert_id": "alrt_a812f90d1b25",
+          "tx_ids": [
+            "TX-51001"
+          ],
+          "composite_score": 0.932203,
+          "component_scores": {
+            "mock_velocity": 0.727273,
+            "mock_typology_rules": 0.7,
+            "mock_graph_risk": 0.75
+          },
+          "typology_tags": [
+            "fan_out"
+          ],
+          "tier": "high",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_60742743c1f42dee",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 1,
+          "model_run_id": null
+        },
+        "evidence_bundle": {
+          "alert_id": "alrt_a812f90d1b25",
+          "transactions": [
+            {
+              "transaction_id": "TX-51001",
+              "source_row_ref": "row_0032",
+              "timestamp": "2026-09-04T13:05:00Z",
+              "amount": "4850.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3101",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51002",
+              "source_row_ref": "row_0034",
+              "timestamp": "2026-09-04T13:22:00Z",
+              "amount": "4920.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3102",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51003",
+              "source_row_ref": "row_0035",
+              "timestamp": "2026-09-04T13:39:00Z",
+              "amount": "4775.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3103",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51004",
+              "source_row_ref": "row_0036",
+              "timestamp": "2026-09-04T13:56:00Z",
+              "amount": "4990.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3104",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51005",
+              "source_row_ref": "row_0037",
+              "timestamp": "2026-09-04T14:13:00Z",
+              "amount": "4810.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3105",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51006",
+              "source_row_ref": "row_0038",
+              "timestamp": "2026-09-04T14:30:00Z",
+              "amount": "4905.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3106",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51007",
+              "source_row_ref": "row_0039",
+              "timestamp": "2026-09-04T14:47:00Z",
+              "amount": "4860.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3107",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51008",
+              "source_row_ref": "row_0040",
+              "timestamp": "2026-09-04T15:04:00Z",
+              "amount": "4950.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3108",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51009",
+              "source_row_ref": "row_0041",
+              "timestamp": "2026-09-04T15:21:00Z",
+              "amount": "4795.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3109",
+              "transaction_status": "posted"
+            }
+          ],
+          "flow_findings": {
+            "alert_id": "alrt_a812f90d1b25",
+            "graph_snapshot_id": "snap_60742743c1f42dee",
+            "paths": [],
+            "cycles": [],
+            "fan_in": [],
+            "fan_out": [
+              {
+                "account_ids": [
+                  "ACC-3001",
+                  "ACC-3101",
+                  "ACC-3102",
+                  "ACC-3103",
+                  "ACC-3104",
+                  "ACC-3105",
+                  "ACC-3106",
+                  "ACC-3107",
+                  "ACC-3108",
+                  "ACC-3109"
+                ],
+                "transaction_ids": [
+                  "TX-51001",
+                  "TX-51002",
+                  "TX-51003",
+                  "TX-51004",
+                  "TX-51005",
+                  "TX-51006",
+                  "TX-51007",
+                  "TX-51008",
+                  "TX-51009"
+                ],
+                "total_amount": "43855.00",
+                "currency": "USD",
+                "window_start": "2026-09-04T13:05:00Z",
+                "window_end": "2026-09-04T15:21:00Z"
+              }
+            ],
+            "pass_through": [],
+            "evidence_tx_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ]
+          },
+          "quality_caveats": [],
+          "lineage_refs": [
+            "ingestion_run:run_ce08c0c644f4",
+            "transaction_batch:batch_ce08c0c644f4",
+            "graph_snapshot:snap_60742743c1f42dee"
+          ],
+          "bundle_hash": "2fb828287f67bf7c7c9ba54d68510cff86752fb0b0190d4889dd701587ab72ee"
+        },
+        "derived_facts": [
+          {
+            "fact_id": "DF-1",
+            "label": "evidence transaction count",
+            "kind": "count",
+            "value": "9",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-2",
+            "label": "total amount of evidence transactions (USD)",
+            "kind": "amount",
+            "value": "43855.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-3",
+            "label": "distinct accounts in evidence",
+            "kind": "count",
+            "value": "10",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3101",
+              "ACC-3102",
+              "ACC-3103",
+              "ACC-3104",
+              "ACC-3105",
+              "ACC-3106",
+              "ACC-3107",
+              "ACC-3108",
+              "ACC-3109"
+            ]
+          },
+          {
+            "fact_id": "DF-4",
+            "label": "first evidence transaction time",
+            "kind": "timestamp",
+            "value": "2026-09-04T13:05:00Z",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-5",
+            "label": "last evidence transaction time",
+            "kind": "timestamp",
+            "value": "2026-09-04T15:21:00Z",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51009"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-6",
+            "label": "time span from first to last evidence transaction (hours)",
+            "kind": "duration_hours",
+            "value": "2.27",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51009"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-7",
+            "label": "ACC-3001 outflow total (USD)",
+            "kind": "amount",
+            "value": "43855.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001"
+            ]
+          },
+          {
+            "fact_id": "DF-8",
+            "label": "ACC-3001 outflow transaction count",
+            "kind": "count",
+            "value": "9",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001"
+            ]
+          },
+          {
+            "fact_id": "DF-9",
+            "label": "ACC-3101 inflow total (USD)",
+            "kind": "amount",
+            "value": "4850.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [
+              "ACC-3101"
+            ]
+          },
+          {
+            "fact_id": "DF-10",
+            "label": "ACC-3101 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [
+              "ACC-3101"
+            ]
+          },
+          {
+            "fact_id": "DF-11",
+            "label": "ACC-3102 inflow total (USD)",
+            "kind": "amount",
+            "value": "4920.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51002"
+            ],
+            "account_ids": [
+              "ACC-3102"
+            ]
+          },
+          {
+            "fact_id": "DF-12",
+            "label": "ACC-3102 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51002"
+            ],
+            "account_ids": [
+              "ACC-3102"
+            ]
+          },
+          {
+            "fact_id": "DF-13",
+            "label": "ACC-3103 inflow total (USD)",
+            "kind": "amount",
+            "value": "4775.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51003"
+            ],
+            "account_ids": [
+              "ACC-3103"
+            ]
+          },
+          {
+            "fact_id": "DF-14",
+            "label": "ACC-3103 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51003"
+            ],
+            "account_ids": [
+              "ACC-3103"
+            ]
+          },
+          {
+            "fact_id": "DF-15",
+            "label": "ACC-3104 inflow total (USD)",
+            "kind": "amount",
+            "value": "4990.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51004"
+            ],
+            "account_ids": [
+              "ACC-3104"
+            ]
+          },
+          {
+            "fact_id": "DF-16",
+            "label": "ACC-3104 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51004"
+            ],
+            "account_ids": [
+              "ACC-3104"
+            ]
+          },
+          {
+            "fact_id": "DF-17",
+            "label": "ACC-3105 inflow total (USD)",
+            "kind": "amount",
+            "value": "4810.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51005"
+            ],
+            "account_ids": [
+              "ACC-3105"
+            ]
+          },
+          {
+            "fact_id": "DF-18",
+            "label": "ACC-3105 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51005"
+            ],
+            "account_ids": [
+              "ACC-3105"
+            ]
+          },
+          {
+            "fact_id": "DF-19",
+            "label": "ACC-3106 inflow total (USD)",
+            "kind": "amount",
+            "value": "4905.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51006"
+            ],
+            "account_ids": [
+              "ACC-3106"
+            ]
+          },
+          {
+            "fact_id": "DF-20",
+            "label": "ACC-3106 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51006"
+            ],
+            "account_ids": [
+              "ACC-3106"
+            ]
+          },
+          {
+            "fact_id": "DF-21",
+            "label": "ACC-3107 inflow total (USD)",
+            "kind": "amount",
+            "value": "4860.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51007"
+            ],
+            "account_ids": [
+              "ACC-3107"
+            ]
+          },
+          {
+            "fact_id": "DF-22",
+            "label": "ACC-3107 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51007"
+            ],
+            "account_ids": [
+              "ACC-3107"
+            ]
+          },
+          {
+            "fact_id": "DF-23",
+            "label": "ACC-3108 inflow total (USD)",
+            "kind": "amount",
+            "value": "4950.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51008"
+            ],
+            "account_ids": [
+              "ACC-3108"
+            ]
+          },
+          {
+            "fact_id": "DF-24",
+            "label": "ACC-3108 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51008"
+            ],
+            "account_ids": [
+              "ACC-3108"
+            ]
+          },
+          {
+            "fact_id": "DF-25",
+            "label": "ACC-3109 inflow total (USD)",
+            "kind": "amount",
+            "value": "4795.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3109"
+            ]
+          },
+          {
+            "fact_id": "DF-26",
+            "label": "ACC-3109 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3109"
+            ]
+          },
+          {
+            "fact_id": "DF-27",
+            "label": "fan_out pattern 1 transaction count",
+            "kind": "count",
+            "value": "9",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3101",
+              "ACC-3102",
+              "ACC-3103",
+              "ACC-3104",
+              "ACC-3105",
+              "ACC-3106",
+              "ACC-3107",
+              "ACC-3108",
+              "ACC-3109"
+            ]
+          }
+        ],
+        "quality_issues": [],
+        "graph_snapshot_id": "snap_60742743c1f42dee",
+        "window_start": "2026-08-28T13:05:00Z",
+        "window_end": "2026-09-11T15:21:00Z",
+        "entity_scope": [
+          "ACC-3001",
+          "ACC-3101",
+          "ACC-3102",
+          "ACC-3103",
+          "ACC-3104",
+          "ACC-3105",
+          "ACC-3106",
+          "ACC-3107",
+          "ACC-3108",
+          "ACC-3109"
+        ],
+        "scope_transaction_count": 9,
+        "pinned_evidence_ids": [],
+        "scope_notes": []
+      },
+      "trace": [
+        {
+          "trace_id": "tr_854aee312b9f442ba35af9f80075a4a1",
+          "node": "chat_classify",
+          "status": "ok",
+          "started_at": "2026-10-18T05:59:43.457770Z",
+          "ended_at": "2026-10-18T05:59:43.459106Z",
+          "duration_ms": 1.336,
+          "input_hash": "719b3741092dbcaf7616accc27808c62e46eab8e05b027044a8ec5bfef1a20c6",
+          "output_hash": "869a5c78224b95f408126e1b6a52c5de49da169d2b1793ac45895d87a327b7fd",
+          "error": null
+        },
+        {
+          "trace_id": "tr_854aee312b9f442ba35af9f80075a4a1",
+          "node": "chat_tool_query",
+          "status": "ok",
+          "started_at": "2026-10-18T05:59:43.459860Z",
+          "ended_at": "2026-10-18T05:59:43.461304Z",
+          "duration_ms": 1.445,
+          "input_hash": "d74e09f2e556514827144e9bf02221dd0b65cc05fb11cb79436bf52c7bc7cbe0",
+          "output_hash": "f58972acb2a64ad128e2bd955675949d4adb22406baf8606aa64f2b4ce4ca60b",
+          "error": null
+        },
+        {
+          "trace_id": "tr_854aee312b9f442ba35af9f80075a4a1",
+          "node": "chat_draft_answer",
+          "status": "ok",
+          "started_at": "2026-10-18T05:59:43.461910Z",
+          "ended_at": "2026-10-18T06:00:08.706127Z",
+          "duration_ms": 25244.308,
+          "input_hash": "7b59b3e6b248f8401a82e09de3c3d0500a2dfecd71a9224d769503498a2ce16a",
+          "output_hash": "c4c5e27e4545f1e47b760c07d8fb58c04c883b2aef062f6eb10247a8e1381ae5",
+          "error": null
+        },
+        {
+          "trace_id": "tr_854aee312b9f442ba35af9f80075a4a1",
+          "node": "chat_verify",
+          "status": "ok",
+          "started_at": "2026-10-18T06:00:08.710769Z",
+          "ended_at": "2026-10-18T06:00:08.714493Z",
+          "duration_ms": 3.725,
+          "input_hash": "24674b1f0eabcac2570137d8d588d173be38e6cf6ebdb6fa52d2092bc747ddec",
+          "output_hash": "3708ad1383662e27d2bdfc11edd3a76197877bd87de175a070dbef09e453a783",
+          "error": null
+        },
+        {
+          "trace_id": "tr_854aee312b9f442ba35af9f80075a4a1",
+          "node": "chat_respond",
+          "status": "ok",
+          "started_at": "2026-10-18T06:00:08.715446Z",
+          "ended_at": "2026-10-18T06:00:08.716130Z",
+          "duration_ms": 0.684,
+          "input_hash": "c97eefb5f15b201583caa2a1076827a9ef8fce80ed3bc4c0091a1b7c71a123fb",
+          "output_hash": "4dd353e20df011426f5df934db2ceafa66c6ca70301250ed3bfc34e9ee7a0cd1",
+          "error": null
+        }
+      ]
+    },
+    {
+      "status": "ok",
+      "error": null,
+      "chat_id": "chat_e8bdfdf8a487",
+      "turn": {
+        "turn_id": "turn_437f565c4800",
+        "trace_id": "tr_e1653615ae4a45d88447c1243071e237",
+        "created_at": "2026-10-18T06:00:48.363212Z",
+        "chip": "benign_explanations",
+        "question": null,
+        "question_hash": "50ef65232b42a80d9a793b518fae5a5d347efe5ce0653f8a21100810386d7a99",
+        "status": "ok",
+        "intent": "benign_explanations",
+        "answer": "Checked time_window_aggregate, trace_forward, transaction_lookup. Each verified statement below cites its source ids.",
+        "claims": [
+          {
+            "text": "From 2026-08-28 to 2026-09-11, ACC-3001 sent $43,855.00 across 9 transactions.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001"
+            ],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "43855.00"
+            ],
+            "source_tools": [
+              "time_window_aggregate"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3101 via TX-51001, totaling $4,850.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3101"
+            ],
+            "edge_ids": [
+              "TX-51001"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4850.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3102 via TX-51002, totaling $4,920.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51002"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3102"
+            ],
+            "edge_ids": [
+              "TX-51002"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4920.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3103 via TX-51003, totaling $4,775.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51003"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3103"
+            ],
+            "edge_ids": [
+              "TX-51003"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4775.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3104 via TX-51004, totaling $4,990.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51004"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3104"
+            ],
+            "edge_ids": [
+              "TX-51004"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4990.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3105 via TX-51005, totaling $4,810.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51005"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3105"
+            ],
+            "edge_ids": [
+              "TX-51005"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4810.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3106 via TX-51006, totaling $4,905.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51006"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3106"
+            ],
+            "edge_ids": [
+              "TX-51006"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4905.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3107 via TX-51007, totaling $4,860.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51007"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3107"
+            ],
+            "edge_ids": [
+              "TX-51007"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4860.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3108 via TX-51008, totaling $4,950.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51008"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3108"
+            ],
+            "edge_ids": [
+              "TX-51008"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4950.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3109 via TX-51009, totaling $4,795.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3109"
+            ],
+            "edge_ids": [
+              "TX-51009"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4795.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Transaction TX-51001 moved $4,850.00 from ACC-3001 to ACC-3101 on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3101"
+            ],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4850.00"
+            ],
+            "source_tools": [
+              "transaction_lookup"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Transaction TX-51002 moved $4,920.00 from ACC-3001 to ACC-3102 on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51002"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3102"
+            ],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4920.00"
+            ],
+            "source_tools": [
+              "transaction_lookup"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Transaction TX-51003 moved $4,775.00 from ACC-3001 to ACC-3103 on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51003"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3103"
+            ],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4775.00"
+            ],
+            "source_tools": [
+              "transaction_lookup"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Transaction TX-51004 moved $4,990.00 from ACC-3001 to ACC-3104 on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51004"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3104"
+            ],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4990.00"
+            ],
+            "source_tools": [
+              "transaction_lookup"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Transaction TX-51005 moved $4,810.00 from ACC-3001 to ACC-3105 on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51005"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3105"
+            ],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4810.00"
+            ],
+            "source_tools": [
+              "transaction_lookup"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Transaction TX-51006 moved $4,905.00 from ACC-3001 to ACC-3106 on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51006"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3106"
+            ],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4905.00"
+            ],
+            "source_tools": [
+              "transaction_lookup"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Transaction TX-51007 moved $4,860.00 from ACC-3001 to ACC-3107 on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51007"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3107"
+            ],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4860.00"
+            ],
+            "source_tools": [
+              "transaction_lookup"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Transaction TX-51008 moved $4,950.00 from ACC-3001 to ACC-3108 on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51008"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3108"
+            ],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4950.00"
+            ],
+            "source_tools": [
+              "transaction_lookup"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Transaction TX-51009 moved $4,795.00 from ACC-3001 to ACC-3109 on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3109"
+            ],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4795.00"
+            ],
+            "source_tools": [
+              "transaction_lookup"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "The pattern of multiple outgoing payments on a single date to different accounts may be consistent with payroll, pending verification.",
+            "label": "hypothesis",
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001"
+            ],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [],
+            "source_tools": [
+              "time_window_aggregate"
+            ],
+            "benign_kind": "payroll"
+          },
+          {
+            "text": "These transfers could represent legitimate business disbursements or vendor settlements unrelated to criminal activity.",
+            "label": "hypothesis",
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3101",
+              "ACC-3102",
+              "ACC-3103"
+            ],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          }
+        ],
+        "gaps": [
+          {
+            "label": "summary",
+            "text_hash": "a10914319df433ae2226a19730bf219977a73fb1faa339a60d4f7e012a048c3c",
+            "codes": [
+              "ASSERTED_BENIGN"
+            ],
+            "detail": "states a benign explanation as fact instead of a hedged possibility",
+            "suggested_query": "Use the benign_explanations chip, or ask whether the payments from ACC-3001 match a documented payroll or refund."
+          },
+          {
+            "label": "summary",
+            "text_hash": "b13cc3c783a44d6ec3eb03a5bd135d19d24fb06578b440f7c26bfef7af2d7531",
+            "codes": [
+              "UNGROUNDED_TOKEN"
+            ],
+            "detail": "mentions an id, amount or date not in this turn's results",
+            "suggested_query": "Ask about one transaction or account in this case, e.g. ACC-3001."
+          }
+        ],
+        "failures": [],
+        "next_steps": [
+          "Obtain beneficiary details for ACC-3101 through ACC-3109 to verify their relationship with the payer.",
+          "Review account opening dates and KYC documentation for all recipient accounts involved in these transactions.",
+          "Check if similar transaction patterns occur on other days or involve different source accounts."
+        ],
+        "suggested_chips": [],
+        "tool_calls": [
+          {
+            "tool": "time_window_aggregate",
+            "args": {
+              "account_ids": [
+                "ACC-3001"
+              ],
+              "group_by": "account"
+            },
+            "status": "ok",
+            "row_count": 1,
+            "truncated": false,
+            "duration_ms": 0.855,
+            "error": null
+          },
+          {
+            "tool": "trace_forward",
+            "args": {
+              "account_id": "ACC-3001",
+              "hops": 1
+            },
+            "status": "ok",
+            "row_count": 9,
+            "truncated": false,
+            "duration_ms": 0.443,
+            "error": null
+          },
+          {
+            "tool": "transaction_lookup",
+            "args": {
+              "tx_ids": [
+                "TX-51001",
+                "TX-51002",
+                "TX-51003",
+                "TX-51004",
+                "TX-51005",
+                "TX-51006",
+                "TX-51007",
+                "TX-51008",
+                "TX-51009"
+              ]
+            },
+            "status": "ok",
+            "row_count": 9,
+            "truncated": false,
+            "duration_ms": 0.277,
+            "error": null
+          }
+        ],
+        "verification_status": "partial",
+        "llm_meta": [
+          {
+            "provider": "ollama",
+            "model": "qwen3.5:9b",
+            "prompt_version": "chat_answer_v2",
+            "input_hash": "5327eaa9f214761b6da2afae6e1edc62d3eaf946271460cafee574e0f789ce70",
+            "attempts": 1,
+            "fallback_used": false,
+            "latency_ms": 39622.37,
+            "errors": []
+          }
+        ],
+        "feedback": null,
+        "precomputed": false
+      },
+      "context": {
+        "case_id": "case_8de205a7c2e5",
+        "alert_id": "alrt_a812f90d1b25",
+        "alert": {
+          "alert_id": "alrt_a812f90d1b25",
+          "tx_ids": [
+            "TX-51001"
+          ],
+          "composite_score": 0.932203,
+          "component_scores": {
+            "mock_velocity": 0.727273,
+            "mock_typology_rules": 0.7,
+            "mock_graph_risk": 0.75
+          },
+          "typology_tags": [
+            "fan_out"
+          ],
+          "tier": "high",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_60742743c1f42dee",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 1,
+          "model_run_id": null
+        },
+        "evidence_bundle": {
+          "alert_id": "alrt_a812f90d1b25",
+          "transactions": [
+            {
+              "transaction_id": "TX-51001",
+              "source_row_ref": "row_0032",
+              "timestamp": "2026-09-04T13:05:00Z",
+              "amount": "4850.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3101",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51002",
+              "source_row_ref": "row_0034",
+              "timestamp": "2026-09-04T13:22:00Z",
+              "amount": "4920.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3102",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51003",
+              "source_row_ref": "row_0035",
+              "timestamp": "2026-09-04T13:39:00Z",
+              "amount": "4775.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3103",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51004",
+              "source_row_ref": "row_0036",
+              "timestamp": "2026-09-04T13:56:00Z",
+              "amount": "4990.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3104",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51005",
+              "source_row_ref": "row_0037",
+              "timestamp": "2026-09-04T14:13:00Z",
+              "amount": "4810.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3105",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51006",
+              "source_row_ref": "row_0038",
+              "timestamp": "2026-09-04T14:30:00Z",
+              "amount": "4905.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3106",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51007",
+              "source_row_ref": "row_0039",
+              "timestamp": "2026-09-04T14:47:00Z",
+              "amount": "4860.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3107",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51008",
+              "source_row_ref": "row_0040",
+              "timestamp": "2026-09-04T15:04:00Z",
+              "amount": "4950.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3108",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51009",
+              "source_row_ref": "row_0041",
+              "timestamp": "2026-09-04T15:21:00Z",
+              "amount": "4795.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3109",
+              "transaction_status": "posted"
+            }
+          ],
+          "flow_findings": {
+            "alert_id": "alrt_a812f90d1b25",
+            "graph_snapshot_id": "snap_60742743c1f42dee",
+            "paths": [],
+            "cycles": [],
+            "fan_in": [],
+            "fan_out": [
+              {
+                "account_ids": [
+                  "ACC-3001",
+                  "ACC-3101",
+                  "ACC-3102",
+                  "ACC-3103",
+                  "ACC-3104",
+                  "ACC-3105",
+                  "ACC-3106",
+                  "ACC-3107",
+                  "ACC-3108",
+                  "ACC-3109"
+                ],
+                "transaction_ids": [
+                  "TX-51001",
+                  "TX-51002",
+                  "TX-51003",
+                  "TX-51004",
+                  "TX-51005",
+                  "TX-51006",
+                  "TX-51007",
+                  "TX-51008",
+                  "TX-51009"
+                ],
+                "total_amount": "43855.00",
+                "currency": "USD",
+                "window_start": "2026-09-04T13:05:00Z",
+                "window_end": "2026-09-04T15:21:00Z"
+              }
+            ],
+            "pass_through": [],
+            "evidence_tx_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ]
+          },
+          "quality_caveats": [],
+          "lineage_refs": [
+            "ingestion_run:run_ce08c0c644f4",
+            "transaction_batch:batch_ce08c0c644f4",
+            "graph_snapshot:snap_60742743c1f42dee"
+          ],
+          "bundle_hash": "2fb828287f67bf7c7c9ba54d68510cff86752fb0b0190d4889dd701587ab72ee"
+        },
+        "derived_facts": [
+          {
+            "fact_id": "DF-1",
+            "label": "evidence transaction count",
+            "kind": "count",
+            "value": "9",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-2",
+            "label": "total amount of evidence transactions (USD)",
+            "kind": "amount",
+            "value": "43855.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-3",
+            "label": "distinct accounts in evidence",
+            "kind": "count",
+            "value": "10",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3101",
+              "ACC-3102",
+              "ACC-3103",
+              "ACC-3104",
+              "ACC-3105",
+              "ACC-3106",
+              "ACC-3107",
+              "ACC-3108",
+              "ACC-3109"
+            ]
+          },
+          {
+            "fact_id": "DF-4",
+            "label": "first evidence transaction time",
+            "kind": "timestamp",
+            "value": "2026-09-04T13:05:00Z",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-5",
+            "label": "last evidence transaction time",
+            "kind": "timestamp",
+            "value": "2026-09-04T15:21:00Z",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51009"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-6",
+            "label": "time span from first to last evidence transaction (hours)",
+            "kind": "duration_hours",
+            "value": "2.27",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51009"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-7",
+            "label": "ACC-3001 outflow total (USD)",
+            "kind": "amount",
+            "value": "43855.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001"
+            ]
+          },
+          {
+            "fact_id": "DF-8",
+            "label": "ACC-3001 outflow transaction count",
+            "kind": "count",
+            "value": "9",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001"
+            ]
+          },
+          {
+            "fact_id": "DF-9",
+            "label": "ACC-3101 inflow total (USD)",
+            "kind": "amount",
+            "value": "4850.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [
+              "ACC-3101"
+            ]
+          },
+          {
+            "fact_id": "DF-10",
+            "label": "ACC-3101 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [
+              "ACC-3101"
+            ]
+          },
+          {
+            "fact_id": "DF-11",
+            "label": "ACC-3102 inflow total (USD)",
+            "kind": "amount",
+            "value": "4920.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51002"
+            ],
+            "account_ids": [
+              "ACC-3102"
+            ]
+          },
+          {
+            "fact_id": "DF-12",
+            "label": "ACC-3102 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51002"
+            ],
+            "account_ids": [
+              "ACC-3102"
+            ]
+          },
+          {
+            "fact_id": "DF-13",
+            "label": "ACC-3103 inflow total (USD)",
+            "kind": "amount",
+            "value": "4775.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51003"
+            ],
+            "account_ids": [
+              "ACC-3103"
+            ]
+          },
+          {
+            "fact_id": "DF-14",
+            "label": "ACC-3103 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51003"
+            ],
+            "account_ids": [
+              "ACC-3103"
+            ]
+          },
+          {
+            "fact_id": "DF-15",
+            "label": "ACC-3104 inflow total (USD)",
+            "kind": "amount",
+            "value": "4990.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51004"
+            ],
+            "account_ids": [
+              "ACC-3104"
+            ]
+          },
+          {
+            "fact_id": "DF-16",
+            "label": "ACC-3104 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51004"
+            ],
+            "account_ids": [
+              "ACC-3104"
+            ]
+          },
+          {
+            "fact_id": "DF-17",
+            "label": "ACC-3105 inflow total (USD)",
+            "kind": "amount",
+            "value": "4810.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51005"
+            ],
+            "account_ids": [
+              "ACC-3105"
+            ]
+          },
+          {
+            "fact_id": "DF-18",
+            "label": "ACC-3105 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51005"
+            ],
+            "account_ids": [
+              "ACC-3105"
+            ]
+          },
+          {
+            "fact_id": "DF-19",
+            "label": "ACC-3106 inflow total (USD)",
+            "kind": "amount",
+            "value": "4905.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51006"
+            ],
+            "account_ids": [
+              "ACC-3106"
+            ]
+          },
+          {
+            "fact_id": "DF-20",
+            "label": "ACC-3106 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51006"
+            ],
+            "account_ids": [
+              "ACC-3106"
+            ]
+          },
+          {
+            "fact_id": "DF-21",
+            "label": "ACC-3107 inflow total (USD)",
+            "kind": "amount",
+            "value": "4860.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51007"
+            ],
+            "account_ids": [
+              "ACC-3107"
+            ]
+          },
+          {
+            "fact_id": "DF-22",
+            "label": "ACC-3107 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51007"
+            ],
+            "account_ids": [
+              "ACC-3107"
+            ]
+          },
+          {
+            "fact_id": "DF-23",
+            "label": "ACC-3108 inflow total (USD)",
+            "kind": "amount",
+            "value": "4950.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51008"
+            ],
+            "account_ids": [
+              "ACC-3108"
+            ]
+          },
+          {
+            "fact_id": "DF-24",
+            "label": "ACC-3108 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51008"
+            ],
+            "account_ids": [
+              "ACC-3108"
+            ]
+          },
+          {
+            "fact_id": "DF-25",
+            "label": "ACC-3109 inflow total (USD)",
+            "kind": "amount",
+            "value": "4795.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3109"
+            ]
+          },
+          {
+            "fact_id": "DF-26",
+            "label": "ACC-3109 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3109"
+            ]
+          },
+          {
+            "fact_id": "DF-27",
+            "label": "fan_out pattern 1 transaction count",
+            "kind": "count",
+            "value": "9",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3101",
+              "ACC-3102",
+              "ACC-3103",
+              "ACC-3104",
+              "ACC-3105",
+              "ACC-3106",
+              "ACC-3107",
+              "ACC-3108",
+              "ACC-3109"
+            ]
+          }
+        ],
+        "quality_issues": [],
+        "graph_snapshot_id": "snap_60742743c1f42dee",
+        "window_start": "2026-08-28T13:05:00Z",
+        "window_end": "2026-09-11T15:21:00Z",
+        "entity_scope": [
+          "ACC-3001",
+          "ACC-3101",
+          "ACC-3102",
+          "ACC-3103",
+          "ACC-3104",
+          "ACC-3105",
+          "ACC-3106",
+          "ACC-3107",
+          "ACC-3108",
+          "ACC-3109"
+        ],
+        "scope_transaction_count": 9,
+        "pinned_evidence_ids": [],
+        "scope_notes": []
+      },
+      "trace": [
+        {
+          "trace_id": "tr_e1653615ae4a45d88447c1243071e237",
+          "node": "chat_classify",
+          "status": "ok",
+          "started_at": "2026-10-18T06:00:08.723035Z",
+          "ended_at": "2026-10-18T06:00:08.724343Z",
+          "duration_ms": 1.308,
+          "input_hash": "4496aef22da6e84e5663c49cd04359398d3ed4f03d7f08d9507fa274b2fee016",
+          "output_hash": "b3cc70178b1b3fd0ff43186cc87b9cd7dda54d29be3aac53e8e77b64c99c5caa",
+          "error": null
+        },
+        {
+          "trace_id": "tr_e1653615ae4a45d88447c1243071e237",
+          "node": "chat_tool_query",
+          "status": "ok",
+          "started_at": "2026-10-18T06:00:08.725120Z",
+          "ended_at": "2026-10-18T06:00:08.726892Z",
+          "duration_ms": 1.774,
+          "input_hash": "534a53c8bb84dc0a88e09657264ffef72e52da733592bf56c68c5687ebbcee07",
+          "output_hash": "b8785ea36b8b1539910ed337847d77b865b31293c31205977e09cc1b87dfc95a",
+          "error": null
+        },
+        {
+          "trace_id": "tr_e1653615ae4a45d88447c1243071e237",
+          "node": "chat_draft_answer",
+          "status": "ok",
+          "started_at": "2026-10-18T06:00:08.727577Z",
+          "ended_at": "2026-10-18T06:00:48.351408Z",
+          "duration_ms": 39623.93,
+          "input_hash": "0a6a23d33fbc30b2bddc1f616275e35fc2fb3c46543606232bb40dcd86c9cebb",
+          "output_hash": "a08a66c23ba49226a5c7eaa2ba6af9c54cdfaa3a5bd8eaf2af0be94323228488",
+          "error": null
+        },
+        {
+          "trace_id": "tr_e1653615ae4a45d88447c1243071e237",
+          "node": "chat_verify",
+          "status": "ok",
+          "started_at": "2026-10-18T06:00:48.355861Z",
+          "ended_at": "2026-10-18T06:00:48.359866Z",
+          "duration_ms": 4.008,
+          "input_hash": "b1f46cf335f866509afe62254963429da9cfeb82faac31cdaa6eb0322fddd412",
+          "output_hash": "583f8475c5332f51c867d2bab71cfa74971acce103c35c6ac738fea0df14ee20",
+          "error": null
+        },
+        {
+          "trace_id": "tr_e1653615ae4a45d88447c1243071e237",
+          "node": "chat_respond",
+          "status": "ok",
+          "started_at": "2026-10-18T06:00:48.361756Z",
+          "ended_at": "2026-10-18T06:00:48.362549Z",
+          "duration_ms": 0.795,
+          "input_hash": "e88df14bc6c76e83b16caa2e77e5ab5c3bcdae30e902c6c7a88ef55797ea9930",
+          "output_hash": "1d9873ee9ef3990a263a20f5af8eaacb4fc98c4bae557bb95800b909b34418fa",
+          "error": null
+        }
+      ]
+    },
+    {
+      "status": "ok",
+      "error": null,
+      "chat_id": "chat_e8bdfdf8a487",
+      "turn": {
+        "turn_id": "turn_130d034c83da",
+        "trace_id": "tr_ea66662dce434ca8b36fb37baf33817d",
+        "created_at": "2026-10-18T06:01:53.730876Z",
+        "chip": null,
+        "question": "Where did the money go after it left the hub account?",
+        "question_hash": "0e8275f2185d7167e49bed76975a3b0a006175feab333b8d30155d89ae292fac",
+        "status": "ok",
+        "intent": "trace_forward",
+        "answer": "The forward trace indicates that funds left ACC-3001 via nine separate transactions on the same date, moving to distinct accounts ranging from ACC-3101 through ACC-3109. The transaction lookup confirms these specific movements without revealing further destination details beyond the immediate recipient accounts.",
+        "claims": [
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3101 via TX-51001, totaling $4,850.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3101"
+            ],
+            "edge_ids": [
+              "TX-51001"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4850.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3102 via TX-51002, totaling $4,920.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51002"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3102"
+            ],
+            "edge_ids": [
+              "TX-51002"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4920.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3103 via TX-51003, totaling $4,775.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51003"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3103"
+            ],
+            "edge_ids": [
+              "TX-51003"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4775.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3104 via TX-51004, totaling $4,990.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51004"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3104"
+            ],
+            "edge_ids": [
+              "TX-51004"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4990.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3105 via TX-51005, totaling $4,810.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51005"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3105"
+            ],
+            "edge_ids": [
+              "TX-51005"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4810.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3106 via TX-51006, totaling $4,905.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51006"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3106"
+            ],
+            "edge_ids": [
+              "TX-51006"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4905.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3107 via TX-51007, totaling $4,860.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51007"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3107"
+            ],
+            "edge_ids": [
+              "TX-51007"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4860.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3108 via TX-51008, totaling $4,950.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51008"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3108"
+            ],
+            "edge_ids": [
+              "TX-51008"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4950.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Forward trace from ACC-3001: ACC-3001 → ACC-3109 via TX-51009, totaling $4,795.00, on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3109"
+            ],
+            "edge_ids": [
+              "TX-51009"
+            ],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4795.00"
+            ],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Transaction TX-51001 moved $4,850.00 from ACC-3001 to ACC-3101 on 2026-09-04.",
+            "label": "observed_fact",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3101"
+            ],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [
+              "4850.00"
+            ],
+            "source_tools": [
+              "transaction_lookup"
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "The transfers may represent legitimate business disbursements that require reviewer assessment to confirm the nature of the recipient accounts.",
+            "label": "hypothesis",
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3101",
+              "ACC-3102",
+              "ACC-3103",
+              "ACC-3104",
+              "ACC-3105",
+              "ACC-3106",
+              "ACC-3107",
+              "ACC-3108",
+              "ACC-3109"
+            ],
+            "edge_ids": [],
+            "evidence_ids": [],
+            "chunk_ids": [],
+            "model_run_id": null,
+            "amounts": [],
+            "source_tools": [
+              "trace_forward"
+            ],
+            "benign_kind": null
+          }
+        ],
+        "gaps": [
+          {
+            "label": "hypothesis",
+            "text_hash": "ac880eb76393d267d4f0ffa0f6bc0547b4b6e38a343591c7bc115577832f479e",
+            "codes": [
+              "UNGROUNDED_TOKEN"
+            ],
+            "detail": "mentions an id, amount or date not in this turn's results",
+            "suggested_query": "Ask about one transaction or account in this case, e.g. ACC-3001."
+          },
+          {
+            "label": "hypothesis",
+            "text_hash": "af57daecfe91090be12bac67979a3489cd02db8fb31074b4fea028bdaa6185c2",
+            "codes": [
+              "UNSUPPORTED_BENIGN"
+            ],
+            "detail": "offers a benign explanation no tool result supports",
+            "suggested_query": "Use the benign_explanations chip, or ask whether the payments from ACC-3001 match a documented payroll or refund."
+          }
+        ],
+        "failures": [],
+        "next_steps": [
+          "Obtain account ownership details for ACC-3101 through ACC-3109 to verify if they belong to known employees or beneficiaries.",
+          "Check the transaction metadata in TX-51001 through TX-51009 for any memo fields, remittance information, or purpose codes that might indicate payroll or other legitimate activity.",
+          "Review customer profile data for ACC-3001 to confirm if it is a known hub account used for bulk disbursements such as salary payments.",
+          "Verify the relationship between the sender (ACC-3001) and each recipient account to ensure no unexplained connections exist outside of standard business operations.",
+          "Confirm whether any subsequent transactions occurred from ACC-3101 through ACC-3109 on 2026-09-04 or shortly thereafter that might indicate fund layering."
+        ],
+        "suggested_chips": [],
+        "tool_calls": [
+          {
+            "tool": "trace_forward",
+            "args": {
+              "account_id": "ACC-3001",
+              "hops": 2
+            },
+            "status": "ok",
+            "row_count": 9,
+            "truncated": false,
+            "duration_ms": 1.355,
+            "error": null
+          },
+          {
+            "tool": "transaction_lookup",
+            "args": {
+              "tx_ids": [
+                "TX-51001"
+              ]
+            },
+            "status": "ok",
+            "row_count": 1,
+            "truncated": false,
+            "duration_ms": 0.356,
+            "error": null
+          }
+        ],
+        "verification_status": "partial",
+        "llm_meta": [
+          {
+            "provider": "ollama",
+            "model": "qwen3.5:9b",
+            "prompt_version": "chat_plan_v1",
+            "input_hash": "efe3fcad3320c37909c10853129791e1a4b0bb64f57558d49050f9def2b71c88",
+            "attempts": 1,
+            "fallback_used": false,
+            "latency_ms": 22092.112,
+            "errors": []
+          },
+          {
+            "provider": "ollama",
+            "model": "qwen3.5:9b",
+            "prompt_version": "chat_answer_v2",
+            "input_hash": "57eb9a50f4efb016da66334c54fc01adcf2db759086e8ee050d267b568d9be66",
+            "attempts": 1,
+            "fallback_used": false,
+            "latency_ms": 43135.268,
+            "errors": []
+          }
+        ],
+        "feedback": null,
+        "precomputed": false
+      },
+      "context": {
+        "case_id": "case_8de205a7c2e5",
+        "alert_id": "alrt_a812f90d1b25",
+        "alert": {
+          "alert_id": "alrt_a812f90d1b25",
+          "tx_ids": [
+            "TX-51001"
+          ],
+          "composite_score": 0.932203,
+          "component_scores": {
+            "mock_velocity": 0.727273,
+            "mock_typology_rules": 0.7,
+            "mock_graph_risk": 0.75
+          },
+          "typology_tags": [
+            "fan_out"
+          ],
+          "tier": "high",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_60742743c1f42dee",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 1,
+          "model_run_id": null
+        },
+        "evidence_bundle": {
+          "alert_id": "alrt_a812f90d1b25",
+          "transactions": [
+            {
+              "transaction_id": "TX-51001",
+              "source_row_ref": "row_0032",
+              "timestamp": "2026-09-04T13:05:00Z",
+              "amount": "4850.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3101",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51002",
+              "source_row_ref": "row_0034",
+              "timestamp": "2026-09-04T13:22:00Z",
+              "amount": "4920.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3102",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51003",
+              "source_row_ref": "row_0035",
+              "timestamp": "2026-09-04T13:39:00Z",
+              "amount": "4775.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3103",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51004",
+              "source_row_ref": "row_0036",
+              "timestamp": "2026-09-04T13:56:00Z",
+              "amount": "4990.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3104",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51005",
+              "source_row_ref": "row_0037",
+              "timestamp": "2026-09-04T14:13:00Z",
+              "amount": "4810.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3105",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51006",
+              "source_row_ref": "row_0038",
+              "timestamp": "2026-09-04T14:30:00Z",
+              "amount": "4905.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3106",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51007",
+              "source_row_ref": "row_0039",
+              "timestamp": "2026-09-04T14:47:00Z",
+              "amount": "4860.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3107",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51008",
+              "source_row_ref": "row_0040",
+              "timestamp": "2026-09-04T15:04:00Z",
+              "amount": "4950.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3108",
+              "transaction_status": "posted"
+            },
+            {
+              "transaction_id": "TX-51009",
+              "source_row_ref": "row_0041",
+              "timestamp": "2026-09-04T15:21:00Z",
+              "amount": "4795.00",
+              "currency": "USD",
+              "channel": "wire",
+              "direction": "outbound",
+              "origin_account_id": "ACC-3001",
+              "destination_account_id": "ACC-3109",
+              "transaction_status": "posted"
+            }
+          ],
+          "flow_findings": {
+            "alert_id": "alrt_a812f90d1b25",
+            "graph_snapshot_id": "snap_60742743c1f42dee",
+            "paths": [],
+            "cycles": [],
+            "fan_in": [],
+            "fan_out": [
+              {
+                "account_ids": [
+                  "ACC-3001",
+                  "ACC-3101",
+                  "ACC-3102",
+                  "ACC-3103",
+                  "ACC-3104",
+                  "ACC-3105",
+                  "ACC-3106",
+                  "ACC-3107",
+                  "ACC-3108",
+                  "ACC-3109"
+                ],
+                "transaction_ids": [
+                  "TX-51001",
+                  "TX-51002",
+                  "TX-51003",
+                  "TX-51004",
+                  "TX-51005",
+                  "TX-51006",
+                  "TX-51007",
+                  "TX-51008",
+                  "TX-51009"
+                ],
+                "total_amount": "43855.00",
+                "currency": "USD",
+                "window_start": "2026-09-04T13:05:00Z",
+                "window_end": "2026-09-04T15:21:00Z"
+              }
+            ],
+            "pass_through": [],
+            "evidence_tx_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ]
+          },
+          "quality_caveats": [],
+          "lineage_refs": [
+            "ingestion_run:run_ce08c0c644f4",
+            "transaction_batch:batch_ce08c0c644f4",
+            "graph_snapshot:snap_60742743c1f42dee"
+          ],
+          "bundle_hash": "2fb828287f67bf7c7c9ba54d68510cff86752fb0b0190d4889dd701587ab72ee"
+        },
+        "derived_facts": [
+          {
+            "fact_id": "DF-1",
+            "label": "evidence transaction count",
+            "kind": "count",
+            "value": "9",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-2",
+            "label": "total amount of evidence transactions (USD)",
+            "kind": "amount",
+            "value": "43855.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-3",
+            "label": "distinct accounts in evidence",
+            "kind": "count",
+            "value": "10",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3101",
+              "ACC-3102",
+              "ACC-3103",
+              "ACC-3104",
+              "ACC-3105",
+              "ACC-3106",
+              "ACC-3107",
+              "ACC-3108",
+              "ACC-3109"
+            ]
+          },
+          {
+            "fact_id": "DF-4",
+            "label": "first evidence transaction time",
+            "kind": "timestamp",
+            "value": "2026-09-04T13:05:00Z",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-5",
+            "label": "last evidence transaction time",
+            "kind": "timestamp",
+            "value": "2026-09-04T15:21:00Z",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51009"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-6",
+            "label": "time span from first to last evidence transaction (hours)",
+            "kind": "duration_hours",
+            "value": "2.27",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51009"
+            ],
+            "account_ids": []
+          },
+          {
+            "fact_id": "DF-7",
+            "label": "ACC-3001 outflow total (USD)",
+            "kind": "amount",
+            "value": "43855.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001"
+            ]
+          },
+          {
+            "fact_id": "DF-8",
+            "label": "ACC-3001 outflow transaction count",
+            "kind": "count",
+            "value": "9",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001"
+            ]
+          },
+          {
+            "fact_id": "DF-9",
+            "label": "ACC-3101 inflow total (USD)",
+            "kind": "amount",
+            "value": "4850.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [
+              "ACC-3101"
+            ]
+          },
+          {
+            "fact_id": "DF-10",
+            "label": "ACC-3101 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001"
+            ],
+            "account_ids": [
+              "ACC-3101"
+            ]
+          },
+          {
+            "fact_id": "DF-11",
+            "label": "ACC-3102 inflow total (USD)",
+            "kind": "amount",
+            "value": "4920.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51002"
+            ],
+            "account_ids": [
+              "ACC-3102"
+            ]
+          },
+          {
+            "fact_id": "DF-12",
+            "label": "ACC-3102 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51002"
+            ],
+            "account_ids": [
+              "ACC-3102"
+            ]
+          },
+          {
+            "fact_id": "DF-13",
+            "label": "ACC-3103 inflow total (USD)",
+            "kind": "amount",
+            "value": "4775.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51003"
+            ],
+            "account_ids": [
+              "ACC-3103"
+            ]
+          },
+          {
+            "fact_id": "DF-14",
+            "label": "ACC-3103 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51003"
+            ],
+            "account_ids": [
+              "ACC-3103"
+            ]
+          },
+          {
+            "fact_id": "DF-15",
+            "label": "ACC-3104 inflow total (USD)",
+            "kind": "amount",
+            "value": "4990.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51004"
+            ],
+            "account_ids": [
+              "ACC-3104"
+            ]
+          },
+          {
+            "fact_id": "DF-16",
+            "label": "ACC-3104 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51004"
+            ],
+            "account_ids": [
+              "ACC-3104"
+            ]
+          },
+          {
+            "fact_id": "DF-17",
+            "label": "ACC-3105 inflow total (USD)",
+            "kind": "amount",
+            "value": "4810.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51005"
+            ],
+            "account_ids": [
+              "ACC-3105"
+            ]
+          },
+          {
+            "fact_id": "DF-18",
+            "label": "ACC-3105 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51005"
+            ],
+            "account_ids": [
+              "ACC-3105"
+            ]
+          },
+          {
+            "fact_id": "DF-19",
+            "label": "ACC-3106 inflow total (USD)",
+            "kind": "amount",
+            "value": "4905.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51006"
+            ],
+            "account_ids": [
+              "ACC-3106"
+            ]
+          },
+          {
+            "fact_id": "DF-20",
+            "label": "ACC-3106 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51006"
+            ],
+            "account_ids": [
+              "ACC-3106"
+            ]
+          },
+          {
+            "fact_id": "DF-21",
+            "label": "ACC-3107 inflow total (USD)",
+            "kind": "amount",
+            "value": "4860.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51007"
+            ],
+            "account_ids": [
+              "ACC-3107"
+            ]
+          },
+          {
+            "fact_id": "DF-22",
+            "label": "ACC-3107 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51007"
+            ],
+            "account_ids": [
+              "ACC-3107"
+            ]
+          },
+          {
+            "fact_id": "DF-23",
+            "label": "ACC-3108 inflow total (USD)",
+            "kind": "amount",
+            "value": "4950.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51008"
+            ],
+            "account_ids": [
+              "ACC-3108"
+            ]
+          },
+          {
+            "fact_id": "DF-24",
+            "label": "ACC-3108 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51008"
+            ],
+            "account_ids": [
+              "ACC-3108"
+            ]
+          },
+          {
+            "fact_id": "DF-25",
+            "label": "ACC-3109 inflow total (USD)",
+            "kind": "amount",
+            "value": "4795.00",
+            "currency": "USD",
+            "transaction_ids": [
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3109"
+            ]
+          },
+          {
+            "fact_id": "DF-26",
+            "label": "ACC-3109 inflow transaction count",
+            "kind": "count",
+            "value": "1",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3109"
+            ]
+          },
+          {
+            "fact_id": "DF-27",
+            "label": "fan_out pattern 1 transaction count",
+            "kind": "count",
+            "value": "9",
+            "currency": null,
+            "transaction_ids": [
+              "TX-51001",
+              "TX-51002",
+              "TX-51003",
+              "TX-51004",
+              "TX-51005",
+              "TX-51006",
+              "TX-51007",
+              "TX-51008",
+              "TX-51009"
+            ],
+            "account_ids": [
+              "ACC-3001",
+              "ACC-3101",
+              "ACC-3102",
+              "ACC-3103",
+              "ACC-3104",
+              "ACC-3105",
+              "ACC-3106",
+              "ACC-3107",
+              "ACC-3108",
+              "ACC-3109"
+            ]
+          }
+        ],
+        "quality_issues": [],
+        "graph_snapshot_id": "snap_60742743c1f42dee",
+        "window_start": "2026-08-28T13:05:00Z",
+        "window_end": "2026-09-11T15:21:00Z",
+        "entity_scope": [
+          "ACC-3001",
+          "ACC-3101",
+          "ACC-3102",
+          "ACC-3103",
+          "ACC-3104",
+          "ACC-3105",
+          "ACC-3106",
+          "ACC-3107",
+          "ACC-3108",
+          "ACC-3109"
+        ],
+        "scope_transaction_count": 9,
+        "pinned_evidence_ids": [],
+        "scope_notes": []
+      },
+      "trace": [
+        {
+          "trace_id": "tr_ea66662dce434ca8b36fb37baf33817d",
+          "node": "chat_classify",
+          "status": "ok",
+          "started_at": "2026-10-18T06:00:48.369529Z",
+          "ended_at": "2026-10-18T06:01:10.575362Z",
+          "duration_ms": 22205.907,
+          "input_hash": "31f6d07f6daf006164bae882ffbeee3f1ecfc6d3a0eb8518abce69a645fbe27e",
+          "output_hash": "634238ec04485422f03b0298e827e1a22227d15d3a90f5e36d94f18557f5a439",
+          "error": null
+        },
+        {
+          "trace_id": "tr_ea66662dce434ca8b36fb37baf33817d",
+          "node": "chat_tool_query",
+          "status": "ok",
+          "started_at": "2026-10-18T06:01:10.578872Z",
+          "ended_at": "2026-10-18T06:01:10.580899Z",
+          "duration_ms": 2.027,
+          "input_hash": "bd90c3c8ac4d3be33f1b0520ade0756467c7d1e9c15af9552db9166caee29904",
+          "output_hash": "661963665092bae69963620ff28b9e9f79c1c02215c9de2e611f4d068954708a",
+          "error": null
+        },
+        {
+          "trace_id": "tr_ea66662dce434ca8b36fb37baf33817d",
+          "node": "chat_draft_answer",
+          "status": "ok",
+          "started_at": "2026-10-18T06:01:10.582086Z",
+          "ended_at": "2026-10-18T06:01:53.719663Z",
+          "duration_ms": 43137.703,
+          "input_hash": "2b3e80439b41dbe6afd87c0d442c8c9702d8988eff2d63a4b88a75df23e56d6a",
+          "output_hash": "171edb74852760a74e748c7e59c5e60ad9b1905986abb8aafc2c64f4a8f4b23f",
+          "error": null
+        },
+        {
+          "trace_id": "tr_ea66662dce434ca8b36fb37baf33817d",
+          "node": "chat_verify",
+          "status": "ok",
+          "started_at": "2026-10-18T06:01:53.725070Z",
+          "ended_at": "2026-10-18T06:01:53.728058Z",
+          "duration_ms": 2.988,
+          "input_hash": "5410b1370f05c1111eac304cfe8372642635560e7ecdfb071e1242fb4f388483",
+          "output_hash": "294c18a6ca446391f3ee1052979a616f2ee64a9e32a07a0c237bf556a8b480ac",
+          "error": null
+        },
+        {
+          "trace_id": "tr_ea66662dce434ca8b36fb37baf33817d",
+          "node": "chat_respond",
+          "status": "ok",
+          "started_at": "2026-10-18T06:01:53.729397Z",
+          "ended_at": "2026-10-18T06:01:53.730282Z",
+          "duration_ms": 0.885,
+          "input_hash": "ecfee5257f919bcb57c5adf5112c47fd44c03f74dc6e0e2434ae3a8b0bc8ba2a",
+          "output_hash": "728c92c5cd6582080a36f792713f2437a2e0935bdb8eb314dc08b6c1aa76804e",
+          "error": null
+        }
+      ]
+    }
+  ],
+  "chat_outputs": {
+    "c1b61e6d2e41ee5a4826a75a662d9914b673b2ac59b7c6f9e7d8c764381b62ee": {
+      "prompt": "chat_answer",
+      "output": {
+        "summary": "The alert for transaction TX-51001 received a high composite score driven by model components related to fan-out, velocity, and graph risk. The specific factors contributing to the scores include distinct recipients at origin, outgoing activity within six hours, and the transfer of $4,850 from ACC-3001 to ACC-3101 on 2026-09-04. No KYC data or business purpose is available for this transaction.",
+        "hypotheses": [
+          {
+            "text": "The activity may be consistent with a legitimate fan-out pattern, pending verification of account ownership and relationship context.",
+            "fact_refs": [
+              1,
+              5,
+              7
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "The transaction exhibits high velocity characteristics that require reviewer assessment to determine if they indicate suspicious behavior or normal operational timing.",
+            "fact_refs": [
+              4,
+              6
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "Without available KYC data or stated business purpose, the nature of this transfer cannot be confirmed as benign and requires further investigation.",
+            "fact_refs": [
+              9,
+              10,
+              11
+            ],
+            "benign_kind": null
+          }
+        ],
+        "next_steps": [
+          "Obtain customer profile information for ACC-3001 to verify account ownership and identity.",
+          "Request the stated business purpose or transaction description from the originating system.",
+          "Review historical activity patterns for both ACC-3001 and ACC-3101 to establish baseline behavior.",
+          "Check if similar fan-out transactions occur regularly between these accounts during this period.",
+          "Verify whether any external relationships link the account holders or entities involved."
+        ]
+      },
+      "meta": {
+        "provider": "ollama",
+        "model": "qwen3.5:9b",
+        "prompt_version": "chat_answer_v2",
+        "input_hash": "c1b61e6d2e41ee5a4826a75a662d9914b673b2ac59b7c6f9e7d8c764381b62ee",
+        "attempts": 1,
+        "fallback_used": false,
+        "latency_ms": 33626.878,
+        "errors": []
+      }
+    },
+    "bf4506b0c20cd6bcfae2d3de1452cce946ad52df2df336c0750743c3d788b9fa": {
+      "prompt": "chat_answer",
+      "output": {
+        "summary": "The trace_forward tool identified nine outgoing transactions from ACC-3001 to distinct accounts on 2026-09-04, with amounts ranging between $4,775.00 and $4,990.00.",
+        "hypotheses": [],
+        "next_steps": [
+          "Obtain customer information for ACC-3001 to verify account ownership and expected activity patterns.",
+          "Review the transaction descriptions in TX-51001 through TX-51009 to identify any specific labels or references.",
+          "Check if the receiving accounts (ACC-3101 through ACC-3109) are known payroll recipients, vendors, or related entities.",
+          "Verify whether these transactions align with a scheduled bulk payment event such as a salary run or vendor settlement.",
+          "Confirm that no other outgoing transfers from ACC-3001 occurred on 2026-09-04 to ensure the trace is complete."
+        ]
+      },
+      "meta": {
+        "provider": "ollama",
+        "model": "qwen3.5:9b",
+        "prompt_version": "chat_answer_v2",
+        "input_hash": "bf4506b0c20cd6bcfae2d3de1452cce946ad52df2df336c0750743c3d788b9fa",
+        "attempts": 1,
+        "fallback_used": false,
+        "latency_ms": 25242.812,
+        "errors": []
+      }
+    },
+    "5327eaa9f214761b6da2afae6e1edc62d3eaf946271460cafee574e0f789ce70": {
+      "prompt": "chat_answer",
+      "output": {
+        "summary": "From 2026-08-28 to 2026-09-11, ACC-3001 sent $43,855.00 across nine transactions (Fact 1). On 2026-09-04 alone, the account forwarded funds totaling approximately $44,755 to eight distinct accounts via TX-51001 through TX-51009 (Facts 2–10), with individual transaction details confirmed by lookups (Facts 11–19). All nine transactions are supported as payroll activity.",
+        "hypotheses": [
+          {
+            "text": "The pattern of multiple outgoing payments on a single date to different accounts may be consistent with payroll, pending verification.",
+            "fact_refs": [
+              1
+            ],
+            "benign_kind": "payroll"
+          },
+          {
+            "text": "These transfers could represent legitimate business disbursements or vendor settlements unrelated to criminal activity.",
+            "fact_refs": [
+              2,
+              3,
+              4
+            ],
+            "benign_kind": null
+          }
+        ],
+        "next_steps": [
+          "Obtain beneficiary details for ACC-3101 through ACC-3109 to verify their relationship with the payer.",
+          "Review account opening dates and KYC documentation for all recipient accounts involved in these transactions.",
+          "Check if similar transaction patterns occur on other days or involve different source accounts."
+        ]
+      },
+      "meta": {
+        "provider": "ollama",
+        "model": "qwen3.5:9b",
+        "prompt_version": "chat_answer_v2",
+        "input_hash": "5327eaa9f214761b6da2afae6e1edc62d3eaf946271460cafee574e0f789ce70",
+        "attempts": 1,
+        "fallback_used": false,
+        "latency_ms": 39622.37,
+        "errors": []
+      }
+    },
+    "efe3fcad3320c37909c10853129791e1a4b0bb64f57558d49050f9def2b71c88": {
+      "prompt": "chat_plan",
+      "output": {
+        "intent": "trace_forward",
+        "tool_calls": [
+          {
+            "tool": "trace_forward",
+            "args": {
+              "account_id": "ACC-3001",
+              "hops": 2
+            }
+          },
+          {
+            "tool": "transaction_lookup",
+            "args": {
+              "tx_ids": [
+                "TX-51001"
+              ]
+            }
+          }
+        ]
+      },
+      "meta": {
+        "provider": "ollama",
+        "model": "qwen3.5:9b",
+        "prompt_version": "chat_plan_v1",
+        "input_hash": "efe3fcad3320c37909c10853129791e1a4b0bb64f57558d49050f9def2b71c88",
+        "attempts": 1,
+        "fallback_used": false,
+        "latency_ms": 22092.112,
+        "errors": []
+      }
+    },
+    "57eb9a50f4efb016da66334c54fc01adcf2db759086e8ee050d267b568d9be66": {
+      "prompt": "chat_answer",
+      "output": {
+        "summary": "The forward trace indicates that funds left ACC-3001 via nine separate transactions on the same date, moving to distinct accounts ranging from ACC-3101 through ACC-3109. The transaction lookup confirms these specific movements without revealing further destination details beyond the immediate recipient accounts.",
+        "hypotheses": [
+          {
+            "text": "The activity may be consistent with payroll distribution pending verification, as all transactions are flagged under benign support for that category and involve transfers to individual-style account numbers (ACC-310x).",
+            "fact_refs": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            "benign_kind": "payroll"
+          },
+          {
+            "text": "The funds may have been distributed to multiple beneficiaries or sub-accounts as part of a shared service arrangement.",
+            "fact_refs": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            "benign_kind": null
+          },
+          {
+            "text": "The transfers may represent legitimate business disbursements that require reviewer assessment to confirm the nature of the recipient accounts.",
+            "fact_refs": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            "benign_kind": null
+          }
+        ],
+        "next_steps": [
+          "Obtain account ownership details for ACC-3101 through ACC-3109 to verify if they belong to known employees or beneficiaries.",
+          "Check the transaction metadata in TX-51001 through TX-51009 for any memo fields, remittance information, or purpose codes that might indicate payroll or other legitimate activity.",
+          "Review customer profile data for ACC-3001 to confirm if it is a known hub account used for bulk disbursements such as salary payments.",
+          "Verify the relationship between the sender (ACC-3001) and each recipient account to ensure no unexplained connections exist outside of standard business operations.",
+          "Confirm whether any subsequent transactions occurred from ACC-3101 through ACC-3109 on 2026-09-04 or shortly thereafter that might indicate fund layering."
+        ]
+      },
+      "meta": {
+        "provider": "ollama",
+        "model": "qwen3.5:9b",
+        "prompt_version": "chat_answer_v2",
+        "input_hash": "57eb9a50f4efb016da66334c54fc01adcf2db759086e8ee050d267b568d9be66",
+        "attempts": 1,
+        "fallback_used": false,
+        "latency_ms": 43135.268,
+        "errors": []
+      }
+    }
   }
 }

@@ -1048,6 +1048,9 @@ class ChatTurn(Contract):
     verification_status: VerificationStatus
     llm_meta: list[LLMMeta] = Field(default_factory=list)
     feedback: ChatFeedback | None = None
+    # True when an LLM output was served from the precomputed golden run (`llm_meta` keeps the
+    # original provider, model and prompt_version); tools and the verifier still ran live.
+    precomputed: bool = False
 
 
 class ChatSession(Contract):
@@ -1117,6 +1120,7 @@ class ChatClassifyOutput(Contract):
     plan: list[ToolCall]
     clarification: str | None = None
     llm_meta: list[LLMMeta] = Field(default_factory=list)
+    precomputed: bool = False
 
 
 class ChatToolQueryOutput(Contract):
@@ -1128,6 +1132,7 @@ class ChatDraftOutput(Contract):
     synthesis: ChatSynthesis
     benign_support: dict[str, list[str]]
     llm_meta: list[LLMMeta] = Field(default_factory=list)
+    precomputed: bool = False
 
 
 class ChatVerifyOutput(Contract):
