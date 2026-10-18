@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { issuesToChecks, useLiveBatches } from "@/lib/live/adapters";
 import { errorMessage, liveApi, useLive, type DqIssue } from "@/lib/live/api";
-import { BAND_TONE, SEVERITY_TONE, alertLabel, words } from "@/lib/live/format";
+import { BAND_TONE, SEVERITY_TONE, alertLabel, friendlySchema, words } from "@/lib/live/format";
 import { LIVE_ROLES } from "@/lib/live/roles";
 import { useLiveProfile } from "@/lib/live/session";
 import { useMaskers } from "@/lib/privacy/store";
@@ -196,7 +196,7 @@ function SourceRow({ rowId }: { rowId: string }) {
                   ["Row", d.source_row.row_number],
                   ["Validation", words(d.source_row.status)],
                   ["File", d.source_row.ingestion_runs?.source_files?.filename ?? "Not recorded"],
-                  ["Schema", d.source_row.ingestion_runs?.schema_version ?? "Not recorded"],
+                  ["Schema", friendlySchema(d.source_row.ingestion_runs?.schema_version)],
                   ["Canonical transaction", d.transaction ? d.transaction.transaction_ref : "None (row rejected)"],
                   ...(d.transaction
                     ? ([

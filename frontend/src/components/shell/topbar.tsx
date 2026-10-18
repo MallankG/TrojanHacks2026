@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ROUTES, SCREEN_TITLES, screenForPath } from "@/lib/routes";
-import { openModal, selectBatch, setRole, updateGraph } from "@/lib/store/actions";
+import { openModal, selectBatch, setRole, signOut, updateGraph } from "@/lib/store/actions";
 import { useLive } from "@/lib/live/api";
 import { commandApi, useLiveNotifications, type SearchHit } from "@/lib/live/api-command";
 import { utc } from "@/lib/live/format";
@@ -241,6 +241,7 @@ function MaskToggle() {
 }
 
 export function Topbar() {
+  const router = useRouter();
   const pathname = usePathname();
   const state = useDemoState();
   const live = useLiveProfile() !== null;
@@ -273,6 +274,16 @@ export function Topbar() {
         Help
       </button>
       <Notifications />
+      <button
+        type="button"
+        className={buttonClasses("ghost", "sm")}
+        onClick={() => {
+          signOut();
+          router.push(ROUTES.signIn);
+        }}
+      >
+        Sign out
+      </button>
     </header>
   );
 }

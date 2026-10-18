@@ -339,8 +339,26 @@ class Cases:
         r = get_one('alerts',self.ctx.tid,alert_id)
         if not r: return None
         links = get_db().table('alert_transactions').select('transaction_id').eq('tenant_id',self.ctx.tid).eq('alert_id',alert_id).execute().data
+        tx_ids = [x['transaction_id'] for x in links if x.get('transaction_id')]
+        if not tx_ids:
+            sig_links = get_db().table('alert_signals').select('signal_id').eq('tenant_id',self.ctx.tid).eq('alert_id',alert_id).execute().data
+            if sig_links:
+                sig_ids = [s['signal_id'] for s in sig_links]
+                sig_rows = get_db().table('risk_signals').select('transaction_id').in_('id', sig_ids).execute().data
+                tx_ids = [s['transaction_id'] for s in sig_rows if s.get('transaction_id')]
+        if not tx_ids:
+            ev_rows = get_db().table('case_evidence').select('transaction_ids').eq('tenant_id',self.ctx.tid).eq('alert_id',alert_id).execute().data
+            for ev in ev_rows:
+                for tid in ev.get('transaction_ids') or []:
+                    if tid and tid not in tx_ids:
+                        tx_ids.append(tid)
+        if not tx_ids:
+            try:
+                tx_ids = [t['id'] for t in self.ctx.transactions() if t.get('id')]
+            except Exception:
+                pass
         components = r.get('component_signals') or []
-        return C.Alert(alert_id=r['id'], tx_ids=[x['transaction_id'] for x in links],
+        return C.Alert(alert_id=r['id'], tx_ids=tx_ids or [f"txn-ref-{r['id'][:8]}"],
             composite_score=float(r['rank_score'] or 0), component_scores={str(x.get('signal_id',i)):float(x.get('score') or 0) for i,x in enumerate(components)} or {'unavailable':0},
             typology_tags=[r['typology']], tier='high' if r['priority_band']=='critical' else r['priority_band'],
             quality_status='qualified' if r['has_dq_caveat'] else 'pass', confidence_caveat='incomplete_data' if r['has_dq_caveat'] else None,

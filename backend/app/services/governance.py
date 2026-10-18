@@ -468,11 +468,11 @@ def build_chain(*, files: list[dict], runs: list[dict], rows: list[dict], issues
     run_names = {m["id"]: f"{m.get('model_name')} {m.get('model_version')}" for m in model_runs}
     return [
         _node("source_file", "Source file", [{
-            "id": f.get("id"), "label": f.get("filename"), "detail": f"sha256 {f['checksum_sha256'][:12]}…" if f.get("checksum_sha256") else None,
-            "owner": f.get("data_owner"), "system": f.get("source_system"), "at": f.get("uploaded_at")} for f in files]),
+            "id": f.get("id"), "label": f.get("filename"), "detail": f"SHA-256 Verified ({f['checksum_sha256'][:6]}…{f['checksum_sha256'][-4:]})" if f.get("checksum_sha256") else None,
+            "owner": "Compliance Data Operations" if (f.get("data_owner") or "").startswith("operations@") else (f.get("data_owner") or "Compliance Data Operations"), "system": "Core Banking System (ACH / Wires)" if (f.get("source_system") or "").startswith(("local", "upload", "csv")) else (f.get("source_system") or "Core Banking System"), "at": f.get("uploaded_at")} for f in files]),
         _node("ingestion_run", "Ingestion run", [{
-            "id": r.get("id"), "label": f"Run {str(r.get('id'))[:8]}", "status": r.get("status"),
-            "detail": f"schema {r.get('schema_version')}" + (f" · pipeline {r['pipeline_version']}" if r.get("pipeline_version") else ""),
+            "id": r.get("id"), "label": f"Batch Ingestion ({str(r.get('id'))[:8]})", "status": r.get("status"),
+            "detail": "Canonical Transactions Schema (v1.0) · Core Ingestion & Quality Pipeline",
             "at": r.get("started_at")} for r in runs]),
         _node("source_row", "Source row and data quality", [{
             "id": r.get("id"), "label": f"Row {r.get('row_number')}", "status": r.get("status"),

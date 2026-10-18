@@ -17,6 +17,7 @@ import { LiveRunChecks } from "@/features/live/live-data";
 import { LiveBatchFacts, LiveSourceCards } from "@/features/live/live-sources";
 import { useLiveProfile } from "@/lib/live/session";
 import { liveApi, useLive } from "@/lib/live/api";
+import { friendlyHash, friendlyOwner, friendlySchema } from "@/lib/live/format";
 import { LiveData } from "@/features/live/live-state";
 import { CheckRow } from "./check-row";
 
@@ -126,7 +127,7 @@ function SampleSourcesAndBatches() {
             <h2 className="mt-1 font-mono text-[15px] font-semibold">{selected.name}</h2>
             {selected.runId ? null : (
               <span className="text-xs text-muted">
-                {selected.schema} · file hash {selected.hash} · {selected.owner}
+                {friendlySchema(selected.schema)} · {friendlyHash(selected.hash)} · {friendlyOwner(selected.owner)}
               </span>
             )}
           </div>
