@@ -133,14 +133,16 @@ def save_revision(run_id:UUID,body:DraftReview,user:CurrentUser=Depends(CAN_INVE
     """Save an append-only human revision. Reverify server-side, preserving the original workflow receipt."""
     from fastapi import HTTPException
     from app.core.db import get_db,with_actor
-    row,parent,draft,bundle,sources,errors=_review_material(user,run_id,body)
     if not body.request_key: raise HTTPException(422,'request_key is required to save an idempotent revision')
-    # Replay first: a retry after a lost response returns the committed revision even if the case closed since.
+    runs.read(user,str(run_id))  # tenant + case read access before anything is returned
+    # Replay before the evidence rebuild: a retry after a lost response returns the committed revision (only to
+    # its author), even if the case closed since. New saves need write access below.
     old=get_db().table('case_narratives').select('id,version,verification_status,authored_by,agent_run_id').eq(
         'tenant_id',user.tenant_id).eq('verification_report->>revision_key',str(body.request_key)).limit(1).execute().data
     if old:
         if old[0]['authored_by']!=user.id or old[0]['agent_run_id']!=str(run_id):raise HTTPException(409,'Request key already used')
         return {k:v for k,v in old[0].items() if k in ('id','version','verification_status')}
+    row,parent,draft,bundle,sources,errors=_review_material(user,run_id,body)
     runs.authorize_case(user,row['case_id'],'write')
     if errors: raise HTTPException(422,{'message':'Resolve verifier errors before saving','verifier_errors':[e.model_dump(mode='json') for e in errors]})
     if row['status']!='awaiting_review':raise HTTPException(409,'Wait for a draft awaiting human review')

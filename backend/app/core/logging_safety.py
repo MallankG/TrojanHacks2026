@@ -24,7 +24,10 @@ def install():
     previous=logging.getLogRecordFactory()
     def factory(*args,**kwargs):
         record=previous(*args,**kwargs)
-        record.msg=redact(record.getMessage())
+        try:
+            record.msg=redact(record.getMessage())
+        except Exception:
+            return record  # bad format args: let Handler.handleError report it, as logging normally does
         record.args=()
         if record.exc_info and record.exc_info[0] is not None:
             # Keep the traceback for diagnosis, redacted like the message.

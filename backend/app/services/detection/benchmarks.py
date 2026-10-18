@@ -9,10 +9,12 @@ from pathlib import Path
 from threading import RLock
 import hashlib
 import json
+import logging
 import time
 
 from .detectors import Finding, _roles
 
+log = logging.getLogger(__name__)
 ART = Path(__file__).resolve().parents[3] / 'ml/artifacts/ibm'
 LOCK = RLock()  # GNN inference only: its sampling uses the torch RNG. XGBoost runs unlocked.
 CAVEAT = ('IBM HI-Small research model applied to a different feed: entity types and training-account history '
@@ -61,9 +63,13 @@ def _frame(ledger):
 def score(ledger, keep_ids, names=('xgb_temporal','gnn_temporal')):
     """Return separate model results. GNN is bounded to the same 500-edge interactive scope."""
     if not ledger.txns: return {name:Result(skipped_reason='No transactions') for name in ('xgb_temporal','gnn_temporal')}
-    import pandas as pd
-    e = _frame(ledger)
-    accounts = pd.DataFrame({'Account Number':sorted(ledger.accounts()),'Entity Name':'Unknown'})
+    try:
+        import pandas as pd
+        e = _frame(ledger)
+        accounts = pd.DataFrame({'Account Number':sorted(ledger.accounts()),'Entity Name':'Unknown'})
+    except Exception as exc:  # optional models must never break rule/anomaly detection
+        log.exception('Benchmark model input could not be built')
+        return {name:Result(skipped_reason=f'models unavailable: {type(exc).__name__}') for name in names}
     results = {}
     for name in names:
         started = time.perf_counter()
@@ -98,7 +104,8 @@ def score(ledger, keep_ids, names=('xgb_temporal','gnn_temporal')):
             needed=[f for f in findings if f.transaction_id in keep_ids]
             extra=sorted((f for f in findings if f.transaction_id not in keep_ids),key=lambda f:-f.score)
             results[name]=Result(needed+extra[:max(0,300-len(needed))],card,scored=len(e))
-        except (ImportError, OSError, ValueError, KeyError, RuntimeError) as exc:
+        except Exception as exc:  # optional model: skip it with a reason, keep the run
+            log.exception('%s scoring failed', name)
             results[name]=Result(skipped_reason=f'{name} unavailable: {type(exc).__name__}')
     if all(n in results and results[n].skipped_reason is None for n in ('xgb_temporal','gnn_temporal')):
         try:
@@ -122,6 +129,6 @@ def score(ledger, keep_ids, names=('xgb_temporal','gnn_temporal')):
                 details={**manifest,'reason':'Validation-selected ensemble against fixed validation percentiles','caveat':CAVEAT})
                 for t,v in zip(ids,values)]
             results['ensemble']=Result(findings,{**manifest,'model_version':version,'model_name':name},scored=len(e))
-        except (OSError,KeyError,ValueError):
-            pass
+        except Exception:
+            log.exception('Ensemble scoring failed; component model findings are kept')
     return results

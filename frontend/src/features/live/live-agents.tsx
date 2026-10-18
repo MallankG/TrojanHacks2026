@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { call, errorMessage, invalidateLive, liveApi, useLive } from "@/lib/live/api";
 import { useLiveProfile } from "@/lib/live/session";
 import { usePiiGuard } from "@/lib/privacy/use-pii-guard";
@@ -214,7 +214,8 @@ function DraftReviewEditor({run,canSave,onSaved}:{run:AgentRun;canSave:boolean;o
   const [draft,setDraft]=useState<Draft>(()=>structuredClone(run.result!.draft!));
   const [result,setResult]=useState<{passed:boolean;verifier_errors:Array<{code:string;detail:string;claim_index:number|null}>}|null>(null);
   const [message,setMessage]=useState(""); const [busy,setBusy]=useState(false);
-  const [revisionKey]=useState(()=>crypto.randomUUID());
+  // One key per draft content: a retry of the same draft replays, an edited draft is a new save.
+  const revisionKey=useMemo(()=>crypto.randomUUID(),[draft]);
   const check=async(candidate:Draft)=>{
     setBusy(true);setMessage("");
     try {setResult(await call(`/agents/runs/${run.id}/verify-draft`,{method:"POST",body:{draft:candidate}}));}

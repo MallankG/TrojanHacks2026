@@ -36,7 +36,7 @@ export function AuditTrail() {
         </div>
         <Button variant="ghost" size="sm" onClick={()=>{
           if(!live.live){exportAuditTrail();return;}
-          const cell=(v:string)=>'"'+(/^[=+@-]/.test(v)?"'":"")+v.replaceAll('"','""')+'"';
+          const cell=(v:string)=>'"'+(/^[=+@\-\t\r]/.test(v)?"'":"")+v.replaceAll('"','""')+'"';
           const content=[['Time','Actor','Type','Action','Object','Request','Hash'],...rows.map(e=>[e.at,e.actor,e.type,e.action,e.object,e.requestId,e.hash])].map(r=>r.map(v=>cell(String(v))).join(',')).join('\r\n');
           const url=URL.createObjectURL(new Blob([content],{type:'text/csv'}));const a=document.createElement('a');a.href=url;a.download='tracelayer-audit.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
         }}>

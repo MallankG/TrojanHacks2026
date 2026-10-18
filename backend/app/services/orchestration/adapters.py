@@ -35,16 +35,24 @@ class Context:
         self.engine = None
         self.lock = RLock()
         self.model_results = None
+        self._ledger = None
 
     def benchmark_results(self):
         with self.lock:
             if self.model_results is None:
-                rows=self.transactions()
-                eligible=[r for r in rows if r['currency']=='USD' or r.get('amount_usd') is not None]
-                ledger=Ledger([Txn.from_row(r) for r in eligible])
+                ledger=self.ledger()
                 # All rows are retained in the small interactive scope for reproducible cross-model fusion.
                 self.model_results=benchmarks.score(ledger,{t.id for t in ledger.txns})
             return self.model_results
+
+    def ledger(self):
+        """USD-comparable transactions, built once and shared by rules, anomaly and model scoring."""
+        with self.lock:
+            if self._ledger is None:
+                rows = self.transactions()
+                eligible = [r for r in rows if r['currency'] == 'USD' or r.get('amount_usd') is not None]
+                self._ledger = Ledger([Txn.from_row(r) for r in eligible], excluded_no_usd=len(rows)-len(eligible))
+            return self._ledger
 
     def rpc(self, name, **params):
         return with_actor(get_db().rpc(name, {'p_tenant': self.tid, 'p_run': self.rid,
@@ -184,9 +192,7 @@ class Behavior:
 
     def score(self, snapshot_id):
         ctx = self.ctx
-        rows = ctx.transactions()
-        eligible = [r for r in rows if r['currency'] == 'USD' or r.get('amount_usd') is not None]
-        ledger = Ledger([Txn.from_row(r) for r in eligible], excluded_no_usd=len(rows)-len(eligible))
+        ledger = ctx.ledger()
         ctx.excluded_no_usd = ledger.excluded_no_usd
         ctx.rules = run_rules(ledger)
         ctx.anomalies = anomaly.amount_deviation(ledger)

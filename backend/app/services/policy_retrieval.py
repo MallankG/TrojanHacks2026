@@ -10,12 +10,12 @@ from app.core.db import get_db
 DIMENSIONS = 768
 
 
-def embed(texts: list[str]) -> list[list[float]]:
+def embed(texts: list[str], timeout: float = 30) -> list[list[float]]:
     host = os.getenv('OLLAMA_HOST', 'http://127.0.0.1:11434').rstrip('/')
     if urlparse(host).hostname not in ('localhost', '127.0.0.1', '::1'):
         raise ValueError('Embeddings require a local Ollama host')
     model = os.getenv('POLICY_EMBEDDING_MODEL', 'nomic-embed-text')
-    with httpx.Client(timeout=30, trust_env=False) as client:
+    with httpx.Client(timeout=timeout, trust_env=False) as client:
         response = client.post(host + '/api/embed', json={'model': model, 'input': texts, 'truncate': False})
         response.raise_for_status()
         vectors = response.json().get('embeddings')
@@ -36,7 +36,7 @@ def search(tenant_id: str, query: str, top_k: int = 8) -> dict:
     keyword-only when the local embedding model is unavailable."""
     model = os.getenv('POLICY_EMBEDDING_MODEL', 'nomic-embed-text')
     try:
-        vector = embed([query])[0]
+        vector = embed([query], timeout=3)[0]  # interactive: a slow model falls back to keyword quickly
     except (httpx.HTTPError, ValueError, KeyError, TypeError):
         vector = None
     rows = get_db().rpc('match_policy_chunks', {
