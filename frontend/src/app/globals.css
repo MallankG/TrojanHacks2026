@@ -1,26 +1,114 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * TraceLayer design tokens.
+ * Status is always carried by words and shapes; color only supports it.
+ * Text pairs below are chosen to meet 4.5:1 contrast on their backgrounds.
+ */
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Ink and surfaces */
+  --color-ink: #0e1a2b;
+  --color-ink-2: #33405a;
+  --color-muted: #5b6678;
+  --color-canvas: #f3f5f8;
+  --color-subtle: #f6f8fa;
+  --color-hover: #f8fafb;
+  --color-line: #e3e7ee;
+  --color-line-soft: #eef1f5;
+  --color-line-strong: #c3ccd8;
+  --color-neutral-tint: #eef1f5;
+  --color-disabled: #e9edf2;
+  --color-disabled-ink: #5f6978;
+
+  /* Brand teal: primary actions and success */
+  --color-brand: #0b7a70;
+  --color-brand-hover: #09665e;
+  --color-brand-ink: #07514a;
+  --color-brand-link: #0b6e65;
+  --color-brand-light: #5cd1c2;
+  --color-brand-tint: #e4f4f1;
+  --color-brand-soft: #f2faf8;
+
+  /* Amber: attention, holds, leads */
+  --color-attention: #f2b84b;
+  --color-attention-dark: #2b1a00;
+  --color-attention-ink: #5c3300;
+  --color-attention-tint: #fff1d6;
+  --color-attention-stroke: #b8860b;
+
+  /* Blue: selection and information */
+  --color-select: #1f4f8f;
+  --color-select-ink: #13294b;
+  --color-select-tint: #e8effa;
+  --color-select-soft: #f2f7fd;
+  --color-select-line: #bfd3ee;
+
+  /* Danger: blocked claims and outages */
+  --color-danger-ink: #7a1e1e;
+  --color-danger-tint: #fde7e7;
+  --color-danger-line: #e7b0b0;
+  --color-danger: #b42318;
+
+  /* Sidebar and hero */
+  --color-sidebar: #0b1626;
+  --color-sidebar-hover: #13233a;
+  --color-sidebar-active: #17324f;
+  --color-sidebar-line: #2c4664;
+  --color-sidebar-text: #b8c4d6;
+  --color-sidebar-muted: #8c9db5;
+  --color-hero: #0f2238;
+  --color-hero-card: #16304b;
+  --color-hero-text: #c5d0de;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: Arial, Helvetica, sans-serif;
-  --font-mono: "Courier New", Courier, monospace;
-}
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 14.5px;
+    line-height: 1.45;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-select);
+    outline-offset: 2px;
+  }
+
+  input[type="checkbox"],
+  input[type="range"] {
+    accent-color: var(--color-brand);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-brand-link);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
