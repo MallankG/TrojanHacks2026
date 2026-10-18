@@ -10,6 +10,7 @@ from app.core.security import ANY_CALLER, CAN_INVESTIGATE, CAN_WRITE_SCORES, Cur
 from app.schemas import AlertBatch, AlertUpdate
 from app.services import alerts as alert_service
 from app.services import graph
+from app.services.case_visibility import authorized_case_ids
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -73,13 +74,15 @@ def get_alert(alert_id: UUID, user: CurrentUser = Depends(ANY_CALLER)) -> dict:
     if not alert:
         raise NotFound("Alert")
     tid = user.tenant_id
+    case_links = db.table("case_alerts").select("cases(id, case_number, title, status)").eq("tenant_id", tid).eq("alert_id", str(alert_id)).execute().data
+    allowed = authorized_case_ids(user, {c["cases"]["id"] for c in case_links if c.get("cases")})
     return {
         **alert,
         "signals": db.table("alert_signals").select("risk_signals(*)").eq("tenant_id", tid).eq("alert_id", str(alert_id)).execute().data,
         "transactions": db.table("alert_transactions").select(ALERT_TXN_SELECT).eq("tenant_id", tid).eq("alert_id", str(alert_id)).execute().data,
         "accounts": db.table("alert_accounts").select("role, accounts(id, account_ref, institution_ref, is_internal, status)")
         .eq("tenant_id", tid).eq("alert_id", str(alert_id)).execute().data,
-        "cases": db.table("case_alerts").select("cases(id, case_number, title, status)").eq("tenant_id", tid).eq("alert_id", str(alert_id)).execute().data,
+        "cases": [c for c in case_links if c.get("cases") and c["cases"]["id"] in allowed],
     }
 
 

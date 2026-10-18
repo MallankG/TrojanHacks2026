@@ -85,3 +85,70 @@ def test_lineage_hides_case_evidence_claims_and_decisions_from_nonmember():
     assert [r['id'] for r in result['decisions']] == ['d1']
     assert result['alerts'] == rows['alerts']
     assert result['model_runs'] == rows['model_runs']
+
+
+def test_nested_case_metadata_is_filtered_on_alert_and_account_profiles():
+    from unittest.mock import MagicMock
+    from uuid import UUID
+    from app.api.routes import alerts, entity_profile
+    visible = {'id': 'allowed', 'case_number': 1, 'title': 'Visible'}
+    hidden = {'id': 'denied', 'case_number': 2, 'title': 'Secret'}
+    db = MagicMock()
+    db.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = [{'cases': visible}, {'cases': hidden}]
+    with patch.object(alerts, 'get_db', return_value=db), patch.object(alerts, 'get_one', return_value={'id': CASE}), patch.object(alerts, 'authorized_case_ids', return_value={'allowed'}):
+        result = alerts.get_alert(UUID(CASE), USER)
+    assert result['cases'] == [{'cases': visible}]
+    with patch.object(entity_profile, 'get_one', return_value={'id': CASE}), patch.object(entity_profile.entity_profile, 'account_profile', return_value={'related': {'cases': [visible, hidden]}}), patch.object(entity_profile, 'authorized_case_ids', return_value={'allowed'}):
+        result = entity_profile.account_profile(UUID(CASE), as_of=None, observed_days=7, baseline_days=30, user=USER)
+    assert result['related']['cases'] == [visible]
+
+
+def test_global_search_excludes_inaccessible_case_matches():
+    from app.api.routes import dashboard
+    class Query:
+        def __init__(self, table): self.table = table
+        def __getattr__(self, name): return lambda *a, **k: self
+        def execute(self):
+            return SimpleNamespace(data=[{'id': 'allowed', 'case_number': 1, 'title': 'Visible', 'status': 'open'}, {'id': 'denied', 'case_number': 2, 'title': 'Secret', 'status': 'open'}] if self.table == 'cases' else [])
+    with patch.object(dashboard, 'get_db', return_value=SimpleNamespace(table=Query)), patch.object(dashboard, 'authorized_case_ids', return_value={'allowed'}):
+        result = dashboard.global_search('case', USER)
+    assert [r['id'] for r in result['results']['cases']] == ['allowed']
+
+
+def test_authorized_summary_paginates_using_only_authorized_total():
+    from unittest.mock import MagicMock
+    from app.services.case_visibility import authorized_case_rows
+    db = MagicMock()
+    db.rpc.return_value.execute.side_effect = [SimpleNamespace(data={'items': [{'id': str(i), 'status': 'open'} for i in range(500)], 'total': 501}), SimpleNamespace(data={'items': [{'id': 'last', 'status': 'closed'}], 'total': 501})]
+    with patch('app.core.db.get_db', return_value=db):
+        rows, total = authorized_case_rows(USER, 5000)
+    assert len(rows) == total == 501
+    assert db.rpc.call_args_list[1].args[1]['p_offset'] == 500
+    assert db.rpc.call_args_list[1].args[1]['p_actor'] == USER.id
+
+
+def test_notifications_use_authorized_case_count():
+    from unittest.mock import MagicMock
+    from app.api.routes import dashboard
+    reviewer = CurrentUser('user', 'tenant', 'reviewer')
+    db = MagicMock()
+    db.table.return_value.select.return_value.eq.return_value.in_.return_value.gte.return_value.order.return_value.limit.return_value.execute.return_value.data = []
+    critical = db.table.return_value.select.return_value.eq.return_value.eq.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value
+    critical.count = 0
+    critical.data = []
+    with patch.object(dashboard, 'get_db', return_value=db), patch.object(dashboard, 'case_authorization_enabled', return_value=True), patch.object(dashboard, 'authorized_case_rows', return_value=([], 0)) as visible, patch.object(dashboard.dash, 'latest_ranker', return_value=None):
+        result = dashboard.notifications(reviewer)
+    visible.assert_called_once_with(reviewer, dashboard.dash.NOTIFICATION_LIMIT, 'pending_review')
+    assert result['items'] == []
+
+
+def test_dashboard_case_summary_uses_authorized_statuses_only():
+    from app.api.routes import dashboard
+    def sections(*tasks):
+        return {}, tasks[1](), ([], 0), {}, ({}, None)
+    with patch.object(dashboard, 'get_settings', return_value=SimpleNamespace(review_sla_days=7)), patch.object(dashboard, 'case_authorization_enabled', return_value=True), patch.object(dashboard, 'authorized_case_rows', return_value=([{'status': 'open'}], 1)) as visible, patch.object(dashboard.dash, 'load_case_statuses', side_effect=AssertionError('Tenant-wide aggregate forbidden')), patch.object(dashboard.dash, 'parallel', side_effect=sections), patch.object(dashboard.dash, 'pipeline_flags', return_value={}):
+        result = dashboard.dashboard_summary(None, USER)
+    visible.assert_called_once_with(USER, dashboard.dash.MAX_SUMMARY_CASES)
+    assert result['cases']['total'] == 1
+    assert result['cases']['open_total'] == 1
+    assert result['cases']['truncated'] is False
