@@ -15,10 +15,11 @@ from tracelayer_agents.api import (
     start_case,
     start_chat,
     unpin_evidence,
+    update_chat_context,
     verify_audit_chain,
 )
 from tracelayer_agents.config import AgentConfig
-from tracelayer_agents.interfaces import Services
+from tracelayer_agents.interfaces import AccessPolicy, Services
 from tracelayer_agents.schemas import (
     AnalysisResult,
     AuditVerification,
@@ -26,6 +27,7 @@ from tracelayer_agents.schemas import (
     CaseDraftResult,
     ChatResult,
     ChatTurnResult,
+    ContextChangeResult,
     CopilotResult,
     CytoscapeGraph,
     Decision,
@@ -35,6 +37,7 @@ from tracelayer_agents.schemas import (
 )
 
 __all__ = [
+    "AccessPolicy",
     "AgentConfig",
     "AnalysisResult",
     "AuditVerification",
@@ -42,6 +45,7 @@ __all__ = [
     "CaseDraftResult",
     "ChatResult",
     "ChatTurnResult",
+    "ContextChangeResult",
     "CopilotResult",
     "CytoscapeGraph",
     "Decision",
@@ -62,5 +66,6 @@ __all__ = [
     "start_case",
     "start_chat",
     "unpin_evidence",
+    "update_chat_context",
     "verify_audit_chain",
 ]

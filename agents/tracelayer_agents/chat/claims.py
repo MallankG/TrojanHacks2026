@@ -9,23 +9,19 @@ returned this turn; a benign hypothesis without it is dropped by the verifier.
 from __future__ import annotations
 
 from collections import defaultdict
-from decimal import Decimal
 from typing import Any
 
 from tracelayer_agents.chat.session import CaseScope
 from tracelayer_agents.llm.templates import _day as day
 from tracelayer_agents.llm.templates import _fmt_money as fmt_money
 from tracelayer_agents.llm.templates import _quotable as quotable
+from tracelayer_agents.nodes.derive import REFUND_MARKERS, REVERSAL_STATUSES, benign_patterns
 from tracelayer_agents.schemas import ChatClaim, SubgraphEdge, ToolResult
 from tracelayer_agents.tools import base
 
 MAX_CLAIMS_PER_TOOL = 10
 MAX_POLICY_CLAIMS = 3
 MAX_EXCERPT_CHARS = 300
-PAYROLL_MIN_RECIPIENTS = 3
-PAYROLL_MAX_SPREAD = Decimal("1.10")  # largest / smallest amount in the batch
-REVERSAL_STATUSES = frozenset({"reversed", "returned", "reversal"})
-REFUND_MARKERS = frozenset({"refund", "refunded"})
 
 
 def _arrow(accounts: list[str]) -> str:
@@ -215,14 +211,37 @@ def _policy_claims(r: ToolResult) -> list[ChatClaim]:
 
 
 def _similar_claims(r: ToolResult) -> list[ChatClaim]:
-    return [
-        _claim(f"Mock reference pattern {row['reference_id']} ({row['typology']}): "
-               f"{row['description']} Benign explanations to rule in or out: "
-               f"{', '.join(row['common_benign_explanations'])}. This is a reference pattern, "
-               "not another case.", "model_inference", r.tool,
-               evidence_ids=[row["reference_id"]])
-        for row in r.rows[:MAX_CLAIMS_PER_TOOL]
-    ]
+    out = []
+    for row in r.rows[:MAX_CLAIMS_PER_TOOL]:
+        parts = row["components"]
+        motifs = ", ".join(row["matched_motifs"]) or "none"
+        out.append(_claim(
+            f"Synthetic library case {row['case_ref']} ({row['typology']}, {row['rail']}, "
+            f"{row['flow_shape']}) has similarity {row['similarity']}: matched motifs {motifs}; "
+            f"rail match {parts['rail_match']}, flow-shape match {parts['flow_shape_match']}, "
+            f"graph-feature similarity {parts['graph_similarity']}, text overlap "
+            f"{parts['text_overlap']}. Its prior disposition was {row['prior_disposition']}. "
+            f"{row['caveat']}", "model_inference", r.tool, evidence_ids=[row["case_ref"]],
+        ))
+    if out:
+        out.append(_claim("Similar cases come from a synthetic reference library, not from other "
+                          "customers' cases. Similarity is not proof; prior decisions can be "
+                          "wrong.", "missing_evidence", r.tool))
+    return out
+
+
+def _token_claims(r: ToolResult) -> list[ChatClaim]:
+    out = []
+    for row in r.rows[:MAX_CLAIMS_PER_TOOL]:
+        outside = row["outside_account_count"]
+        text = (f"Accounts {', '.join(row['account_ids'])} share {row['label']} "
+                f"({row['token_type']} {row['token_id']})")
+        text += (f"; {outside} account(s) outside this case also use it and are not shown."
+                 if outside else ".")
+        text += " A shared identifier is a lead to check, not evidence of wrongdoing."
+        out.append(_claim(text, "observed_fact", r.tool, account_ids=list(row["account_ids"]),
+                          evidence_ids=[row["token_id"]]))
+    return out
 
 
 _BUILDERS = {
@@ -236,6 +255,7 @@ _BUILDERS = {
     "quality_lineage": _quality_claims,
     "policy_retrieval": lambda r, s: _policy_claims(r),
     "similar_cases": lambda r, s: _similar_claims(r),
+    "shared_token_search": lambda r, s: _token_claims(r),
 }
 
 
@@ -282,25 +302,9 @@ def benign_support(results: list[ToolResult], scope: CaseScope) -> dict[str, lis
     - treasury_sweep / shared_service: need account ownership data the agents don't have, so they
       are never supported here. # TODO(review): add once the backend supplies ownership.
     """
-    edges = _seen_edges(results, scope)
     support: dict[str, list[str]] = defaultdict(list)
-
-    batches: dict[tuple[str, str, str], list[SubgraphEdge]] = defaultdict(list)
-    for e in edges:
-        batches[(e.origin_account_id, e.timestamp.date().isoformat(), e.currency)].append(e)
-    for batch in batches.values():
-        amounts = [e.amount for e in batch]
-        if (len({e.destination_account_id for e in batch}) >= PAYROLL_MIN_RECIPIENTS
-                and min(amounts) > 0 and max(amounts) / min(amounts) <= PAYROLL_MAX_SPREAD):
-            support["payroll"] += [e.transaction_id for e in batch]
-
-    for i, a in enumerate(edges):
-        for b in edges[i + 1:]:
-            if (b.origin_account_id == a.destination_account_id
-                    and b.destination_account_id == a.origin_account_id
-                    and b.amount == a.amount and b.currency == a.currency):
-                for kind in ("refund", "reversal"):
-                    support[kind] += [a.transaction_id, b.transaction_id]
+    for kind, ids in benign_patterns(_seen_edges(results, scope)).items():
+        support[kind] += ids
 
     for r in results:
         if r.status != "ok" or r.tool != "transaction_lookup":

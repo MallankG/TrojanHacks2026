@@ -149,3 +149,28 @@ def test_audit_event_rows(golden) -> None:
         assert row["actor_type"] in {"user", "system", "agent"}
         json.dumps(row)
     assert p.audit_action("Case.Draft-Generated.v2") == "case.draft_generated_v_"
+
+
+def test_sections_and_edited_version(golden) -> None:
+    draft, decided, _, events = golden
+    schemas = _backend()
+    body = p.narrative_create(draft)
+    assert "## Contradictory evidence" in body["content"]
+    assert "## Recommended next steps" in body["content"]
+    facts = [c for c in body["claims"] if c["claim_kind"] != "unknown"]
+    assert {c["referenced_values"]["draft_hash"] for c in facts} == {draft.draft_hash}
+    assert {c["referenced_values"]["section"] for c in facts} >= {"observed_facts",
+                                                                   "relevant_policy"}
+
+    assert decided.edited_draft is not None and decided.edited_draft.version == 2
+    parent = p.narrative_uuid(draft.draft_hash)
+    edit = p.narrative_edit_create(decided, parent)
+    schemas.NarrativeCreate.model_validate(edit)
+    assert edit["parent_narrative_id"] == parent
+    assert edit["content"].startswith("Edited by analyst.")
+    assert {c["referenced_values"]["draft_version"] for c in edit["claims"]
+            if c["claim_kind"] != "unknown"} == {2}
+    edited = next(e for e in events if e.action == "case.narrative_edited")
+    assert p.audit_event_row(edited)["action"] == "case.narrative_edited"
+    with pytest.raises(ValueError):
+        p.narrative_edit_create(decided.model_copy(update={"edited_draft": None}), parent)

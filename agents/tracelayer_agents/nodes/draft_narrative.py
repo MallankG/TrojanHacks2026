@@ -4,7 +4,9 @@ sums) and policy claim is built deterministically (`llm.templates.narrative_fact
 one-liners plus derived facts and source titles, and returns only a small `NarrativeSynthesis`:
 summary, hypotheses that reference fact claims by number, uncertainties and follow-up questions.
 `build_narrative` merges the two; `verify_evidence` runs next on the merged draft, and on a retry
-the previous draft's verifier errors are added to the prompt.
+the previous draft's verifier errors are added to the prompt. narrative_v4 adds the reviewer
+sections (`llm.templates.narrative_sections`), built in Python on the live and precomputed paths
+alike; the synthesis contributes only contradictory observations (by fact number) to them.
 
 If the synthesis call fails or times out, only the synthesis comes from the template; the fact
 claims are the same either way. `llm_meta` and `fallback_used` describe the synthesis call.
@@ -20,7 +22,12 @@ from pydantic import Field, create_model
 
 from tracelayer_agents import precomputed
 from tracelayer_agents.llm import client as llm
-from tracelayer_agents.llm.templates import build_narrative, narrative_fact_claims
+from tracelayer_agents.llm.templates import (
+    build_narrative,
+    map_fact_refs,
+    narrative_fact_claims,
+    narrative_sections,
+)
 from tracelayer_agents.schemas import (
     NARRATIVE_MAX_HYPOTHESES,
     DraftNarrativeOutput,
@@ -45,6 +52,7 @@ def synthesis_model(n_fact_claims: int) -> type[NarrativeSynthesis]:
     from any other source (which takes the client's retry, then template path)."""
     if n_fact_claims < 1:
         hypotheses: Any = (list[NarrativeHypothesis], Field(default_factory=list, max_length=0))
+        contradictions: Any = hypotheses
     else:
         ref = Literal[tuple(range(1, n_fact_claims + 1))]  # type: ignore[valid-type]
         hypothesis = create_model(
@@ -55,7 +63,9 @@ def synthesis_model(n_fact_claims: int) -> type[NarrativeSynthesis]:
             list[hypothesis],  # type: ignore[valid-type]
             Field(default_factory=list, max_length=NARRATIVE_MAX_HYPOTHESES),
         )
-    return create_model("NarrativeSynthesis", __base__=NarrativeSynthesis, hypotheses=hypotheses)
+        contradictions = hypotheses
+    return create_model("NarrativeSynthesis", __base__=NarrativeSynthesis, hypotheses=hypotheses,
+                        contradictions=contradictions)
 
 
 def _feedback(state: Mapping[str, Any]) -> str:
@@ -99,6 +109,8 @@ async def draft_narrative(state: Mapping[str, Any], ctx: NodeContext) -> DraftNa
         )
         if served is not None:
             draft, meta = served
+            draft = draft.model_copy(update={"sections": narrative_sections(
+                draft, bundle, state.get("alert"), [c.model_dump(mode="json") for c in chunks])})
             return DraftNarrativeOutput(
                 draft_narrative=draft, draft_attempts=attempts, llm_meta=meta, precomputed=True
             )
@@ -143,6 +155,9 @@ async def draft_narrative(state: Mapping[str, Any], ctx: NodeContext) -> DraftNa
         prompt_version=meta.prompt_version,
         fallback_used=meta.fallback_used,
     )
+    draft = draft.model_copy(update={"sections": narrative_sections(
+        draft, bundle, state.get("alert"), variables["chunks"],
+        map_fact_refs(synthesis.contradictions, fact_claims))})
     return DraftNarrativeOutput(
         draft_narrative=draft,
         draft_attempts=attempts,

@@ -17,14 +17,26 @@ from typing import Any
 from pydantic import BaseModel
 
 from tracelayer_agents.guardrails import find_prohibited
+from tracelayer_agents.nodes.derive import (
+    NOT_AVAILABLE,
+    PAYROLL_MAX_SPREAD,
+    REFUND_MARKERS,
+    REVERSAL_STATUSES,
+    benign_patterns,
+)
 from tracelayer_agents.schemas import (
+    Alert,
     ChatHypothesis,
     ChatPlan,
     ChatSynthesis,
     Contract,
+    EvidenceBundle,
     NarrativeClaim,
+    NarrativeDraft,
     NarrativeHypothesis,
     NarrativeOutput,
+    NarrativeSectionItem,
+    NarrativeSections,
     NarrativeSynthesis,
     PolicyClaim,
     PolicyQAOutput,
@@ -343,6 +355,116 @@ def build_narrative(variables: dict[str, Any], synthesis: NarrativeSynthesis) ->
             [*synthesis.uncertainties, *narrative_fixed_uncertainties(variables)]
         )),
         follow_up_questions=list(synthesis.follow_up_questions),
+    )
+
+
+def map_fact_refs(synthesis_items: list[NarrativeHypothesis],
+                  fact_claims: list[NarrativeClaim]) -> list[tuple[str, list[str]]]:
+    """(text, transaction ids of the referenced fact claims) for hypotheses or contradictions."""
+    out = []
+    for h in synthesis_items:
+        refs = [fact_claims[r - 1] for r in h.fact_refs if 1 <= r <= len(fact_claims)]
+        out.append((h.text, list(dict.fromkeys(i for c in refs for i in c.transaction_ids))))
+    return out
+
+
+def _item(text: str, factual: bool, ids: list[str]) -> NarrativeSectionItem:
+    return NarrativeSectionItem(text=text, factual=factual, evidence_ids=list(dict.fromkeys(ids)))
+
+
+def narrative_sections(
+    draft: NarrativeDraft,
+    bundle: EvidenceBundle,
+    alert: Alert | None,
+    chunks: list[dict[str, Any]],
+    contradictions: list[tuple[str, list[str]]] | None = None,
+) -> NarrativeSections:
+    """The narrative_v4 sections, in Python from the draft's claims, the bundle and the alert.
+    Every factual item cites evidence ids; the verifier checks them (`SECTION_UNCITED`).
+    `contradictions` are the synthesis' contradictory observations mapped to transaction ids."""
+    claims = draft.observed_facts
+    tx_ids = [t.transaction_id for t in bundle.transactions]
+
+    model_items: list[NarrativeSectionItem] = []
+    if alert is not None:
+        run = [f"model_run:{alert.model_run_id}"] if alert.model_run_id else []
+        model_items.append(_item(
+            f"The alert's composite score is {round(alert.composite_score, 4)} (tier {alert.tier}"
+            + (f", rank {alert.rank}" if alert.rank else "")
+            + "). Scores rank activity for review; they are not findings of wrongdoing.",
+            True, [*alert.tx_ids, *run]))
+        for name, score in sorted(alert.component_scores.items()):
+            version = alert.model_versions.get(name)
+            model_items.append(_item(
+                f"Detector {name}" + (f" (version {version})" if version else "")
+                + f" contributed a component score of {round(score, 4)}.",
+                True, [*alert.tx_ids, *run]))
+        tags = [t for t in alert.typology_tags if _quotable(t)]
+        if tags:
+            model_items.append(_item(
+                f"Typology rules tagged this alert: {', '.join(tags)}. A typology tag is a rule "
+                "match, not a conclusion.", True, list(alert.tx_ids)))
+
+    contra: list[NarrativeSectionItem] = []
+    by_id = {t.transaction_id: t for t in bundle.transactions}
+    for kind, ids in benign_patterns(bundle.transactions).items():
+        members = [by_id[i] for i in ids if i in by_id]
+        if kind == "payroll":
+            origins = sorted({t.origin_account_id for t in members})
+            spread = int((PAYROLL_MAX_SPREAD - 1) * 100)
+            contra.append(_item(
+                f"{len(members)} evidence transactions from {', '.join(origins)} go to "
+                f"{len({t.destination_account_id for t in members})} recipients on one day with "
+                f"amounts within {spread}% of each other, which may be consistent with a "
+                "payroll-like or vendor batch, pending verification.", True, ids))
+        elif kind == "refund":
+            contra.append(_item(
+                "Some evidence transactions return the same amount between the same accounts, "
+                "which may be consistent with a refund or reversal, pending verification.",
+                True, ids))
+    reversed_ids = [t.transaction_id for t in bundle.transactions
+                    if (t.transaction_status or "").lower() in REVERSAL_STATUSES | REFUND_MARKERS]
+    if reversed_ids:
+        contra.append(_item(
+            f"{len(reversed_ids)} evidence transaction(s) have a reversed, returned or refund "
+            "status.", True, reversed_ids))
+    findings = bundle.flow_findings
+    if findings is not None and not any(getattr(findings, k) for k in _PATTERN_NAMES):
+        contra.append(_item("No flow pattern (path, cycle, fan-in, fan-out or pass-through) was "
+                            "found around the alert.", True,
+                            [f"graph_snapshot:{findings.graph_snapshot_id}"]))
+    contra += [_item(text, False, ids) for text, ids in contradictions or []]
+
+    gaps = [_item(
+        f"Data-quality issue {q.check_id} under "
+        + (q.rule_id if _quotable(q.rule_id) else "a data contract rule")
+        + f" ({q.severity}) affects {q.affected_rows} rows; the evidence may be incomplete.",
+        True, [q.check_id]) for q in bundle.quality_caveats]
+    gaps += [_item(note, True, [f"not_available:{item}"]) for item, note in NOT_AVAILABLE]
+    if len(tx_ids) > NARRATIVE_MAX_TX_CLAIMS:
+        gaps.append(_item(
+            f"{len(tx_ids) - NARRATIVE_MAX_TX_CLAIMS} further evidence transactions are in the "
+            "bundle but not itemized here.", True, tx_ids[NARRATIVE_MAX_TX_CLAIMS:]))
+    if not [c for c in chunks if c.get("chunk_id")]:
+        gaps.append(_item("No policy sources were retrieved for this case.", True,
+                          ["not_available:policy_sources"]))
+    fixed = set(narrative_fixed_uncertainties({
+        "quality_caveats": [q.model_dump(mode="json") for q in bundle.quality_caveats],
+        "transactions": [{} for _ in tx_ids], "chunks": chunks}))
+    gaps += [_item(u, False, []) for u in draft.uncertainties if u.strip() and u not in fixed]
+
+    return NarrativeSections(
+        observed_facts=[_item(c.text, True, [*c.transaction_ids])
+                        for c in claims if c.claim_type == "fact"],
+        model_rule_inferences=model_items,
+        analyst_hypotheses=[_item(c.text, False, [*c.transaction_ids])
+                            for c in claims if c.claim_type == "hypothesis"],
+        contradictory_evidence=contra,
+        data_gaps=gaps,
+        relevant_policy=[_item(c.text, True, [*c.citation_chunk_ids])
+                         for c in claims if c.claim_type == "policy"],
+        recommended_next_steps=[_item(q, False, []) for q in draft.follow_up_questions
+                                if q.strip()],
     )
 
 

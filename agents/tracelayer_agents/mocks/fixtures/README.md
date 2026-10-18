@@ -62,3 +62,20 @@ and text.
 
 Extra fields (`source_type`, `keywords`) are ignored by `RetrievedChunk`. `source_type` is one of
 `regulatory_guidance`, `regulation` or `fictional_internal_procedure` and can be used as a filter.
+
+## case_library.json
+
+Ten **synthetic** closed cases (`SYN-CASE-001`–`SYN-CASE-010`) for the chat's `similar_cases` tool:
+- Each has a typology, rail, `closed_at`, flow motifs, flow shape, graph features, a short
+  descriptive summary and a prior disposition.
+- No customer, account or transaction ids appear in them. They are reference profiles, not other
+  cases' data.
+
+## shared_tokens.json
+
+Synthetic device fingerprints, login IPs (masked) and payment tokens for `shared_token_search`.
+- Three link accounts of the fan_out case (`ACC-3001`/`ACC-3104`/`ACC-3107`,
+  `ACC-3102`/`ACC-3105`, `ACC-3103`/`ACC-3108`).
+- `TKN-IP-0B24` also includes an account outside every case (`ACC-9001`), so tests can check that
+  outside accounts are only counted, never named.
+- The rest link accounts of other scenarios.

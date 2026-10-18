@@ -15,6 +15,7 @@ import re
 from typing import Any
 from uuid import UUID, uuid5
 
+from tracelayer_agents.audit import sha256_json
 from tracelayer_agents.schemas import (
     AuditEvent,
     CaseDecisionResult,
@@ -22,6 +23,7 @@ from tracelayer_agents.schemas import (
     CaseStatus,
     Decision,
     EvidenceBundle,
+    NarrativeDraft,
     TraceEvent,
 )
 
@@ -34,6 +36,8 @@ NAMESPACES = {kind: uuid5(TRACELAYER_NS, kind) for kind in ID_KINDS}
 UNHOLDABLE_ORIGINAL_IDS = (
     "CitationIn.policy_chunk_id: no text field (only quoted_text); FK to policy_chunks",
     "NarrativeCreate.agent_run_id / parent_narrative_id: no text field",
+    "NarrativeCreate draft_hash / version / sections: no column; kept in each claim's "
+    "referenced_values and rendered into content",
     "DecisionIn.narrative_id: no text field",
     "EvidenceIn.alert_id / account_id / policy_chunk_id: kept in payload, but the uuid columns "
     "are FKs to alerts / accounts / policy_chunks",
@@ -117,14 +121,41 @@ def agent_run_update(trace: list[TraceEvent], case_status: CaseStatus | None) ->
 # --------------------------------------------------------------------------- narrative
 
 
-def narrative_create(result: CaseDraftResult,
-                     agent_run_uuid: str | None = None) -> dict[str, Any]:
-    """`POST /cases/{case_id}/narratives` body (NarrativeCreate). Claim i is
-    `draft.observed_facts[i]` (so `claim_index` matches our `flagged_claims`), then one `unknown`
-    claim per uncertainty."""
-    draft = result.draft
-    if draft is None:
-        raise ValueError("result has no draft")
+SECTION_TITLES = {
+    "observed_facts": "Observed facts",
+    "model_rule_inferences": "Model and rule inferences",
+    "analyst_hypotheses": "Analyst hypotheses",
+    "contradictory_evidence": "Contradictory evidence",
+    "data_gaps": "Data gaps",
+    "relevant_policy": "Relevant policy",
+    "recommended_next_steps": "Recommended next steps",
+}
+
+
+def _claim_sections(draft: NarrativeDraft) -> dict[str, str]:
+    """claim_type -> the v4 section its claims appear in."""
+    return {"fact": "observed_facts", "hypothesis": "analyst_hypotheses",
+            "policy": "relevant_policy"} if draft.sections is not None else {}
+
+
+def narrative_content(draft: NarrativeDraft) -> str:
+    """The narrative as text: the summary, then each v4 section with its evidence ids (or, for a
+    pre-v4 draft, the claims)."""
+    if draft.sections is None:
+        return "\n\n".join([draft.summary, *(c.text for c in draft.observed_facts)])
+    parts = [draft.summary]
+    for name, title in SECTION_TITLES.items():
+        items = getattr(draft.sections, name)
+        if items:
+            lines = [f"- {i.text}" + (f" [{', '.join(i.evidence_ids)}]" if i.evidence_ids else "")
+                     for i in items]
+            parts.append(f"## {title}\n" + "\n".join(lines))
+    return "\n\n".join(parts)
+
+
+def _narrative_body(draft: NarrativeDraft, draft_hash: str, agent_run_uuid: str | None,
+                    parent_narrative_uuid: str | None) -> dict[str, Any]:
+    sections = _claim_sections(draft)
     claims = [{
         "claim_text": c.text,
         "claim_kind": CLAIM_KIND[c.claim_type],
@@ -137,6 +168,9 @@ def narrative_create(result: CaseDraftResult,
             "original_chunk_ids": c.citation_chunk_ids,
             "amounts": [str(a) for a in c.amounts],
             "dates": [d.isoformat() for d in c.dates],
+            "section": sections.get(c.claim_type),
+            "draft_hash": draft_hash,
+            "draft_version": draft.version,
         },
         "cited_chunk_ids": _uuids("chunk", c.citation_chunk_ids),
         "verification": "pending",
@@ -144,10 +178,9 @@ def narrative_create(result: CaseDraftResult,
     } for c in draft.observed_facts]
     claims += [{"claim_text": u, "claim_kind": "unknown", "verification": "pending"}
                for u in draft.uncertainties if u.strip()]
-    content = "\n\n".join([draft.summary, *(c.text for c in draft.observed_facts)])
     return {
-        "content": content,
-        "parent_narrative_id": None,
+        "content": narrative_content(draft),
+        "parent_narrative_id": parent_narrative_uuid,
         "agent_run_id": agent_run_uuid,
         "llm_provider": draft.provider,
         "llm_model": draft.model,
@@ -156,6 +189,34 @@ def narrative_create(result: CaseDraftResult,
         "citations": [{"policy_chunk_id": to_uuid("chunk", c), "quoted_text": None}
                       for c in dict.fromkeys(draft.citations)],
     }
+
+
+def narrative_create(result: CaseDraftResult,
+                     agent_run_uuid: str | None = None) -> dict[str, Any]:
+    """`POST /cases/{case_id}/narratives` body (NarrativeCreate). Claim i is
+    `draft.observed_facts[i]` (so `claim_index` matches our `flagged_claims`), then one `unknown`
+    claim per uncertainty. The v4 sections are rendered into `content`; `draft_hash` and the
+    section of each claim go in `referenced_values` (no column for them)."""
+    draft = result.draft
+    if draft is None:
+        raise ValueError("result has no draft")
+    return _narrative_body(draft, result.draft_hash or sha256_json(draft), agent_run_uuid, None)
+
+
+def narrative_uuid(draft_hash: str) -> str:
+    """A stable narrative uuid for a draft version, from its `draft_hash`."""
+    return to_uuid("narrative", draft_hash)
+
+
+def narrative_edit_create(result: CaseDecisionResult, parent_narrative_uuid: str,
+                          agent_run_uuid: str | None = None) -> dict[str, Any]:
+    """NarrativeCreate body for the reviewer's edited version (`result.edited_draft`), as a child
+    of the drafted narrative. The edit itself is audited as `case.narrative_edited`."""
+    draft = result.edited_draft
+    if draft is None:
+        raise ValueError("result has no edited draft")
+    return _narrative_body(draft, result.edited_draft_hash or sha256_json(draft), agent_run_uuid,
+                           parent_narrative_uuid)
 
 
 def narrative_verification(result: CaseDraftResult) -> dict[str, Any]:

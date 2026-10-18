@@ -106,14 +106,16 @@ copilot_workflow   (POST /api/v1/copilot/query → api.copilot_query)
   START → retrieve_policy → copilot_answer → verify_citations → END
 
 chat_workflow      (POST /api/v1/chats/{chat_id}/messages → api.send_message; one turn)
-  START → chat_classify ─┬→ chat_tool_query → chat_draft_answer → chat_verify ─┬→ chat_respond → END
-                         └─ needs clarification ───────────────────────────────┘
+  START → chat_guard → chat_classify ─┬→ chat_tool_query → chat_draft_answer → chat_verify ─┬→ chat_respond → END
+                                      └─ denied / needs clarification ──────────────────────┘
 ```
 
 The chat is bound to one case (`chat/session.py` `CaseScope`: evidence + ≤3-hop neighbourhood inside
 evidence span ± 7 days). Tools (`tools/`) are read-only, allowlisted, Pydantic-validated, scope-checked
 before any service call, ≤50 rows, 5 s each, ≤3 per turn. Claims are built in Python
 (`chat/claims.py`); the LLM writes only prose; `chat/verify_chat.py` drops anything ungrounded.
+`chat/guard.py` denies questions naming other cases' records and narrows unbounded ones (hops,
+window, accounts) to the case bounds; `AccessPolicy` is checked on every chat call and tool call.
 
 The case workflow uses a checkpointer (`MemorySaver` for the demo; swap to the Postgres saver if time
 allows) with `thread_id = case_id`, so `human_decision` can pause via `interrupt()` and resume on the
@@ -148,6 +150,7 @@ and passes it to the facade, e.g. `api.configure(services)`. Anything left out f
 and `TRACELAYER_USE_MOCKS=1` forces all mocks. The signatures are the contract, so change them only
 after you tell the owner. The first group is implemented by the backend teammate, the rest by the ML and RAG teammates.
 
+- `AccessPolicy.can_access(actor_id, actor_role, case_id, tenant_id) -> bool` (backend auth/RLS)
 - `IngestionService.ingest(payload, source_asset_id) -> IngestionResult`
 - `QualityService.run_contract(batch_id) -> QualityReport`
 - `GraphService.build_snapshot(batch_id) -> GraphSnapshot` and `.subgraph(tx_ids, hops) -> SubgraphJSON`
@@ -189,10 +192,16 @@ FastAPI `response_model` (money as decimal strings). Integration guide: `docs/IN
 - `get_trace(trace_id: str) -> list[TraceEvent]`: sync; last `TRACE_HISTORY` (50) runs kept in
   memory, `[]` if unknown or evicted
 - `verify_audit_chain() -> AuditVerification`: sync; re-verifies the whole audit hash chain
-- `async start_chat(case_id, actor_id, actor_role) -> ChatResult`: chat bound to one case; context
-  (alert, evidence, derived facts, quality, snapshot, window, entity scope, pins)
+- `async start_chat(case_id, actor_id, actor_role, tenant_id=None) -> ChatResult`: chat bound to
+  one case (`denied` if `AccessPolicy` refuses); context (alert, evidence, derived facts, quality,
+  snapshot, window, entity scope, pins, selection, `context_version`)
 - `async send_message(chat_id, text=None, chip=None) -> ChatTurnResult`: status
-  `ok | needs_clarification | error`; labelled claims, gaps, failures, tool calls, context, trace
+  `ok | needs_clarification | denied | error`; labelled claims, gaps, failures, tool calls,
+  `bounds_applied`, `metadata` (as_of, snapshot, context_version, sources, tool actions,
+  coverage counts), context, trace
+- `update_chat_context(chat_id, selected_tx_ids=None, edge_ids=None, confirm=False)
+  -> ContextChangeResult`: `preview` without confirm; with confirm applies (case scope enforced),
+  bumps `context_version`, audits `chat.context_changed`
 - `pin_evidence / unpin_evidence(chat_id, ids) -> PinResult` (case ids only, else `rejected`),
   `get_chat(chat_id) -> ChatResult`, `record_feedback(chat_id, turn_id, helpful, note) -> FeedbackResult`
 
@@ -204,7 +213,7 @@ agents/                     # flat layout (no src/); import name `tracelayer_age
   tracelayer_agents/
     api.py  config.py  state.py  schemas.py  wrappers.py  registry.py  audit.py  demo.py
     workflows/analysis.py  workflows/case.py  workflows/copilot.py  workflows/chat.py
-    chat/        session.py (CaseScope, ChatStore)  plans.py  claims.py  verify_chat.py
+    chat/        session.py (CaseScope, ChatStore)  guard.py  plans.py  claims.py  verify_chat.py
     tools/       base.py  transactions.py  flows.py  case_info.py   (chat tool allowlist)
     nodes/  ingest.py governance.py build_graph.py detect_graphml.py detect_behavior.py
             aggregate.py investigate_flows.py retrieve_policy.py draft_narrative.py
@@ -212,8 +221,8 @@ agents/                     # flat layout (no src/); import name `tracelayer_age
     interfaces/  services.py
     adapters/    persistence.py (pure mappings → backend schemas / tables)
     mocks/       services.py  fixtures/ (fan_out.csv, pass_through.csv, cycle.csv, bad_batch.csv,
-                 policy_chunks.json)
-    llm/         client.py  prompts/narrative_v2.md (v1 kept)  prompts/policy_qa_v1.md
+                 policy_chunks.json, case_library.json, shared_tokens.json, golden_run.json)
+    llm/         client.py  prompts/narrative_v4.md (v1-v3 kept)  prompts/policy_qa_v1.md
                  prompts/chat_plan_v1.md  prompts/chat_answer_v2.md  templates.py
   tests/
   docs/  CONTRACTS.md  INTEGRATION.md  ARCHITECTURE.md  TEAM_QUESTIONS.md

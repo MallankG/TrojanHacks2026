@@ -37,6 +37,27 @@ HUB_ACCOUNTS = 3
 
 
 @dataclass(frozen=True)
+class Actor:
+    """Who is asking, as the backend's auth says (never from the request body)."""
+
+    actor_id: str
+    actor_role: str
+    tenant_id: str | None = None
+
+
+def may_access(services: Services, actor: Actor, case_id: str) -> bool:
+    """`AccessPolicy.can_access`, failing closed: no policy configured allows (single-tenant
+    demo), an exception denies."""
+    policy = services.access
+    if policy is None:
+        return True
+    try:
+        return bool(policy.can_access(actor.actor_id, actor.actor_role, case_id, actor.tenant_id))
+    except Exception:
+        return False
+
+
+@dataclass(frozen=True)
 class CaseScope:
     """Everything one chat may see. `edges` are the scope's transactions by id (evidence plus the
     bounded neighbourhood inside the window)."""
@@ -128,7 +149,8 @@ def build_scope(case_id: str, services: Services) -> CaseScope:
     )
 
 
-def build_context(scope: CaseScope, pinned: list[str]) -> ChatContext:
+def build_context(scope: CaseScope, pinned: list[str], selected: list[str] | None = None,
+                  version: int = 1) -> ChatContext:
     return ChatContext(
         case_id=scope.case_id,
         alert_id=scope.alert.alert_id,
@@ -143,7 +165,25 @@ def build_context(scope: CaseScope, pinned: list[str]) -> ChatContext:
         scope_transaction_count=len(scope.edges),
         pinned_evidence_ids=list(pinned),
         scope_notes=list(scope.notes),
+        selected_ids=list(selected or []),
+        context_version=version,
     )
+
+
+def rebuild_context(scope: CaseScope, current: ChatContext, *, pinned: list[str] | None = None,
+                    selected: list[str] | None = None) -> ChatContext:
+    """The context with new pins and/or selection and `context_version` bumped by one."""
+    return build_context(
+        scope,
+        current.pinned_evidence_ids if pinned is None else pinned,
+        current.selected_ids if selected is None else selected,
+        current.context_version + 1,
+    )
+
+
+def as_of(scope: CaseScope) -> datetime:
+    """Data freshness of anything the chat answers: the latest evidence/scope timestamp."""
+    return max(e.timestamp for e in scope.edges.values())
 
 
 # --------------------------------------------------------------------------- store
@@ -162,11 +202,13 @@ class ChatStore:
     def __init__(self) -> None:
         self._entries: dict[str, ChatEntry] = {}
 
-    def create(self, scope: CaseScope, actor_id: str, actor_role: ActorRole) -> ChatEntry:
+    def create(self, scope: CaseScope, actor_id: str, actor_role: ActorRole,
+               tenant_id: str | None = None) -> ChatEntry:
         chat_id = f"chat_{uuid.uuid4().hex[:12]}"
         session = ChatSession(
             chat_id=chat_id, case_id=scope.case_id, alert_id=scope.alert.alert_id,
-            actor_id=actor_id, actor_role=actor_role, created_at=datetime.now(UTC),
+            actor_id=actor_id, actor_role=actor_role, tenant_id=tenant_id,
+            created_at=datetime.now(UTC),
             context=build_context(scope, []),
         )
         entry = ChatEntry(session=session, scope=scope)

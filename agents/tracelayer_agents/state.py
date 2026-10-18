@@ -83,6 +83,8 @@ class CaseState(_TracedState, total=False):
     flagged_claims: list[int]
     decision: Decision | None
     precomputed: bool
+    edited_draft: NarrativeDraft | None
+    edited_verifier_errors: list[VerifierError]
 
 
 class CopilotState(_TracedState, total=False):
@@ -104,8 +106,14 @@ class ChatState(_TracedState, total=False):
     case_id: str
     actor_id: str
     actor_role: str
+    tenant_id: str | None
     scope: Any
     pinned: list[str]
+    selected: list[str]
+    context_version: int
+    denied: list[str]
+    narrowed: list[str]
+    requested_hops: int | None
     chip: str | None
     question: str | None
     intent: str

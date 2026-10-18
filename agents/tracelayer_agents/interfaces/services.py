@@ -225,6 +225,20 @@ class AuditRepository(Protocol):
         ...
 
 
+@runtime_checkable
+class AccessPolicy(Protocol):
+    """Who may see which case (backend auth/RLS). The chat asks before it opens a case, before
+    every message and context change, and before every tool call; a False answer stops the request
+    without revealing anything about the case."""
+
+    def can_access(
+        self, actor_id: str, actor_role: str, case_id: str, tenant_id: str | None
+    ) -> bool:
+        """True if this actor (in this tenant, None when the deployment has one tenant) may read
+        this case. Must not raise for an unknown case: return False."""
+        ...
+
+
 # --------------------------------------------------------------------------- bundle
 
 
@@ -242,3 +256,4 @@ class Services:
     policy: PolicyRetriever | None = None
     cases: CaseRepository | None = None
     audit: AuditRepository | None = None
+    access: AccessPolicy | None = None

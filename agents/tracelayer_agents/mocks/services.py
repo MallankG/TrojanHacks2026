@@ -789,6 +789,21 @@ class InMemoryAuditRepository:
         ]
 
 
+class MockAccessPolicy:
+    """Allows everything except the configured case ids and tenant ids. The sets are public and
+    mutable so tests and the demo can revoke access mid-chat."""
+
+    def __init__(self, denied_case_ids: set[str] | None = None,
+                 denied_tenant_ids: set[str] | None = None) -> None:
+        self.denied_case_ids: set[str] = set(denied_case_ids or ())
+        self.denied_tenant_ids: set[str] = set(denied_tenant_ids or ())
+
+    def can_access(
+        self, actor_id: str, actor_role: str, case_id: str, tenant_id: str | None
+    ) -> bool:
+        return case_id not in self.denied_case_ids and tenant_id not in self.denied_tenant_ids
+
+
 __all__ = [
     "SCENARIOS",
     "FIXTURES",
@@ -804,5 +819,6 @@ __all__ = [
     "MockPolicyRetriever",
     "InMemoryCaseRepository",
     "InMemoryAuditRepository",
+    "MockAccessPolicy",
     "bounded_subgraph",
 ]

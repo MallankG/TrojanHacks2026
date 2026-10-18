@@ -1,4 +1,5 @@
 from tracelayer_agents.interfaces.services import (
+    AccessPolicy,
     AuditRepository,
     BehaviorScorer,
     CaseRepository,
@@ -13,6 +14,7 @@ from tracelayer_agents.interfaces.services import (
 )
 
 __all__ = [
+    "AccessPolicy",
     "AuditRepository",
     "BehaviorScorer",
     "CaseRepository",

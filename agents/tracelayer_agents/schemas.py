@@ -369,6 +369,51 @@ class NarrativeDraft(Contract):
     model: str
     prompt_version: str
     fallback_used: bool = False
+    # narrative_v4: sectioned view of the draft (`llm.templates.narrative_sections`); None on
+    # drafts made before v4.
+    sections: NarrativeSections | None = None
+    # 1 for the drafted narrative; a reviewer's edited summary is saved as version + 1 with the
+    # previous version's `draft_hash` (`audit.sha256_json(draft)`) as parent.
+    version: int = Field(default=1, ge=1)
+    parent_draft_hash: Sha256Hex | None = None
+    edited_by: str | None = None
+
+
+NarrativeSectionName = Literal[
+    "observed_facts",
+    "model_rule_inferences",
+    "analyst_hypotheses",
+    "contradictory_evidence",
+    "data_gaps",
+    "relevant_policy",
+    "recommended_next_steps",
+]
+NARRATIVE_SECTIONS: tuple[str, ...] = get_args(NarrativeSectionName)
+
+
+class NarrativeSectionItem(Contract):
+    """One line of a narrative section. A `factual` item states something about the evidence and
+    must cite `evidence_ids` (transaction, account, chunk, quality-check, lineage, derived-fact,
+    `model_run:<id>`, `graph_snapshot:<id>` or `not_available:<item>` ids); hypotheses and next
+    steps are not factual and may cite the facts they rest on."""
+
+    text: NonBlankStr
+    factual: bool
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class NarrativeSections(Contract):
+    """The narrative split the way a reviewer reads it (PRD 8.2). Built in Python from the draft,
+    the evidence bundle and the alert; the LLM only contributes hypothesis, contradiction and
+    next-step prose."""
+
+    observed_facts: list[NarrativeSectionItem] = Field(default_factory=list)
+    model_rule_inferences: list[NarrativeSectionItem] = Field(default_factory=list)
+    analyst_hypotheses: list[NarrativeSectionItem] = Field(default_factory=list)
+    contradictory_evidence: list[NarrativeSectionItem] = Field(default_factory=list)
+    data_gaps: list[NarrativeSectionItem] = Field(default_factory=list)
+    relevant_policy: list[NarrativeSectionItem] = Field(default_factory=list)
+    recommended_next_steps: list[NarrativeSectionItem] = Field(default_factory=list)
 
 
 class DerivedFact(Contract):
@@ -423,6 +468,10 @@ class NarrativeSynthesis(Contract):
     )
     follow_up_questions: list[str] = Field(
         default_factory=list, max_length=NARRATIVE_MAX_SYNTHESIS_ITEMS
+    )
+    # narrative_v4: observations that cut against the alert, by fact claim number.
+    contradictions: list[NarrativeHypothesis] = Field(
+        default_factory=list, max_length=NARRATIVE_MAX_HYPOTHESES
     )
 
 
@@ -500,6 +549,7 @@ class VerifierError(Contract):
         "UNGROUNDED_TOKEN",
         "PROHIBITED_LANGUAGE",
         "MISSING_ALTERNATIVE",
+        "SECTION_UNCITED",
         # chat verifier (`chat.verify_chat`)
         "NOT_ON_PATH",
         "ARITHMETIC_MISMATCH",
@@ -711,6 +761,8 @@ class HumanDecisionOutput(Contract):
 class RecordDecisionOutput(Contract):
     case_status: CaseStatus
     audit_events: list[AuditEvent]
+    edited_draft: NarrativeDraft | None = None
+    edited_verifier_errors: list[VerifierError] = Field(default_factory=list)
 
 
 ResultStatus = Literal["ok", "error"]
@@ -739,6 +791,7 @@ class CaseDraftResult(Contract):
     llm_meta: LLMMeta | None = None
     case_status: CaseStatus | None = None
     trace: list[TraceEvent] = Field(default_factory=list)
+    draft_hash: Sha256Hex | None = None  # `audit.sha256_json(draft)`, also in the audit trail
     # True when the draft was served from the precomputed golden run; `draft` and `llm_meta` then
     # keep the original run's provider, model and prompt_version.
     precomputed: bool = False
@@ -761,6 +814,12 @@ class CaseDecisionResult(Contract):
     case_status: CaseStatus | None = None
     audit_event: AuditEvent | None = None
     trace: list[TraceEvent] = Field(default_factory=list)
+    # Set when the decision carried `edited_summary`: the reviewer's version of the draft
+    # (version + 1, `parent_draft_hash` = the drafted version), re-verified for information only
+    # (the reviewer owns the text; errors are shown, not blocking).
+    edited_draft: NarrativeDraft | None = None
+    edited_draft_hash: Sha256Hex | None = None
+    edited_verifier_errors: list[VerifierError] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _complete_when_ok(self) -> CaseDecisionResult:
@@ -855,6 +914,7 @@ ChatChip = Literal[
     "missing_data",
     "similar_cases",
     "next_steps",
+    "shared_identifiers",
 ]
 CHAT_CHIPS: tuple[str, ...] = get_args(ChatChip)
 ChatToolName = Literal[
@@ -868,6 +928,7 @@ ChatToolName = Literal[
     "quality_lineage",
     "policy_retrieval",
     "similar_cases",
+    "shared_token_search",
 ]
 CHAT_TOOLS: tuple[str, ...] = get_args(ChatToolName)
 ClaimLabel = Literal["observed_fact", "model_inference", "policy", "hypothesis", "missing_evidence"]
@@ -1019,6 +1080,43 @@ class ChatContext(Contract):
     scope_transaction_count: int = Field(ge=0)
     pinned_evidence_ids: list[str] = Field(default_factory=list)
     scope_notes: list[str] = Field(default_factory=list)
+    # Transactions (graph edges) the reviewer selected; chips start from them before pins.
+    selected_ids: list[str] = Field(default_factory=list)
+    # Bumped on every confirmed context change (selection, pins).
+    context_version: int = Field(default=1, ge=1)
+
+
+class SourceRef(Contract):
+    """A policy source retrieved for one answer (no excerpt: the claims quote what they use)."""
+
+    chunk_id: str
+    doc_title: str
+    section: str | None = None
+    source_uri: str | None = None
+
+
+class Coverage(Contract):
+    """How much of an answer survived verification, as counts (no single confidence number):
+    `verified` claims are fully grounded facts, inferences and policy; `partial` are kept
+    hypotheses and claims from truncated or warned tool results; `unsupported` are dropped parts
+    plus missing-evidence statements."""
+
+    verified: int = Field(ge=0)
+    partial: int = Field(ge=0)
+    unsupported: int = Field(ge=0)
+
+
+class AnswerMetadata(Contract):
+    """Provenance of one chat answer. `as_of` is the data freshness: the latest evidence
+    timestamp the answer could see (`as_of_basis` says so)."""
+
+    as_of: UtcDatetime
+    as_of_basis: Literal["latest_evidence_timestamp"] = "latest_evidence_timestamp"
+    graph_snapshot_id: str
+    context_version: int = Field(ge=1)
+    retrieved_sources: list[SourceRef] = Field(default_factory=list)
+    tool_actions: list[ToolCallRecord] = Field(default_factory=list)
+    coverage: Coverage
 
 
 class ChatFeedback(Contract):
@@ -1036,7 +1134,7 @@ class ChatTurn(Contract):
     chip: ChatChip | None = None
     question: str | None = None
     question_hash: Sha256Hex
-    status: Literal["ok", "needs_clarification", "error"]
+    status: Literal["ok", "needs_clarification", "denied", "error"]
     intent: str
     answer: str
     claims: list[ChatClaim] = Field(default_factory=list)
@@ -1048,6 +1146,9 @@ class ChatTurn(Contract):
     verification_status: VerificationStatus
     llm_meta: list[LLMMeta] = Field(default_factory=list)
     feedback: ChatFeedback | None = None
+    # Plain-language notes on how an unbounded request was narrowed (hops, window, accounts).
+    bounds_applied: list[str] = Field(default_factory=list)
+    metadata: AnswerMetadata | None = None
     # True when an LLM output was served from the precomputed golden run (`llm_meta` keeps the
     # original provider, model and prompt_version); tools and the verifier still ran live.
     precomputed: bool = False
@@ -1059,15 +1160,17 @@ class ChatSession(Contract):
     alert_id: str
     actor_id: NonBlankStr
     actor_role: ActorRole
+    tenant_id: str | None = None
     created_at: UtcDatetime
     context: ChatContext
     turns: list[ChatTurn] = Field(default_factory=list)
 
 
 class ChatResult(Contract):
-    """What `api.start_chat` and `api.get_chat` return."""
+    """What `api.start_chat` and `api.get_chat` return. `denied` = the access policy refused this
+    actor the case; nothing about it is returned."""
 
-    status: ResultStatus = "ok"
+    status: Literal["ok", "denied", "error"] = "ok"
     error: str | None = None
     chat: ChatSession | None = None
     available_chips: list[ChatChip] = Field(default_factory=lambda: list(CHAT_CHIPS))
@@ -1081,9 +1184,11 @@ class ChatResult(Contract):
 class ChatTurnResult(Contract):
     """What `api.send_message` returns. `needs_clarification` means no tool ran: the question
     couldn't be mapped to an allowlisted plan inside this case;
-    `suggested_chips` say what to ask."""
+    `suggested_chips` say what to ask. `denied` means the request was refused (access policy, or
+    it names another case's records): `turn` explains it without ids, or is None when the
+    access policy refused the case itself."""
 
-    status: Literal["ok", "needs_clarification", "error"] = "ok"
+    status: Literal["ok", "needs_clarification", "denied", "error"] = "ok"
     error: str | None = None
     chat_id: str
     turn: ChatTurn | None = None
@@ -1092,7 +1197,8 @@ class ChatTurnResult(Contract):
 
     @model_validator(mode="after")
     def _complete_when_ok(self) -> ChatTurnResult:
-        if self.status != "error" and (self.turn is None or self.context is None):
+        if self.status in ("ok", "needs_clarification") and (
+                self.turn is None or self.context is None):
             raise ValueError(f"status={self.status!r} requires turn and context")
         return self
 
@@ -1107,6 +1213,30 @@ class PinResult(Contract):
     rejected_ids: list[str] = Field(default_factory=list)
 
 
+class ContextChangePreview(Contract):
+    """What `update_chat_context` would change. Out-of-scope ids are only counted."""
+
+    added: list[str] = Field(default_factory=list)
+    removed: list[str] = Field(default_factory=list)
+    selected_ids: list[str] = Field(default_factory=list)  # the selection after the change
+    out_of_scope_count: int = Field(default=0, ge=0)
+    current_context_version: int = Field(ge=1)
+    next_context_version: int = Field(ge=1)
+
+
+class ContextChangeResult(Contract):
+    """What `api.update_chat_context` returns. `preview` = nothing changed yet (call again with
+    confirm=true); `rejected` = some id is outside this chat's case, nothing changed; `denied` =
+    the access policy refused the case."""
+
+    status: Literal["ok", "preview", "rejected", "denied", "error"] = "ok"
+    error: str | None = None
+    chat_id: str
+    preview: ContextChangePreview | None = None
+    context: ChatContext | None = None
+    audit_event_id: str | None = None
+
+
 class FeedbackResult(Contract):
     status: ResultStatus = "ok"
     error: str | None = None
@@ -1115,10 +1245,22 @@ class FeedbackResult(Contract):
     audit_event_id: str | None = None
 
 
+class ChatGuardOutput(Contract):
+    """`chat_guard`: `denied` names why the request was refused (reason codes, no ids);
+    `narrowed` lists the bounds applied to an unbounded request."""
+
+    denied: list[str] = Field(default_factory=list)
+    narrowed: list[str] = Field(default_factory=list)
+    requested_hops: int | None = None
+    clarification: str | None = None
+    intent: str | None = None
+
+
 class ChatClassifyOutput(Contract):
     intent: str
     plan: list[ToolCall]
     clarification: str | None = None
+    narrowed: list[str] = Field(default_factory=list)
     llm_meta: list[LLMMeta] = Field(default_factory=list)
     precomputed: bool = False
 

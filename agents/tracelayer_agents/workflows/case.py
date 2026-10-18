@@ -26,6 +26,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command
 
 from tracelayer_agents import schemas
+from tracelayer_agents.audit import sha256_json
 from tracelayer_agents.config import AgentConfig
 from tracelayer_agents.interfaces import Services
 from tracelayer_agents.nodes.draft_narrative import draft_narrative
@@ -134,6 +135,7 @@ async def start_case(
         llm_meta=state["llm_meta"],
         case_status=state["case_status"],
         trace=state.get("trace_events", []),
+        draft_hash=sha256_json(state["draft_narrative"]),
         precomputed=bool(state.get("precomputed")),
     )
 
@@ -178,9 +180,13 @@ async def resume_case(
         raise
 
     event = next(e for e in reversed(state["audit_events"]) if e.action == "case.decision")
+    edited = state.get("edited_draft")
     return CaseDecisionResult(
         case_id=case_id,
         case_status=state["case_status"],
         audit_event=event,
         trace=state.get("trace_events", []),
+        edited_draft=edited,
+        edited_draft_hash=sha256_json(edited) if edited is not None else None,
+        edited_verifier_errors=state.get("edited_verifier_errors") or [],
     )

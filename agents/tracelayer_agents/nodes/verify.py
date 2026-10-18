@@ -10,8 +10,10 @@ from typing import Any
 
 from tracelayer_agents.guardrails import find_prohibited
 from tracelayer_agents.llm.templates import POLICY_NO_ANSWER
-from tracelayer_agents.nodes.derive import compute_derived_facts
+from tracelayer_agents.nodes.derive import NOT_AVAILABLE, compute_derived_facts
 from tracelayer_agents.schemas import (
+    NARRATIVE_SECTIONS,
+    Alert,
     CaseStatus,
     EvidenceBundle,
     NarrativeDraft,
@@ -207,12 +209,39 @@ def _only_negated(text: str) -> bool:
     )
 
 
+# Sections whose items repeat a claim already checked above; the rest are swept here.
+_CLAIM_SECTIONS = frozenset({"observed_facts", "analyst_hypotheses", "relevant_policy"})
+
+
+def section_evidence_ids(
+    bundle: EvidenceBundle, retrieved_sources: list[RetrievedChunk], alert: Alert | None
+) -> set[str]:
+    """Every id a narrative section may cite."""
+    ids = {t.transaction_id for t in bundle.transactions}
+    ids |= {a for t in bundle.transactions for a in (t.origin_account_id, t.destination_account_id)}
+    ids |= {c.chunk_id for c in retrieved_sources}
+    ids |= {q.check_id for q in bundle.quality_caveats} | set(bundle.lineage_refs)
+    ids |= {f.fact_id for f in compute_derived_facts(bundle)}
+    ids |= {f"not_available:{item}" for item, _ in NOT_AVAILABLE} | {
+        "not_available:policy_sources"}
+    if bundle.flow_findings is not None:
+        ids.add(f"graph_snapshot:{bundle.flow_findings.graph_snapshot_id}")
+    if alert is not None:
+        ids.add(f"graph_snapshot:{alert.graph_snapshot_id}")
+        if alert.model_run_id:
+            ids.add(f"model_run:{alert.model_run_id}")
+    return ids
+
+
 def verify_evidence(
-    draft: NarrativeDraft, bundle: EvidenceBundle, retrieved_sources: list[RetrievedChunk]
+    draft: NarrativeDraft, bundle: EvidenceBundle, retrieved_sources: list[RetrievedChunk],
+    alert: Alert | None = None,
 ) -> list[VerifierError]:
     """Every id, amount, date and policy citation in `draft` must come from `bundle` (or its
     derived facts) or `retrieved_sources`; free text is swept for ungrounded tokens and prohibited
-    language, and hypotheses must be balanced. Returns [] for a fully grounded draft."""
+    language, and hypotheses must be balanced. narrative_v4 sections: every factual item cites
+    evidence ids, and every cited id is known (`section_evidence_ids`). Returns [] for a fully
+    grounded draft."""
     ground = grounding(bundle)
     known_chunks = {c.chunk_id for c in retrieved_sources}
     errors: list[VerifierError] = []
@@ -255,6 +284,18 @@ def verify_evidence(
         sweep(i, claim.text)
     for text in [*draft.uncertainties, *draft.follow_up_questions]:
         sweep(FREE_TEXT, text)
+    if draft.sections is not None:
+        known = section_evidence_ids(bundle, retrieved_sources, alert)
+        for name in NARRATIVE_SECTIONS:
+            for item in getattr(draft.sections, name):
+                if item.factual and not item.evidence_ids:
+                    err(FREE_TEXT, "SECTION_UNCITED", f"{name}: factual item cites no evidence")
+                unknown = [i for i in item.evidence_ids if i not in known]
+                if unknown:
+                    err(FREE_TEXT, "SECTION_UNCITED",
+                        f"{name}: {len(unknown)} cited id(s) are not in the evidence")
+                if name not in _CLAIM_SECTIONS:
+                    sweep(FREE_TEXT, item.text)
     errors.extend(check_balanced_hypotheses(draft))
     return errors
 
@@ -267,7 +308,8 @@ def flagged_claims(errors: list[VerifierError]) -> list[int]:
 @traced_node("verify_evidence", VerifyEvidenceOutput)
 def verify_evidence_node(state: Mapping[str, Any], ctx: NodeContext) -> VerifyEvidenceOutput:
     errors = verify_evidence(
-        state["draft_narrative"], state["evidence_bundle"], state.get("retrieved_sources") or []
+        state["draft_narrative"], state["evidence_bundle"], state.get("retrieved_sources") or [],
+        state.get("alert"),
     )
     return VerifyEvidenceOutput(
         verifier_errors=errors,

@@ -23,7 +23,15 @@ from datetime import UTC, datetime
 from typing import Any, get_args
 
 from tracelayer_agents import audit
-from tracelayer_agents.chat.session import MAX_PINS, ChatStore, build_context, build_scope
+from tracelayer_agents.chat.session import (
+    MAX_PINS,
+    Actor,
+    ChatEntry,
+    ChatStore,
+    build_scope,
+    may_access,
+    rebuild_context,
+)
 from tracelayer_agents.config import AgentConfig
 from tracelayer_agents.interfaces import Services
 from tracelayer_agents.nodes.human_decision import DecisionRejected
@@ -39,6 +47,8 @@ from tracelayer_agents.schemas import (
     ChatFeedback,
     ChatResult,
     ChatTurnResult,
+    ContextChangePreview,
+    ContextChangeResult,
     CopilotResult,
     CytoscapeEdge,
     CytoscapeEdgeData,
@@ -290,14 +300,39 @@ def verify_audit_chain() -> AuditVerification:
 # --------------------------------------------------------------------------- investigation chat
 
 
-async def start_chat(case_id: str, actor_id: str, actor_role: ActorRole | str) -> ChatResult:
-    """Open an investigation chat bound to one case (opened by `start_case`). `actor_id` and
-    `actor_role` must come from the backend's auth. A different case needs a new chat."""
+DENIED = "access denied: you do not have access to this case"
+
+
+def _deny(services: Services, actor: Actor, case_id: str, reason: str,
+          **metadata: Any) -> None:
+    """Audit a refused request: reason code and references only, never the records."""
+    try:
+        audit.record(services.audit, action="chat.request_denied", object_type="case",
+                     object_id=case_id, actor_id=actor.actor_id, actor_role=actor.actor_role,
+                     metadata={"reasons": reason, "tenant_id": actor.tenant_id, **metadata})
+    except Exception:
+        logger.exception("audit of a denied chat request failed")
+
+
+def _entry_actor(entry: ChatEntry) -> Actor:
+    s = entry.session
+    return Actor(s.actor_id, s.actor_role, s.tenant_id)
+
+
+async def start_chat(case_id: str, actor_id: str, actor_role: ActorRole | str,
+                     tenant_id: str | None = None) -> ChatResult:
+    """Open an investigation chat bound to one case (opened by `start_case`). `actor_id`,
+    `actor_role` and `tenant_id` must come from the backend's auth. A different case needs a new
+    chat. `denied` (audited as `chat.request_denied`) when the access policy refuses the case."""
     services, _ = _ensure()
     if actor_role not in get_args(ActorRole):
         return ChatResult(status="error", error=f"actor_role must be one of {get_args(ActorRole)}")
     if not (actor_id or "").strip():
         return ChatResult(status="error", error="actor_id must not be empty")
+    actor = Actor(actor_id, actor_role, tenant_id)
+    if not may_access(services, actor, case_id):
+        _deny(services, actor, case_id, "access_denied", request="start_chat")
+        return ChatResult(status="denied", error=DENIED)
     try:
         scope = await asyncio.to_thread(build_scope, case_id, services)
     except KeyError as err:
@@ -305,13 +340,14 @@ async def start_chat(case_id: str, actor_id: str, actor_role: ActorRole | str) -
     except Exception as exc:
         return ChatResult(status="error", error=_internal(exc, "start_chat"))
     try:
-        entry = _chats.create(scope, actor_id, actor_role)  # type: ignore[arg-type]
+        entry = _chats.create(scope, actor_id, actor_role, tenant_id)  # type: ignore[arg-type]
         audit.record(
             services.audit, action="chat.started", object_type="case", object_id=case_id,
             actor_id=actor_id, actor_role=actor_role,
             metadata={"chat_id": entry.session.chat_id, "alert_id": scope.alert.alert_id,
                       "bundle_hash": scope.bundle.bundle_hash,
                       "graph_snapshot_id": scope.graph_snapshot_id,
+                      "tenant_id": tenant_id,
                       "scope_accounts": len(scope.account_ids),
                       "scope_transactions": len(scope.edges)},
         )
@@ -335,6 +371,11 @@ async def send_message(
                               error=f"text must be at most {MAX_CHAT_MESSAGE_CHARS} characters")
     try:
         entry = _chats.get(chat_id)
+        actor = _entry_actor(entry)
+        if not may_access(services, actor, entry.session.case_id):
+            _deny(services, actor, entry.session.case_id, "access_denied", chat_id=chat_id,
+                  request="send_message")
+            return ChatTurnResult(status="denied", chat_id=chat_id, error=DENIED)
         result = await chat_workflow.run_chat_turn(
             entry, services, config, chip=chip, question=text.strip() if text else None
         )
@@ -360,6 +401,10 @@ def _set_pins(chat_id: str, ids: list[str], pin: bool) -> PinResult:
     except KeyError:
         return PinResult(status="error", chat_id=chat_id,
                          error=_short(f"unknown chat_id {chat_id!r}"))
+    if not may_access(services, _entry_actor(entry), entry.session.case_id):
+        _deny(services, _entry_actor(entry), entry.session.case_id, "access_denied",
+              chat_id=chat_id, request="pin_evidence" if pin else "unpin_evidence")
+        return PinResult(status="error", chat_id=chat_id, error=DENIED)
     try:
         ids = list(dict.fromkeys(i for i in ids or [] if isinstance(i, str)))
         session = entry.session
@@ -379,7 +424,7 @@ def _set_pins(chat_id: str, ids: list[str], pin: bool) -> PinResult:
             return PinResult(status="rejected", chat_id=chat_id, pinned_evidence_ids=current,
                              error=f"at most {MAX_PINS} pinned ids")
         with entry.lock:
-            session.context = build_context(entry.scope, updated)
+            session.context = rebuild_context(entry.scope, session.context, pinned=updated)
         audit.record(
             services.audit, action="chat.pin" if pin else "chat.unpin", object_type="case",
             object_id=session.case_id, actor_id=session.actor_id, actor_role=session.actor_role,
@@ -400,10 +445,85 @@ def unpin_evidence(chat_id: str, ids: list[str]) -> PinResult:
     return _set_pins(chat_id, ids, pin=False)
 
 
+def update_chat_context(
+    chat_id: str,
+    selected_tx_ids: list[str] | None = None,
+    edge_ids: list[str] | None = None,
+    confirm: bool = False,
+) -> ContextChangeResult:
+    """Change which transactions (graph edges; edge ids are transaction ids) the chat focuses on.
+    The new selection replaces the old one; chips start from it. Without `confirm`: a preview of
+    the change, nothing applied. With `confirm=True`: applied if every id is in this chat's case
+    (all-or-nothing; else `rejected`, audited as `chat.request_denied` with counts only), then
+    `context_version` is bumped and `chat.context_changed` audited."""
+    services, _ = _ensure()
+    try:
+        entry = _chats.get(chat_id)
+    except KeyError:
+        return ContextChangeResult(status="error", chat_id=chat_id,
+                                   error=_short(f"unknown chat_id {chat_id!r}"))
+    try:
+        session, actor = entry.session, _entry_actor(entry)
+        if not may_access(services, actor, session.case_id):
+            _deny(services, actor, session.case_id, "access_denied", chat_id=chat_id,
+                  request="update_chat_context")
+            return ContextChangeResult(status="denied", chat_id=chat_id, error=DENIED)
+        ids = list(dict.fromkeys(
+            i for i in [*(selected_tx_ids or []), *(edge_ids or [])] if isinstance(i, str)))
+        if len(ids) > MAX_PINS:
+            return ContextChangeResult(status="rejected", chat_id=chat_id,
+                                       error=f"at most {MAX_PINS} selected ids")
+        current = session.context
+        inside = [i for i in ids if i in entry.scope.edges]
+        outside = len(ids) - len(inside)
+        preview = ContextChangePreview(
+            added=[i for i in inside if i not in current.selected_ids],
+            removed=[i for i in current.selected_ids if i not in inside],
+            selected_ids=inside, out_of_scope_count=outside,
+            current_context_version=current.context_version,
+            next_context_version=current.context_version + 1,
+        )
+        if outside:
+            if confirm:
+                _deny(services, actor, session.case_id, "out_of_scope_ids", chat_id=chat_id,
+                      request="update_chat_context", out_of_scope_count=outside)
+            return ContextChangeResult(
+                status="rejected", chat_id=chat_id, preview=preview,
+                error=f"{outside} id(s) are not transactions of this chat's case; nothing changed",
+            )
+        if not confirm:
+            return ContextChangeResult(status="preview", chat_id=chat_id, preview=preview)
+        with entry.lock:
+            before = session.context
+            session.context = rebuild_context(entry.scope, before, selected=inside)
+            after = session.context
+        event = audit.record(
+            services.audit, action="chat.context_changed", object_type="case",
+            object_id=session.case_id, actor_id=session.actor_id, actor_role=session.actor_role,
+            before_hash=audit.sha256_json(before.selected_ids),
+            after_hash=audit.sha256_json(after.selected_ids),
+            metadata={"chat_id": chat_id, "context_version": after.context_version,
+                      "previous_context_version": before.context_version,
+                      "added": ",".join(preview.added), "removed": ",".join(preview.removed),
+                      "selected_count": len(inside)},
+        )
+    except Exception as exc:
+        return ContextChangeResult(status="error", chat_id=chat_id,
+                                   error=_internal(exc, "update_chat_context"))
+    return ContextChangeResult(chat_id=chat_id, preview=preview,
+                               context=after.model_copy(deep=True), audit_event_id=event.event_id)
+
+
 def get_chat(chat_id: str) -> ChatResult:
     """The chat session: its case context (alert, evidence, pins) and every turn so far."""
+    services, _ = _ensure()
     try:
-        return ChatResult(chat=_chats.get(chat_id).session.model_copy(deep=True))
+        entry = _chats.get(chat_id)
+        if not may_access(services, _entry_actor(entry), entry.session.case_id):
+            _deny(services, _entry_actor(entry), entry.session.case_id, "access_denied",
+                  chat_id=chat_id, request="get_chat")
+            return ChatResult(status="denied", error=DENIED)
+        return ChatResult(chat=entry.session.model_copy(deep=True))
     except KeyError:
         return ChatResult(status="error", error=_short(f"unknown chat_id {chat_id!r}"))
     except Exception as exc:

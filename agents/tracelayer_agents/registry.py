@@ -19,6 +19,7 @@ from tracelayer_agents.interfaces import Services
 from tracelayer_agents.mocks import (
     InMemoryAuditRepository,
     InMemoryCaseRepository,
+    MockAccessPolicy,
     MockBehaviorScorer,
     MockDataStore,
     MockFlowInvestigator,
@@ -52,6 +53,7 @@ def _mock_services() -> Services:
         policy=MockPolicyRetriever(),
         cases=InMemoryCaseRepository(),
         audit=InMemoryAuditRepository(),
+        access=MockAccessPolicy(),
     )
 
 

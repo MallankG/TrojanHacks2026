@@ -8,7 +8,7 @@ import time
 
 from pydantic import ValidationError
 
-from tracelayer_agents.chat.session import CaseScope
+from tracelayer_agents.chat.session import Actor, CaseScope, may_access
 from tracelayer_agents.schemas import CHAT_TOOLS, ToolCall, ToolResult
 from tracelayer_agents.tools import base
 from tracelayer_agents.tools.base import ScopeError, ToolSpec, no_check
@@ -16,10 +16,14 @@ from tracelayer_agents.tools.case_info import (
     EmptyInput,
     ModelExplanationInput,
     PolicyRetrievalInput,
+    SharedTokenSearchInput,
+    SimilarCasesInput,
     check_model,
+    check_tokens,
     model_explanation,
     policy_retrieval,
     quality_lineage,
+    shared_token_search,
     similar_cases,
 )
 from tracelayer_agents.tools.flows import (
@@ -67,8 +71,13 @@ REGISTRY: dict[str, ToolSpec] = {
                  "Data-quality issues, lineage refs and data the agents do not have."),
         ToolSpec("policy_retrieval", PolicyRetrievalInput, policy_retrieval, no_check,
                  "Curated policy passages (query optional; defaults to the alert typology)."),
-        ToolSpec("similar_cases", EmptyInput, similar_cases, no_check,
-                 "Mock: reference typology patterns matching this alert (no other cases)."),
+        ToolSpec("similar_cases", SimilarCasesInput, similar_cases, no_check,
+                 "Top 5 synthetic library cases like this one (typology/time filtered), with "
+                 "matched motifs, rail, flow shape, graph features, text overlap and prior "
+                 "disposition. Similarity is not proof."),
+        ToolSpec("shared_token_search", SharedTokenSearchInput, shared_token_search,
+                 check_tokens,
+                 "Devices, IP addresses and payment tokens shared by this case's accounts."),
     )
 }
 assert set(REGISTRY) == set(CHAT_TOOLS), "REGISTRY must match schemas.ChatToolName"
@@ -94,9 +103,11 @@ def _first_error(exc: ValidationError) -> str:
 
 
 async def run_tool(
-    call: ToolCall, scope: CaseScope, ctx: NodeContext, *, timeout_s: float | None = None
+    call: ToolCall, scope: CaseScope, ctx: NodeContext, *, timeout_s: float | None = None,
+    actor: Actor | None = None,
 ) -> ToolResult:
-    """Validate, scope-check and run one tool under `base.TOOL_TIMEOUT_S`. Never raises."""
+    """Check access (when `actor` is given), validate, scope-check and run one tool under
+    `base.TOOL_TIMEOUT_S`. Never raises."""
     timeout = timeout_s if timeout_s is not None else base.TOOL_TIMEOUT_S
     spec = REGISTRY[call.tool]
     t0 = time.perf_counter()
@@ -106,6 +117,8 @@ async def run_tool(
         return ToolResult(tool=call.tool, status=status, duration_ms=ms,
                           **{"args": call.args, **kw})
 
+    if actor is not None and not may_access(ctx.services, actor, scope.case_id):
+        return result("rejected", error="access_denied")
     try:
         args = spec.input_model.model_validate(call.args)
         spec.check(args, scope)

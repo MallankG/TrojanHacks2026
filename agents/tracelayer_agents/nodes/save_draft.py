@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from tracelayer_agents import audit
+from tracelayer_agents.audit import sha256_json
 from tracelayer_agents.schemas import AuditEvent, CaseStatus, SaveDraftOutput
 from tracelayer_agents.wrappers import NodeContext, traced_node
 
@@ -38,6 +39,8 @@ async def save_draft(state: Mapping[str, Any], ctx: NodeContext) -> SaveDraftOut
                 "provider": draft.provider,
                 "model": draft.model,
                 "prompt_version": draft.prompt_version,
+                "draft_hash": sha256_json(draft),
+                "draft_version": draft.version,
                 "bundle_hash": state["evidence_bundle"].bundle_hash,
                 "attempts": state.get("draft_attempts"),
                 "llm_calls": meta.attempts,

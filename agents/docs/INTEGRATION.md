@@ -93,10 +93,11 @@ The data mocks share one in-memory store, so swap in the data services (`ingesti
 | `await get_alert_graph(alert_id, hops=1)` | `CytoscapeGraph` | `ok`, `error` |
 | `get_trace(trace_id)` | `list[TraceEvent]` | `[]` if unknown |
 | `verify_audit_chain()` | `AuditVerification` | `ok: bool` |
-| `await start_chat(case_id, actor_id, actor_role)` | `ChatResult` | `ok`, `error` |
-| `await send_message(chat_id, text=None, chip=None)` | `ChatTurnResult` | `ok`, `needs_clarification`, `error` |
+| `await start_chat(case_id, actor_id, actor_role, tenant_id=None)` | `ChatResult` | `ok`, `denied`, `error` |
+| `await send_message(chat_id, text=None, chip=None)` | `ChatTurnResult` | `ok`, `needs_clarification`, `denied`, `error` |
+| `update_chat_context(chat_id, selected_tx_ids=None, edge_ids=None, confirm=False)` | `ContextChangeResult` | `preview`, `ok`, `rejected`, `denied`, `error` |
 | `pin_evidence(chat_id, ids)` / `unpin_evidence(chat_id, ids)` | `PinResult` | `ok`, `rejected`, `error` |
-| `get_chat(chat_id)` | `ChatResult` | `ok`, `error` |
+| `get_chat(chat_id)` | `ChatResult` | `ok`, `denied`, `error` |
 | `record_feedback(chat_id, turn_id, helpful, note=None)` | `FeedbackResult` | `ok`, `error` |
 
 - The functions **never raise**. Failures come back as the result with `status` and a short `error`
@@ -108,6 +109,9 @@ The data mocks share one in-memory store, so swap in the data services (`ingesti
   be submitted.
 - **The agents enforce RBAC.** `Decision.actor_role` (`analyst` | `supervisor`) and `actor_id` must
   come from your auth, never from the request body.
+- **Case access.** Pass an `AccessPolicy` (`Services(access=...)`, see CONTRACTS.md) so the chat
+  can ask your auth/RLS whether an actor may read a case. Without one the mock allows everything.
+  `denied` → `403`; the body never contains the case's records.
 - Every result is a Pydantic model you can use as `response_model` directly. Money is a decimal
   string (`"4850.00"`), timestamps are ISO 8601 UTC.
 - `batch_ref` is passed to `IngestionService.ingest` as the payload (file bytes or a storage
@@ -128,6 +132,7 @@ from tracelayer_agents import (
     AuditVerification,
     CaseDecisionResult,
     CaseDraftResult,
+    ContextChangeResult,
     CopilotResult,
     CytoscapeGraph,
     Decision,
@@ -141,6 +146,7 @@ router = APIRouter(prefix="/api/v1")
 class User(BaseModel):  # replace with your auth's user model
     id: str
     role: Literal["analyst", "supervisor"]
+    tenant_id: str | None = None
 
 
 def current_user() -> User:  # replace with your auth dependency (Supabase JWT, ...)
@@ -167,8 +173,15 @@ class CopilotBody(BaseModel):
     alert_id: str | None = None
 
 
-# ok/halted -> 200, rejected -> 422, error -> 400. Refine as you like.
-HTTP_CODES = {"ok": 200, "halted": 200, "rejected": 422, "error": 400}
+class ChatContextBody(BaseModel):
+    selected_tx_ids: list[str] = []
+    edge_ids: list[str] = []
+    confirm: bool = False
+
+
+# ok/halted/preview/needs_clarification -> 200, rejected -> 422, denied -> 403, error -> 400.
+HTTP_CODES = {"ok": 200, "halted": 200, "preview": 200, "needs_clarification": 200,
+              "rejected": 422, "denied": 403, "error": 400}
 
 
 @router.post("/analysis/run", response_model=AnalysisResult)
@@ -211,6 +224,15 @@ async def decide(case_id: str, body: DecisionBody, response: Response,
 @router.post("/copilot/query", response_model=CopilotResult)
 async def copilot(body: CopilotBody, response: Response, user: User = Depends(current_user)):
     result = await api.copilot_query(body.question, body.alert_id)  # LLM call
+    response.status_code = HTTP_CODES[result.status]
+    return result
+
+
+@router.post("/chats/{chat_id}/context", response_model=ContextChangeResult)
+async def chat_context(chat_id: str, body: ChatContextBody, response: Response,
+                       user: User = Depends(current_user)):
+    # Chats keep their own actor (from start_chat); also check here that `user` owns the chat.
+    result = api.update_chat_context(chat_id, body.selected_tx_ids, body.edge_ids, body.confirm)
     response.status_code = HTTP_CODES[result.status]
     return result
 
@@ -385,15 +407,34 @@ flags claims: show the claims at the indexes in `flagged_claims` as unverified.
     "evidence_transaction_ids": ["TX-51001", "TX-51002"],
     "provider": "template",
     "model": "template",
-    "prompt_version": "narrative_v3",
-    "fallback_used": true
+    "prompt_version": "narrative_v4",
+    "fallback_used": true,
+    "sections": {
+      "observed_facts": [{"text": "Transaction TX-51001 moved $4,850.00 from ACC-3001 to ACC-3101 on 2026-09-04.",
+                          "factual": true, "evidence_ids": ["TX-51001"]}, "…"],
+      "model_rule_inferences": [{"text": "The alert's composite score is 0.9322 (tier high, rank 1). Scores rank activity for review; they are not findings of wrongdoing.",
+                                 "factual": true, "evidence_ids": ["TX-51001"]}, "…"],
+      "analyst_hypotheses": [{"text": "Hypothesis: the fan-out activity is consistent with a fan-out typology. It may also have a legitimate explanation; this requires reviewer assessment.",
+                              "factual": false, "evidence_ids": ["TX-51001", "…"]}],
+      "contradictory_evidence": [{"text": "9 evidence transactions from ACC-3001 go to 9 recipients on one day with amounts within 10% of each other, which may be consistent with a payroll-like or vendor batch, pending verification.",
+                                  "factual": true, "evidence_ids": ["TX-51001", "…"]}],
+      "data_gaps": [{"text": "No KYC or customer profile is available to the agents.",
+                     "factual": true, "evidence_ids": ["not_available:kyc_profile"]}, "…"],
+      "relevant_policy": [{"text": "FFIEC BSA/AML Examination Manual (…) sets out review expectations relevant to this activity.",
+                           "factual": true, "evidence_ids": ["mock_ffiec_red_flags_003"]}, "…"],
+      "recommended_next_steps": [{"text": "What is the stated business purpose of the activity involving ACC-3001?",
+                                  "factual": false, "evidence_ids": []}, "…"]
+    },
+    "version": 1,
+    "parent_draft_hash": null,
+    "edited_by": null
   },
   "verifier_errors": [],
   "flagged_claims": [],
   "llm_meta": {
     "provider": "template",
     "model": "template",
-    "prompt_version": "narrative_v3",
+    "prompt_version": "narrative_v4",
     "input_hash": "862e8331525f3a5e5a6a77aa42bf28569080c9d7066effea3e61503e50a94901",
     "attempts": 0,
     "fallback_used": true,
@@ -401,9 +442,24 @@ flags claims: show the claims at the indexes in `flagged_claims` as unverified.
     "errors": []
   },
   "case_status": "awaiting_review",
-  "trace": ["… load_case, retrieve_policy, draft_narrative, verify_evidence, save_draft …"]
+  "trace": ["… load_case, retrieve_policy, draft_narrative, verify_evidence, save_draft …"],
+  "draft_hash": "f26bf5e3a93e8b37e704f260fe3380e806daab2341ea92f1154a691c59b0753e",
+  "precomputed": false
 }
 ```
+
+**Narrative sections (`narrative_v4`, PRD 8.2).** Render `draft.sections` as the narrative, one
+heading per key, in this order:
+- `observed_facts`, `model_rule_inferences`, `analyst_hypotheses`, `contradictory_evidence`,
+  `data_gaps`, `relevant_policy`, `recommended_next_steps`.
+- Each item is `{text, factual, evidence_ids}`. Every `factual` item cites ids: transactions,
+  accounts, chunks, quality-check ids, lineage refs, `DF-n`, `model_run:<id>`,
+  `graph_snapshot:<id>` or `not_available:<item>`. Make them clickable like chat claim ids.
+- The verifier flags a factual item without ids, or one citing an unknown id, as
+  `SECTION_UNCITED`. Hypotheses and next steps are not factual.
+- Drafts from before v4 (and the precomputed golden draft if it predates v4) still get sections:
+  they are rebuilt from the claims.
+- `draft_hash` (`sha256` of the draft) is also in the `case.draft_generated` audit event.
 
 Unknown alert, response `400`:
 ```json
@@ -429,6 +485,18 @@ Request (role and actor come from auth):
 {"action": "escalate", "reason": "Fan-out to new accounts within hours; escalate for review."}
 ```
 
+**Human edits.** With `"edited_summary": "..."` in the decision, the agents save the reviewer's
+text as a new draft version before the decision is recorded:
+- The new version has `version: 2`, `parent_draft_hash` = the drafted `draft_hash`, and
+  `edited_by` = the actor.
+- It is audited as `case.narrative_edited`, with `parent_draft_hash`, `draft_hash`, `diff_hash`
+  (sha256 of the unified diff of the summaries), `draft_version` and verifier error count/codes.
+  The text itself is never audited.
+- The response adds `edited_draft`, `edited_draft_hash` and `edited_verifier_errors`. The edited
+  version is re-verified for information only; errors do not block, because the reviewer owns
+  the text.
+- `case.decision` metadata gains `draft_hash` and `draft_version` (the version that was decided).
+
 Response `200`. Escalation is an internal review step: nothing is filed, frozen or sent.
 ```json
 {
@@ -452,7 +520,7 @@ Response `200`. Escalation is an internal review step: nothing is filed, frozen 
       "mock_typology_rules": "mock-0",
       "mock_graph_risk": "mock-0"
     },
-    "prompt_version": "narrative_v3",
+    "prompt_version": "narrative_v4",
     "timestamp": "2026-10-17T23:44:32.885582Z",
     "reason": "Fan-out to new accounts within hours; escalate for review.",
     "metadata": {
@@ -462,10 +530,15 @@ Response `200`. Escalation is an internal review step: nothing is filed, frozen 
       "previous_status": "awaiting_review",
       "case_status": "escalated",
       "bundle_hash": "2fb828287f67bf7c7c9ba54d68510cff86752fb0b0190d4889dd701587ab72ee",
-      "graph_snapshot_id": "snap_60742743c1f42dee"
+      "graph_snapshot_id": "snap_60742743c1f42dee",
+      "draft_hash": "f26bf5e3a93e8b37e704f260fe3380e806daab2341ea92f1154a691c59b0753e",
+      "draft_version": 1
     }
   },
-  "trace": ["… the full case trace, ending with human_decision, record_decision …"]
+  "trace": ["… the full case trace, ending with human_decision, record_decision …"],
+  "edited_draft": null,
+  "edited_draft_hash": null,
+  "edited_verifier_errors": []
 }
 ```
 
@@ -563,12 +636,13 @@ neighbourhood around it, clipped to the case window (evidence span ± 7 days). I
 another case: switching case means a new chat. `actor_id`/`actor_role` come from your auth.
 
 Suggested routes (each calls the facade function shown; status mapping as above, plus
-`needs_clarification` → 200):
+`needs_clarification` → 200, `preview` → 200, `denied` → 403):
 
 | route | facade |
 |---|---|
-| `POST /api/v1/cases/{case_id}/chats` | `await api.start_chat(case_id, user.id, user.role)` → `ChatResult` |
+| `POST /api/v1/cases/{case_id}/chats` | `await api.start_chat(case_id, user.id, user.role, user.tenant_id)` → `ChatResult` |
 | `POST /api/v1/chats/{chat_id}/messages` body `{"text": "..."}` or `{"chip": "trace_forward"}` | `await api.send_message(chat_id, text=..., chip=...)` → `ChatTurnResult` |
+| `POST /api/v1/chats/{chat_id}/context` body `{"selected_tx_ids": [...], "edge_ids": [...], "confirm": false}` | `api.update_chat_context(chat_id, selected_tx_ids, edge_ids, confirm)` → `ContextChangeResult` |
 | `POST /api/v1/chats/{chat_id}/pins` body `{"ids": [...]}` | `api.pin_evidence(chat_id, ids)` → `PinResult` |
 | `DELETE /api/v1/chats/{chat_id}/pins` body `{"ids": [...]}` | `api.unpin_evidence(chat_id, ids)` → `PinResult` |
 | `GET /api/v1/chats/{chat_id}` | `api.get_chat(chat_id)` → `ChatResult` |
@@ -576,7 +650,7 @@ Suggested routes (each calls the facade function shown; status mapping as above,
 
 Chips (`available_chips`): `explain_alert`, `trace_backward`, `trace_forward`, `why_connected`,
 `evidence_per_signal`, `benign_explanations`, `policy_guidance`, `missing_data`, `similar_cases`,
-`next_steps`. Send exactly one of `text` (≤ 2000 chars) or `chip`.
+`next_steps`, `shared_identifiers` (new). Send exactly one of `text` (≤ 2000 chars) or `chip`.
 
 **For the frontend**
 - Show `context` (alert, evidence, window, pins) with every answer; it is in every response.
@@ -592,6 +666,35 @@ Chips (`available_chips`): `explain_alert`, `trace_backward`, `trace_forward`, `
 - Pins (`pin_evidence`) accept transaction ids, account ids and derived-fact ids (`DF-n`) of this
   case only; chips then start from the pinned ids. Any other id → `status="rejected"` with
   `rejected_ids`, nothing changed.
+- **Answer metadata (PRD 8.2)**: every turn has `turn.metadata`. Show it as the answer's
+  provenance line:
+  - `as_of`: data freshness, the latest evidence timestamp the answer could see
+    (`as_of_basis="latest_evidence_timestamp"`).
+  - `graph_snapshot_id`, and `context_version`: which version of the chat context (selection,
+    pins) the answer used.
+  - `retrieved_sources`: the policy chunks retrieved for this answer (`chunk_id`, `doc_title`,
+    `section`, `source_uri`).
+  - `tool_actions`: the same list as `turn.tool_calls`.
+  - `coverage`: `{verified, partial, unsupported}` counts. There is deliberately **no single
+    confidence number**. `partial` counts hypotheses and claims from truncated or warned tool
+    results; `unsupported` counts dropped parts plus missing-evidence statements.
+- **Selection (`update_chat_context`)**: when the reviewer selects edges or transactions on the
+  graph, call it first without `confirm` to get a `preview` (`added`, `removed`,
+  `out_of_scope_count`, `next_context_version`). Show it, then call again with `confirm=true`. The
+  change is all-or-nothing: any id outside the case → `rejected`, nothing changed, and the
+  out-of-scope ids are never echoed. A confirmed change bumps `context.context_version`, sets
+  `context.selected_ids` (chips then start from them, before pins) and is audited as
+  `chat.context_changed`. Pins also bump `context_version`.
+- **Narrowed requests**: an unbounded question (more than 3 hops, "all accounts", "all time")
+  still runs, but inside the case bounds. `turn.bounds_applied` lists the bounds in plain
+  language; show it above the answer.
+- **Denied requests**: `status="denied"`.
+  - A question that names another case's records (or another tenant/bank) returns a `turn` with
+    `status="denied"`, an explanation in `turn.answer`, no tool calls, no claims and
+    `question=null`.
+  - When the access policy refuses the case itself, `turn` and `context` are `null`.
+- `similar_cases` returns synthetic library cases with a score breakdown and the caveat
+  "Similarity is not proof; prior decisions can be wrong." Show the caveat with the results.
 
 Latency: chips call the LLM once (answer prose), free text twice (plan + prose); with the
 template it is milliseconds, with Ollama see the latency note above. Each tool is capped at 5 s.
@@ -616,8 +719,9 @@ Response `200` (`ChatResult`):
       "quality_issues": [], "graph_snapshot_id": "snap_60742743c1f42dee",
       "window_start": "2026-08-28T13:05:00Z", "window_end": "2026-09-11T15:21:00Z",
       "entity_scope": ["ACC-3001", "ACC-3101", "…"], "scope_transaction_count": 9,
-      "pinned_evidence_ids": [], "scope_notes": []
+      "pinned_evidence_ids": [], "scope_notes": [], "selected_ids": [], "context_version": 1
     },
+    "tenant_id": "tenant_demo",
     "turns": []
   },
   "available_chips": ["explain_alert", "trace_backward", "trace_forward", "…"]
@@ -666,7 +770,16 @@ Response `200` (`ChatTurnResult`):
     "llm_meta": [{"provider": "template", "model": "template", "prompt_version": "chat_answer_v2",
                   "input_hash": "b38d…", "attempts": 0, "fallback_used": true, "latency_ms": 0.026,
                   "errors": []}],
-    "feedback": null
+    "feedback": null,
+    "bounds_applied": [],
+    "metadata": {
+      "as_of": "2026-09-04T15:21:00Z", "as_of_basis": "latest_evidence_timestamp",
+      "graph_snapshot_id": "snap_60742743c1f42dee", "context_version": 1,
+      "retrieved_sources": [],
+      "tool_actions": ["… same as tool_calls …"],
+      "coverage": {"verified": 10, "partial": 1, "unsupported": 0}
+    },
+    "precomputed": false
   },
   "context": {"case_id": "case_5ea02560904e", "…": "same ChatContext as start_chat, with current pins"},
   "trace": [{"trace_id": "tr_1953…", "node": "chat_classify", "status": "ok", "…": "…"}, "…"]
@@ -684,6 +797,56 @@ A question the tools can't answer inside this case: `"status": "needs_clarificat
 explains, `turn.suggested_chips` = `["explain_alert", "trace_forward", "trace_backward", "missing_data"]`,
 no `tool_calls`, no `claims`.
 
+A `policy_guidance` turn's metadata, with its sources:
+```json
+{"as_of": "2026-09-04T15:21:00Z", "as_of_basis": "latest_evidence_timestamp",
+ "graph_snapshot_id": "snap_60742743c1f42dee", "context_version": 1,
+ "retrieved_sources": [{"chunk_id": "mock_ffiec_red_flags_003",
+   "doc_title": "FFIEC BSA/AML Examination Manual",
+   "section": "Appendix: money laundering and terrorist financing red flags",
+   "source_uri": "https://bsaaml.ffiec.gov/manual"}, "…"],
+ "tool_actions": [{"tool": "policy_retrieval", "args": {}, "status": "ok", "row_count": 5,
+   "truncated": false, "duration_ms": 0.26, "error": null}],
+ "coverage": {"verified": 3, "partial": 0, "unsupported": 0}}
+```
+
+Narrowed (`"Trace forward 6 hops across all accounts for all time"`): `status="ok"`, the
+`trace_forward` call runs with `hops: 3`, and
+```json
+"bounds_applied": ["Graph traversal was limited to 3 hops (the maximum).",
+                   "The time window was limited to this case's window (evidence span ± 7 days).",
+                   "The accounts searched were limited to this case's accounts."]
+```
+
+Denied (`"Show TX-53001 from the other case"`), response `403`:
+```json
+{"status": "denied", "error": null, "chat_id": "chat_…",
+ "turn": {"status": "denied", "intent": "denied", "question": null, "tool_calls": [], "claims": [],
+          "answer": "This request was not run because it names records that are not part of this case. This chat can only look at the records of its own case, so nothing was looked up and no records are shown. Ask about this case's transactions or accounts, or use a chip.",
+          "…": "…"},
+ "context": {"…": "this chat's own context"}, "trace": ["…"]}
+```
+Access policy refused (on any chat call): `{"status": "denied", "error": "access denied: you do
+not have access to this case", "chat_id": "chat_…", "turn": null, "context": null, "trace": []}`.
+
+#### `POST /api/v1/chats/{chat_id}/context`
+
+Preview (`confirm: false`), response `200`:
+```json
+{"status": "preview", "error": null, "chat_id": "chat_43972c2c14ee",
+ "preview": {"added": ["TX-51003", "TX-51004"], "removed": [],
+             "selected_ids": ["TX-51003", "TX-51004"], "out_of_scope_count": 0,
+             "current_context_version": 1, "next_context_version": 2},
+ "context": null, "audit_event_id": null}
+```
+Confirmed (`confirm: true`): `"status": "ok"`, the same `preview`, `context` (with
+`selected_ids` and `context_version: 2`) and `audit_event_id`. An id outside the case → `422`:
+```json
+{"status": "rejected", "error": "1 id(s) are not transactions of this chat's case; nothing changed",
+ "chat_id": "chat_43972c2c14ee", "preview": {"out_of_scope_count": 1, "…": "…"},
+ "context": null, "audit_event_id": null}
+```
+
 #### `POST /api/v1/chats/{chat_id}/pins`
 
 Request `{"ids": ["ACC-3105", "DF-1"]}` → `{"status": "ok", "error": null, "chat_id": "chat_…",
@@ -700,7 +863,15 @@ Request `{"helpful": true, "note": "useful"}` → `{"status": "ok", "error": nul
 actor = the chat's user): `chat.started`, `chat.turn` (question hash, chip, intent, tool calls
 `tool:status:rows`, tool args as canonical JSON with free text hashed, evidence refs, chunk ids,
 prompt versions/provider/model, verification status, kept/dropped claim counts, bundle hash),
-`chat.pin`, `chat.unpin`, `chat.feedback`. References only, never raw rows or question text.
+`chat.pin`, `chat.unpin`, `chat.feedback`, and (PRD 8.2):
+- `chat.context_changed`: context version before and after, added/removed ids, before/after
+  hash of the selection.
+- `chat.request_denied`: `reasons` (`access_denied`, `out_of_scope_ids`, `other_tenant`),
+  `request`, `tenant_id`, question hash or out-of-scope count. Never the ids that were refused.
+- `chat.request_narrowed`: `bounds` (`hops_capped`, `window_limited`, `entities_limited`),
+  `requested_hops`, question hash.
+
+References only, never raw rows or question text.
 
 ## 6. Persisting agent output
 
@@ -715,6 +886,7 @@ Call them in this order:
 | 2 | `CaseDraftResult.trace`, `.case_status` | `agent_run_update(trace, case_status)` | `PATCH /agent-runs/{run_id}` (`append_agent_steps`) |
 | 3 | the alert's `EvidenceBundle` (`CaseRepository.get_evidence`) | `case_evidence_rows(bundle)` | `POST /cases/{case_id}/evidence`, one call per row → `case_evidence` |
 | 4 | `CaseDraftResult.draft` | `narrative_create(result, agent_run_uuid)` | `POST /cases/{case_id}/narratives` → `case_narratives`, `narrative_claims`, `narrative_citations` |
+| 4b | `CaseDecisionResult.edited_draft` (when the reviewer edited the summary) | `narrative_edit_create(result, narrative_uuid(draft_hash))` | `POST /cases/{case_id}/narratives` with `parent_narrative_id` = the drafted narrative |
 | 5 | `CaseDraftResult.verifier_errors`, `.flagged_claims` | `narrative_verification(result)` | `PUT /narratives/{narrative_id}/verification` |
 | 6 | `resume_case` → `Decision` + `CaseDecisionResult` | `case_decision_row(decision, result, narrative_uuid)` | `POST /cases/{case_id}/decisions` → `case_decisions` |
 | 7 | `CaseDecisionResult.trace`, `.case_status` | `agent_run_update(...)` (status `completed`) | `PATCH /agent-runs/{run_id}` |
@@ -743,7 +915,17 @@ goes there unchanged.
 - dismiss → `reject` + `no_further_action`
 - request_more_data → `edit` + `needs_more_information`
 
-`edited_summary` is appended to `notes`.
+`edited_summary` is appended to `notes`, and the edited version is its own narrative (row 4b).
+
+**Sections and versions.** Your `NarrativeCreate` has no column for the v4 sections, `draft_hash`
+or version:
+- `content` renders the summary plus one `## <Section>` block per section, each item followed by
+  its evidence ids.
+- Each claim's `referenced_values` carries `section`, `draft_hash` and `draft_version`.
+- `narrative_uuid(draft_hash)` gives the stable narrative uuid for a version, so the edit's
+  `parent_narrative_id` resolves.
+- Suggested backend change: add `draft_hash text`, `version int` and `sections jsonb` to
+  `case_narratives` (TEAM_QUESTIONS backend).
 
 **Where your schema cannot hold our original id** (`UNHOLDABLE_ORIGINAL_IDS`):
 - `CitationIn.policy_chunk_id`: there is no text field, and it is an FK to `policy_chunks`.

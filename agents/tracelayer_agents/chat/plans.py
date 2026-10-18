@@ -1,7 +1,7 @@
 """Prompt chips → deterministic tool plans (at most `MAX_TOOL_CALLS_PER_TURN` calls each).
 
-Seeds come from the reviewer's pins when they are in scope, else from the alert: the alert's
-transactions and the account that touches the most evidence transactions (the hub)."""
+Seeds come from the reviewer's selection, then pins, when they are in scope, else from the alert:
+the alert's transactions and the account that touches the most evidence transactions (the hub)."""
 
 from __future__ import annotations
 
@@ -22,6 +22,8 @@ CHIP_KEYWORDS: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
         ("why_connected", r"\b(?:connect|connected|related|relationship|link|linked)\b"),
         ("policy_guidance", r"\b(?:policy|guidance|regulat\w*|ffiec|fincen|rule|requirement)\b"),
         ("missing_data", r"\b(?:missing|quality|gap|incomplete|lineage|data)\b"),
+        ("shared_identifiers", r"\b(?:shared|same)\s+(?:devices?|ip|ips|ip addresses?|tokens?"
+                               r"|identifiers?|logins?)\b|\b(?:device|ip address|token)s?\b"),
         ("similar_cases", r"\b(?:similar|like this|other cases|comparable)\b"),
         ("next_steps", r"\b(?:next|follow[- ]?up|what should i|to do)\b"),
         ("evidence_per_signal", r"\b(?:signal|detector|component|factor)\b"),
@@ -34,18 +36,22 @@ def keyword_chip(text: str) -> str | None:
     return next((chip for chip, pattern in CHIP_KEYWORDS if pattern.search(text or "")), None)
 
 
-def _seeds(scope: CaseScope, pinned: list[str]) -> tuple[list[str], str]:
-    pinned_txs = [i for i in pinned if i in scope.edges]
+def _seeds(scope: CaseScope, pinned: list[str],
+           selected: list[str] | tuple[str, ...] = ()) -> tuple[list[str], str]:
+    pinned_txs = ([i for i in selected if i in scope.edges]
+                  or [i for i in pinned if i in scope.edges])
     pinned_accounts = [i for i in pinned if i in scope.account_ids]
     txs = pinned_txs or list(scope.alert.tx_ids)
     hub = pinned_accounts[0] if pinned_accounts else scope.hub_accounts[0]
     return [t for t in txs if t in scope.edges][:MAX_ROWS_DEFAULT], hub
 
 
-def chip_plan(chip: str, scope: CaseScope, pinned: list[str]) -> list[ToolCall]:
+def chip_plan(chip: str, scope: CaseScope, pinned: list[str],
+              selected: list[str] | tuple[str, ...] = ()) -> list[ToolCall]:
+    """`selected` (the reviewer's selected transactions) seeds the plan before `pinned`."""
     if chip not in CHAT_CHIPS:
         raise ValueError(f"unknown chip {chip!r}")
-    txs, hub = _seeds(scope, pinned)
+    txs, hub = _seeds(scope, pinned, selected)
     evidence = scope.evidence_tx_ids[:MAX_ROWS_DEFAULT]
 
     def call(tool: str, **args) -> ToolCall:
@@ -68,5 +74,6 @@ def chip_plan(chip: str, scope: CaseScope, pinned: list[str]) -> list[ToolCall]:
         "similar_cases": [call("similar_cases")],
         "next_steps": [call("quality_lineage"), call("policy_retrieval"),
                        call("model_explanation", tx_ids=txs)],
+        "shared_identifiers": [call("shared_token_search")],
     }
     return plans[chip]

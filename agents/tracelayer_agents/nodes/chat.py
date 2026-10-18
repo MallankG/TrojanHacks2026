@@ -1,4 +1,4 @@
-"""chat_workflow nodes: classify → tool_query → draft_answer → verify → respond.
+"""chat_workflow nodes: guard → classify → tool_query → draft_answer → verify → respond.
 
 Only `chat_classify` (free text) and `chat_draft_answer` call the LLM, through the usual
 Ollama → template chain. Tools run read-only inside the case scope; every number and id in an
@@ -16,9 +16,10 @@ from pydantic import BaseModel, ValidationError
 
 from tracelayer_agents import audit, precomputed
 from tracelayer_agents.audit import canonical_json, sha256_json
+from tracelayer_agents.chat import guard
 from tracelayer_agents.chat.claims import benign_support, tool_claims
 from tracelayer_agents.chat.plans import chip_plan
-from tracelayer_agents.chat.session import CaseScope
+from tracelayer_agents.chat.session import Actor, CaseScope
 from tracelayer_agents.chat.verify_chat import (
     benign_text_errors,
     chat_grounding,
@@ -34,6 +35,7 @@ from tracelayer_agents.schemas import (
     ChatClaim,
     ChatClassifyOutput,
     ChatDraftOutput,
+    ChatGuardOutput,
     ChatPlan,
     ChatPlanDraft,
     ChatRespondOutput,
@@ -55,18 +57,20 @@ M = TypeVar("M", bound=BaseModel)
 SUGGESTED_CHIPS = ["explain_alert", "trace_forward", "trace_backward", "missing_data"]
 
 
-def _plans_json(scope: CaseScope, pinned: list[str]) -> dict[str, list[dict[str, Any]]]:
-    return {chip: [c.model_dump(mode="json") for c in chip_plan(chip, scope, pinned)]
+def _plans_json(scope: CaseScope, pinned: list[str],
+                selected: list[str]) -> dict[str, list[dict[str, Any]]]:
+    return {chip: [c.model_dump(mode="json") for c in chip_plan(chip, scope, pinned, selected)]
             for chip in CHAT_CHIPS}
 
 
-def _case_context(scope: CaseScope, pinned: list[str]) -> dict[str, Any]:
+def _case_context(scope: CaseScope, pinned: list[str], selected: list[str]) -> dict[str, Any]:
     return {
         "alert_transaction_ids": list(scope.alert.tx_ids),
         "evidence_transaction_ids": scope.evidence_tx_ids,
         "hub_accounts": list(scope.hub_accounts),
         "accounts_in_scope": sorted(scope.account_ids)[:50],
         "pinned_evidence_ids": pinned,
+        **({"selected_transaction_ids": selected} if selected else {}),
         "case_window": [scope.window_start.isoformat(), scope.window_end.isoformat()],
         "typology_tags": list(scope.alert.typology_tags),
     }
@@ -90,13 +94,30 @@ async def _generate(
     return output, meta, False
 
 
+@traced_node("chat_guard", ChatGuardOutput)
+def chat_guard(state: Mapping[str, Any], ctx: NodeContext) -> ChatGuardOutput:
+    """Deterministic: deny questions naming records outside the case (or another tenant), note
+    how an unbounded question will be narrowed. Chips are bounded by construction."""
+    if state.get("chip"):
+        return ChatGuardOutput()
+    denied, narrowed, hops = guard.assess(state.get("question"), state["scope"])
+    if denied:
+        return ChatGuardOutput(denied=denied, intent="denied",
+                               clarification=guard.denial_message(denied))
+    return ChatGuardOutput(narrowed=narrowed, requested_hops=hops)
+
+
 @traced_node("chat_classify", ChatClassifyOutput, llm=True)
 async def chat_classify(state: Mapping[str, Any], ctx: NodeContext) -> ChatClassifyOutput:
+    if state.get("denied"):
+        raise SkipNode("request denied")
     scope: CaseScope = state["scope"]
     pinned = list(state.get("pinned") or [])
+    selected = list(state.get("selected") or [])
+    narrowed = list(state.get("narrowed") or [])
     chip = state.get("chip")
     if chip:
-        return ChatClassifyOutput(intent=chip, plan=chip_plan(chip, scope, pinned))
+        return ChatClassifyOutput(intent=chip, plan=chip_plan(chip, scope, pinned, selected))
 
     variables = {
         "question": html.escape(state.get("question") or ""),
@@ -104,12 +125,17 @@ async def chat_classify(state: Mapping[str, Any], ctx: NodeContext) -> ChatClass
             f"- {s.name}: {s.description}; {json.dumps(s.input_model.model_json_schema())}"
             for s in REGISTRY.values()
         ),
-        "case_context": _case_context(scope, pinned),
-        "chip_plans": _plans_json(scope, pinned),
+        "case_context": _case_context(scope, pinned, selected),
+        "chip_plans": _plans_json(scope, pinned, selected),
     }
     raw, meta, served = await _generate(state, ctx, "chat_plan", variables, ChatPlanDraft)
+    # Clamp hops/windows to the case bounds before validation: an unbounded plan is narrowed,
+    # never run as asked. Model output never becomes a query: only allowlisted ToolCalls with
+    # each tool's `extra="forbid"` input model survive (`ChatPlan`, `validate_call`).
+    calls, clamped = guard.clamp_plan(list(raw.tool_calls), scope, state.get("requested_hops"))
+    narrowed = list(dict.fromkeys([*narrowed, *clamped]))
     try:
-        plan = ChatPlan.model_validate(raw.model_dump())
+        plan = ChatPlan.model_validate({"intent": raw.intent, "tool_calls": calls})
     except ValidationError:
         return ChatClassifyOutput(
             intent=raw.intent or "invalid", plan=[], llm_meta=[meta], precomputed=served,
@@ -126,14 +152,16 @@ async def chat_classify(state: Mapping[str, Any], ctx: NodeContext) -> ChatClass
             clarification=f"{CLARIFY} (Not run: {'; '.join(dict.fromkeys(problems))}.)",
         )
     return ChatClassifyOutput(intent=plan.intent, plan=plan.tool_calls, llm_meta=[meta],
-                              precomputed=served)
+                              precomputed=served, narrowed=narrowed)
 
 
 @traced_node("chat_tool_query", ChatToolQueryOutput)
 async def chat_tool_query(state: Mapping[str, Any], ctx: NodeContext) -> ChatToolQueryOutput:
     if state.get("clarification"):
         raise SkipNode("no plan to run")
-    results = [await run_tool(call, state["scope"], ctx) for call in state.get("plan") or []]
+    actor = Actor(state["actor_id"], state["actor_role"], state.get("tenant_id"))
+    results = [await run_tool(call, state["scope"], ctx, actor=actor)
+               for call in state.get("plan") or []]
     return ChatToolQueryOutput(tool_results=results)
 
 
@@ -243,6 +271,27 @@ def chat_respond(state: Mapping[str, Any], ctx: NodeContext) -> ChatRespondOutpu
     answer_meta = metas[-1] if metas else None
     question = state.get("question") or ""
     clarified = bool(state.get("clarification"))
+    denied = list(state.get("denied") or [])
+    narrowed = list(state.get("narrowed") or [])
+    status = "denied" if denied else "needs_clarification" if clarified else "ok"
+    events = []
+    common = {"chat_id": state["chat_id"], "turn_id": state["turn_id"],
+              "trace_id": state.get("trace_id"),
+              "question_hash": sha256_json(question) if question else None}
+    if denied:
+        # Reason codes and the question hash only: never the ids the question named.
+        events.append(audit.record(
+            ctx.services.audit, action="chat.request_denied", object_type="case",
+            object_id=scope.case_id, actor_id=state["actor_id"], actor_role=state["actor_role"],
+            metadata={**common, "reasons": ",".join(denied)},
+        ))
+    elif narrowed:
+        events.append(audit.record(
+            ctx.services.audit, action="chat.request_narrowed", object_type="case",
+            object_id=scope.case_id, actor_id=state["actor_id"], actor_role=state["actor_role"],
+            metadata={**common, "bounds": ",".join(narrowed),
+                      "requested_hops": state.get("requested_hops")},
+        ))
     event = audit.record(
         ctx.services.audit, action="chat.turn", object_type="case", object_id=scope.case_id,
         actor_id=state["actor_id"], actor_role=state["actor_role"],
@@ -256,7 +305,8 @@ def chat_respond(state: Mapping[str, Any], ctx: NodeContext) -> ChatRespondOutpu
             "chip": state.get("chip"),
             "question_hash": sha256_json(question) if question else None,
             "intent": state.get("intent"),
-            "status": "needs_clarification" if clarified else "ok",
+            "status": status,
+            "context_version": state.get("context_version"),
             "tool_calls": ";".join(f"{r.tool}:{r.status}:{r.row_count}" for r in results),
             "tool_args": canonical_json([{"tool": r.tool, "args": _arg_ref(r.args)}
                                          for r in results]),
@@ -273,4 +323,4 @@ def chat_respond(state: Mapping[str, Any], ctx: NodeContext) -> ChatRespondOutpu
             "bundle_hash": scope.bundle.bundle_hash,
         },
     )
-    return ChatRespondOutput(audit_events=[event])
+    return ChatRespondOutput(audit_events=[*events, event])
