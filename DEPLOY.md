@@ -5,13 +5,16 @@ Every service below is on its free tier; none of them needs a card.
 | piece | host | free tier |
 |---|---|---|
 | Frontend (Next.js) | **Vercel** Hobby | unlimited hobby projects |
-| Backend (FastAPI + all models: XGBoost, temporal GNN, ensemble) | **Hugging Face Space** (Docker, CPU basic) | 2 vCPU, 16 GB RAM; sleeps after 48 h without traffic |
+| Backend (FastAPI; rules, anomaly, graph, agents) | **Render** web service (`render.yaml`) | 512 MB RAM; sleeps after 15 min idle |
+| Backend with all models (XGBoost, temporal GNN, ensemble) | **Hugging Face Space** (Docker, CPU basic) | **needs HF PRO ($9/month) since 2026**; 16 GB RAM |
 | LLM (case narratives, chat, copilot) | **Groq** API | `openai/gpt-oss-20b`: 30 requests/min, 8K tokens/min, 1,000 requests/day |
 | Database, auth, storage | **Supabase** (already set up) | 500 MB DB; pauses after 7 days idle |
 
-Why Hugging Face for the backend: the model stack (torch + xgboost + artifacts) needs about 1 GB of RAM.
-Render's and Koyeb's free tiers stop at 512 MB, so they can only run the backend without the trained models
-(see [Alternative: Render](#alternative-render-free-no-trained-models)).
+The trained-model stack (torch + xgboost + artifacts) needs about 1 GB of RAM. Free tiers that host a Python
+API stop at 512 MB (Render, Koyeb), so the free deploy is Render without the trained models
+([Render](#alternative-render-free-no-trained-models)); the models report "unavailable" and everything else runs.
+Hugging Face now charges for Docker Spaces on CPU basic (HTTP 402 "requires a PRO subscription"), so the full
+model stack (steps 2–3 below) needs HF PRO, or another host with ≥ 1 GB RAM.
 
 Do the steps in order: the frontend needs the backend URL, and the backend needs the frontend URL for CORS.
 
@@ -52,7 +55,7 @@ The repo is private, so the Space needs read access to clone it while it builds.
 4. **Permissions** → Repository permissions → **Contents: Read-only**. Nothing else.
 5. **Generate token** and copy it (`github_pat_...`).
 
-## Step 3: Create the Hugging Face Space (backend with all models, ~15 min including build)
+## Step 3: Create the Hugging Face Space (backend with all models; requires HF PRO, ~15 min including build)
 
 1. Sign up / sign in at https://huggingface.co.
 2. Top-right **+ New** → **Space**.
