@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "@/lib/live/demo-accounts";
 import { LIVE_ROLES } from "@/lib/live/roles";
 import { AuthRejected, LIVE_CONFIGURED, liveSignIn, liveSignOut } from "@/lib/live/session";
 import { ROUTES } from "@/lib/routes";
@@ -15,15 +16,6 @@ const MAX_ATTEMPTS = 3;
 const LOCK_MS = 15 * 60 * 1000;
 /** Prototype-only one-time code. Real sign-in is delegated to Supabase Auth. */
 const DEMO_CODE = "123456";
-/** Public demo accounts on the synthetic `demo-bank` tenant (also in ACCOUNTS_AND_ROLES.md), listed so viewers can explore every role. */
-const DEMO_PASSWORD = "TraceLayer2026!Demo";
-const DEMO_ACCOUNTS = [
-  { role: "Admin", email: "admin@demo.test" },
-  { role: "Lead investigator", email: "investigator@demo.test" },
-  { role: "Fraud / BSA analyst", email: "analyst@demo.test" },
-  { role: "BSA officer (reviewer)", email: "reviewer@demo.test" },
-  { role: "Data steward", email: "steward@demo.test" },
-] as const;
 
 function emailError(value: string): string | null {
   const email = value.trim();
@@ -171,7 +163,8 @@ export function SignInForm() {
           <p className="text-center text-xs text-muted">
             {LIVE_CONFIGURED ? "Email sign-in uses your live backend account. Company SSO opens the seeded demo." : "Prototype sign-in on seeded demo data."}
           </p>
-          <section aria-labelledby="demo-accounts" className="flex flex-col gap-2 border-t border-line pt-4">
+          {/* Live backend only: the seeded prototype ignores the account, so listing roles there would mislead. */}
+          {LIVE_CONFIGURED ? <section aria-labelledby="demo-accounts" className="flex flex-col gap-2 border-t border-line pt-4">
             <h3 id="demo-accounts" className="text-sm font-semibold">Demo accounts</h3>
             <p className="text-xs text-muted">
               Password for every account: <code className="rounded bg-canvas px-1.5 py-0.5 font-mono text-ink">{DEMO_PASSWORD}</code>
@@ -180,13 +173,14 @@ export function SignInForm() {
               {DEMO_ACCOUNTS.map((account) => (
                 <li key={account.email} className="flex items-center justify-between gap-3 py-1.5">
                   <span className="min-w-0">
-                    <span className="block text-[13px] font-medium">{account.role}</span>
+                    <span className="block text-[13px] font-medium">{LIVE_ROLES[account.role].label}</span>
                     <span className="block truncate font-mono text-xs text-muted">{account.email}</span>
                   </span>
                   <Button
                     size="sm"
                     variant="ghost"
-                    aria-label={`Fill in the ${account.role} demo account`}
+                    aria-label={`Fill in the ${LIVE_ROLES[account.role].label} demo account`}
+                    disabled={busy || locked}
                     onClick={() => {
                       setEmail(account.email);
                       setPassword(DEMO_PASSWORD);
@@ -198,7 +192,7 @@ export function SignInForm() {
                 </li>
               ))}
             </ul>
-          </section>
+          </section> : null}
         </form>
       ) : (
         <form className="flex flex-col gap-4" onSubmit={submitCode} noValidate>

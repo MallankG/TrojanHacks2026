@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { BRAND_DISCLAIMER, BRAND_HEADLINE, BRAND_LEAD } from "@/components/shell/brand-copy";
 import { LogoMark } from "@/components/shell/logo";
 import { ButtonLink } from "@/components/ui/button";
+import { RedirectIfSignedIn } from "@/features/auth/redirect-if-signed-in";
 import { ROUTES } from "@/lib/routes";
 
 export const metadata: Metadata = { title: { absolute: "TraceLayer · Governed financial-crime investigation" } };
@@ -16,6 +18,7 @@ const FEATURES = [
 export default function Home() {
   return (
     <main id="main" className="flex min-h-screen flex-col bg-sidebar px-6 py-8 text-white sm:px-12 sm:py-10">
+      <RedirectIfSignedIn />
       <header className="flex items-center gap-3">
         <LogoMark size={40} />
         <span className="text-[22px] font-bold">TraceLayer</span>
@@ -24,14 +27,13 @@ export default function Home() {
       <section className="mx-auto flex w-full max-w-[1080px] flex-1 flex-col justify-center gap-10 py-10">
         <div className="flex max-w-[680px] flex-col gap-5">
           <h1 className="text-[40px] font-semibold leading-[1.1] tracking-[-0.015em] sm:text-[48px]">
-            See the whole path. Trust every number.
+            {BRAND_HEADLINE}
           </h1>
           <p className="text-[17px] leading-relaxed text-hero-text">
-            A governed financial-crime investigation layer for community banks and credit unions. Clean data in, ranked
-            leads out, every claim traced to a source row.
+            {BRAND_LEAD}
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <ButtonLink href={ROUTES.signIn} className="px-6">
+            <ButtonLink href={ROUTES.signIn} variant="primary" className="px-6">
               Explore the live demo
             </ButtonLink>
             <span className="text-[13px] text-sidebar-muted">Demo accounts for every role are on the sign-in page.</span>
@@ -49,7 +51,7 @@ export default function Home() {
       </section>
 
       <footer className="text-[12.5px] text-sidebar-muted">
-        Prototype with synthetic data. Not a production AML system or a filing tool.
+        {BRAND_DISCLAIMER}
       </footer>
     </main>
   );
