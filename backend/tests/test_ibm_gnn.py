@@ -91,3 +91,4 @@ def test_hash_uniforms_accept_negative_seed():
     from ml.ibm.gnn import hash_uniforms
     t, n = torch.arange(4), torch.arange(4)
     assert np.array_equal(hash_uniforms(-1, t, 0, n, 2), hash_uniforms(2**64 - 1, t, 0, n, 2))
+    assert np.array_equal(hash_uniforms(np.int64(3), t, 0, n, 2), hash_uniforms(3, t, 0, n, 2))

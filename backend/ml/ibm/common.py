@@ -109,11 +109,15 @@ def build_cache(data, cache, groups=GROUPS):
     c = Path(cache)
     c.mkdir(parents=True, exist_ok=True)
     # Cheap check first (before the HI-Small load): groups kept from an earlier build must share this order.
-    stale = [p.name for p in c.glob("ibm_feat_*.parquet")
-             if p.stem[len("ibm_feat_"):] not in groups and _group_order(p) != ORDER_VERSION]
+    kept = {p.stem[len("ibm_feat_"):]: p for p in c.glob("ibm_feat_*.parquet") if p.stem[len("ibm_feat_"):] not in groups}
+    retired = sorted(g for g in kept if g not in GROUPS)
+    if retired:
+        print(f"ignoring retired feature groups {retired} in {c} (not read by any model)", flush=True)
+    stale = [p.name for g, p in kept.items() if g in GROUPS and _group_schema(p)[0] != ORDER_VERSION]
     if stale:
         raise ValueError(f"cache {c} has groups {stale} in another edge order than {ORDER_VERSION!r}; "
-                         "rebuild the cache with every group")
+                         "rebuild the cache with every group (or, if they come from a canon-v1 build that predates "
+                         "per-group stamps, run `python -m ml.ibm.common --cache <dir> --stamp-groups`)")
     e, y, (tr, va, te), safe, node_tr = load_edges(data)
     node_tr.rename_axis("account").reset_index().to_parquet(c / "ibm_node_features_train.parquet")  # serving needs it
     print(f"edges {len(e):,} | train {len(tr):,} val {len(va):,} test {len(te):,} ({time.time() - t0:.0f}s)", flush=True)
@@ -134,16 +138,19 @@ def load_cache(cache, groups, as_array=False):
     c = Path(cache)
     z = np.load(c / "ibm_split.npz")
     split = z["y"], (z["tr"], z["va"], z["te"]), z["amt"], npz_order(z)
-    mixed = {g: _group_order(c / f"ibm_feat_{g}.parquet") for g in groups}
+    schema = {g: _group_schema(c / f"ibm_feat_{g}.parquet") for g in groups}  # (order, ncols), one read per group
+    mixed = {g: o for g, (o, _) in schema.items()}
     if any(o != split[-1] for o in mixed.values()):
-        raise ValueError(f"cache {c}: feature groups {mixed} don't match the split's edge order {split[-1]!r}; rebuild it")
+        hint = (" or, if the unstamped groups come from a canon-v1 build that predates per-group stamps, run "
+                "`python -m ml.ibm.common --cache <dir> --stamp-groups`") if split[-1] == ORDER_VERSION else ""
+        raise ValueError(f"cache {c}: feature groups {mixed} don't match the split's edge order {split[-1]!r}; rebuild it{hint}")
     if not as_array:
         return (pd.concat([pd.read_parquet(c / f"ibm_feat_{g}.parquet") for g in groups], axis=1), *split)
     names, X, j = [], None, 0
     for g in groups:
         f = pd.read_parquet(c / f"ibm_feat_{g}.parquet")
         if X is None:
-            X = np.empty((len(f), sum(_ncols(c, h) for h in groups)), np.float32)
+            X = np.empty((len(f), sum(n for _, n in schema.values())), np.float32)
         X[:, j:j + f.shape[1]] = f.to_numpy(np.float32)
         names += list(f.columns)
         j += f.shape[1]
@@ -151,16 +158,28 @@ def load_cache(cache, groups, as_array=False):
     return (X, names), *split
 
 
-def _group_order(path):
-    """Edge-order stamp a feature group was written with (None for a legacy, unstamped parquet)."""
+def _group_schema(path):
+    """(edge-order stamp, feature column count) of a feature group; the stamp is None for an unstamped parquet."""
     import pyarrow.parquet as pq
-    attrs = (pq.read_schema(path).metadata or {}).get(b"PANDAS_ATTRS")
-    return json.loads(attrs).get("order") if attrs else None
+    s = pq.read_schema(path)
+    attrs = (s.metadata or {}).get(b"PANDAS_ATTRS")
+    return (json.loads(attrs).get("order") if attrs else None), len([n for n in s.names if not n.startswith("__index")])
 
 
-def _ncols(c, g):
-    import pyarrow.parquet as pq
-    return len([n for n in pq.read_schema(c / f"ibm_feat_{g}.parquet").names if not n.startswith("__index")])
+def stamp_groups(cache):
+    """One-shot migration: stamp unstamped feature groups with a canon-v1 split's order. Only for caches built
+    by canon-v1 code before per-group stamps existed; a legacy-order group would be mislabelled, so this is never
+    automatic."""
+    c = Path(cache)
+    order = npz_order(np.load(c / "ibm_split.npz"))
+    if order != ORDER_VERSION:
+        raise ValueError(f"split in {c} is in edge order {order!r}, not {ORDER_VERSION!r}; rebuild the cache instead")
+    for p in sorted(c.glob("ibm_feat_*.parquet")):
+        if p.stem[len("ibm_feat_"):] in GROUPS and _group_schema(p)[0] is None:
+            f = pd.read_parquet(p)
+            f.attrs["order"] = ORDER_VERSION
+            f.to_parquet(p)
+            print(f"stamped {p.name} as {ORDER_VERSION}", flush=True)
 
 
 def at_threshold(y, s, thr):
@@ -213,8 +232,14 @@ def cli(description):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data", required=True)
+    ap.add_argument("--data", help="HI-Small dir (required unless --stamp-groups)")
     ap.add_argument("--cache", default="ml/artifacts/ibm/cache")
     ap.add_argument("--groups", nargs="+", default=list(GROUPS), help="build only these groups (e.g. --groups cycles)")
+    ap.add_argument("--stamp-groups", action="store_true", help="stamp a pre-per-group-stamp canon-v1 cache's groups, then exit")
     a = ap.parse_args()
-    build_cache(a.data, a.cache, a.groups)
+    if a.stamp_groups:
+        stamp_groups(a.cache)
+    elif not a.data:
+        ap.error("--data is required")
+    else:
+        build_cache(a.data, a.cache, a.groups)

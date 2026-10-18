@@ -3,7 +3,6 @@ import pandas as pd
 import pytest
 
 from ml.ibm.common import load_cache
-from ml.ibm.gnn import hash_uniforms
 from ml.ibm.order import ORDER_VERSION
 
 
@@ -24,9 +23,22 @@ def test_load_cache_refuses_a_group_in_another_edge_order(tmp_path):
     assert load_cache(tmp_path, ["safe39"])[-1] == ORDER_VERSION
 
 
-def test_hash_uniforms_accepts_numpy_and_negative_seeds():
-    import torch
-    t = torch.arange(3)
-    a = hash_uniforms(np.int64(3), t, 0, t, 4)
-    assert np.array_equal(a, hash_uniforms(3, t, 0, t, 4))
-    assert hash_uniforms(-1, t, 0, t, 4).shape == (3, 4)
+def test_stamp_groups_migrates_a_pre_stamp_canon_cache(tmp_path):
+    from ml.ibm.common import stamp_groups
+    _cache(tmp_path, {"safe39": ORDER_VERSION, "temporal": None})  # temporal written before per-group stamps
+    stamp_groups(tmp_path)
+    assert load_cache(tmp_path, ["safe39", "temporal"])[-1] == ORDER_VERSION
+
+
+def test_build_cache_ignores_retired_groups(tmp_path, monkeypatch):
+    from ml.ibm import common
+    _cache(tmp_path, {"cycles": None})  # leftover unstamped retired group on the Colab cache
+
+    class Loaded(Exception):
+        pass
+
+    def load_edges(data):
+        raise Loaded  # got past the stale-group check
+    monkeypatch.setattr(common, "load_edges", load_edges)
+    with pytest.raises(Loaded):
+        common.build_cache("unused", tmp_path)

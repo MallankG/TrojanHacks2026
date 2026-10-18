@@ -31,6 +31,8 @@ def test_calibration_clears_only_after_per_target_gnn(tmp_path):
     assert calibration(["g", "x"], tmp_path) != "per-target"
     (tmp_path / "ibm_g_results.json").write_text(json.dumps({"hparams": {"temporal": True}, "calibration": "per-target"}))
     assert calibration(["g", "x"], tmp_path) == "per-target"
+    from ml.ibm.order import calibration_text
+    assert calibration_text("per-target") == calibration_text("per-target", temporal=False) != "per-target"
 
 
 def test_build_cache_refuses_orphan_legacy_parquet(tmp_path, monkeypatch):

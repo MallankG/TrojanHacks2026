@@ -21,7 +21,7 @@ import numpy as np
 from sklearn.metrics import average_precision_score
 
 from .common import evaluate_and_save
-from .order import npz_order
+from .order import calibration_text, npz_order
 
 ART = Path(__file__).parent.parent / "artifacts" / "ibm"
 
@@ -53,7 +53,7 @@ class EnsembleScorer:
         ref = np.load(d / f"ibm_ensemble_{a}_{b}_ref.npz")
         self.ref_a, self.ref_b, self.w = ref["ref_a"], ref["ref_b"], res[f"weight_{a}"]
         self.threshold = res["val"]["best_threshold"]
-        self.calibration = res.get("calibration", "batch-cap GNN scores; rebuild after gnn_temporal per-target re-eval")
+        self.calibration = calibration_text(res.get("calibration"))
 
     def blend(self, s_a, s_b):
         return blend_scores(self.ref_a, self.ref_b, self.w, s_a, s_b)
@@ -62,12 +62,12 @@ class EnsembleScorer:
 def calibration(models, out):
     """Clears EnsembleScorer's caveat only when every temporal GNN input was written by the per-target re-eval
     (gnn.main stamps calibration="per-target")."""
-    temporal = [m for m in models
-                if json.loads((Path(out) / f"ibm_{m}_results.json").read_text()).get("hparams", {}).get("temporal")]
+    res = {m: json.loads((Path(out) / f"ibm_{m}_results.json").read_text()) for m in models}
+    temporal = [m for m, r in res.items() if r.get("hparams", {}).get("temporal")]
     if not temporal:
         return "per-protocol threshold"  # no temporal GNN input, so per-target caps don't apply
     for m in temporal:
-        if json.loads((Path(out) / f"ibm_{m}_results.json").read_text()).get("calibration") != "per-target":
+        if res[m].get("calibration") != "per-target":
             return f"{m} has batch-cap GNN scores; rebuild after gnn_temporal per-target re-eval"
     return "per-target"
 

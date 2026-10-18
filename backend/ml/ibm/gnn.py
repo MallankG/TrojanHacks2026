@@ -23,7 +23,7 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 from torch import nn
 from torch_geometric.nn import GATv2Conv
 
-from .order import ORDER_VERSION, canonical, canonical_order
+from .order import ORDER_VERSION, calibration_text, canonical, canonical_order
 from .xgb import ENTITY_TYPES, PAPER_CUTOFFS, edge_features, load, metrics, split
 
 PAPER_GNN = {"auprc": 64.85, "best_f1": 68.42}
@@ -343,8 +343,19 @@ def main(data_dir, out=None, epochs=30, patience=5, bs=None, neg_frac=0.25, seed
              "hparams": dict(epochs=epochs, bs=bs, neg_frac=neg_frac, seed=seed, hidden=hidden, lr=lr, pos_weight=pos_weight, fanout=list(fanout), ego=ego, temporal=temporal),
              "operating_threshold": thr,
              # per-target caps + deterministic sampling: clears IBMGNNScorer's / EnsembleScorer's caveat
-             "calibration": "per-target" if temporal else "per-protocol threshold"}, indent=2))
+             "calibration": "per-target" if temporal else "per-protocol threshold",
+             "code_version": code_version()}, indent=2))
     return res
+
+
+def code_version():
+    """Short git sha of the code that wrote a results.json, so its calibration stamp is traceable."""
+    import subprocess
+    try:
+        return subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=Path(__file__).parent, capture_output=True,
+                              text=True, timeout=5, check=True).stdout.strip() or "unknown"
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
 
 
 class IBMGNNScorer:
@@ -369,10 +380,7 @@ class IBMGNNScorer:
         res = json.loads((d / f"ibm_{name}_results.json").read_text())
         self.threshold = res["operating_threshold"]
         # surfaced in every score() row so the API/UI can show it
-        self.calibration = res.get("calibration") or ("batch-cap threshold; per-target re-eval pending"
-                                                      if ck.get("temporal") else "per-protocol threshold")
-        if self.calibration == "per-target":  # the re-eval sampled from the full edge set (see score())
-            self.calibration = "per-target; threshold assumes scoring with the full edge history"
+        self.calibration = calibration_text(res.get("calibration"), ck.get("temporal", False))
 
     def score(self, edges, accounts, rows=None):
         e = edges.reset_index(drop=True).assign(ts=lambda d: pd.to_datetime(d["ts"]))
