@@ -3,6 +3,7 @@
 import type { AuditEvent, AuditType, Batch, ContractCheck, Tone } from "@/lib/types";
 import { liveApi, useLive, type AuditRow, type DqIssue, type IngestionRun, type Loadable } from "./api";
 import { utc, words } from "./format";
+import { profileName } from "./roles";
 import { useLiveProfile } from "./session";
 
 /**
@@ -98,7 +99,7 @@ export function useLiveAuditEvents(params: { object_type?: string; object_id?: s
   const query = useLive(async () => {
     if (!profile) return [];
     const page = await liveApi.audit({ ...params, limit: 200 });
-    const names = { [profile.id]: profile.display_name ?? profile.email ?? "You" };
+    const names = { [profile.id]: profileName(profile) };
     return page.items.map((row) => auditToEvent(row, names));
   }, `audit:${profile?.id ?? "demo"}:${params.object_type ?? ""}:${params.object_id ?? ""}`);
   return { ...query, live: profile !== null };

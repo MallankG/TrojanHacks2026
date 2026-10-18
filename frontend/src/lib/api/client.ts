@@ -4,6 +4,8 @@
  * and is the single place to wire real endpoints (alerts, cases, lineage, copilot).
  */
 
+import { redactError, safeText } from "@/lib/privacy/pii";
+
 export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
 
 export class ApiError extends Error {
@@ -37,7 +39,7 @@ export async function apiRequest<T>(path: string, { body, timeoutMs = 8000, head
     });
     const requestId = response.headers.get("x-request-id") ?? undefined;
     if (!response.ok) {
-      // The backend returns safe error codes and a short `detail`, never stack traces.
+      // Error text is shown in the UI, so it is redacted here: database messages can echo submitted values.
       throw new ApiError(await errorDetail(response), response.status, requestId);
     }
     return (await response.json()) as T;
@@ -49,9 +51,9 @@ export async function apiRequest<T>(path: string, { body, timeoutMs = 8000, head
 async function errorDetail(response: Response): Promise<string> {
   try {
     const data = (await response.json()) as { detail?: unknown };
-    if (typeof data.detail === "string") return data.detail;
-    // FastAPI validation errors: [{loc, msg}, ...]
-    if (Array.isArray(data.detail)) return data.detail.map((d: { msg?: string }) => d.msg ?? "Invalid input").join("; ");
+    if (typeof data.detail === "string") return redactError(data.detail, response.status);
+    // FastAPI validation errors: [{loc, msg}, ...]; `input` is never shown.
+    if (Array.isArray(data.detail)) return data.detail.map((d: { msg?: string }) => safeText(d.msg ?? "Invalid input")).join("; ");
   } catch {
     // Non-JSON body; fall through to the status code.
   }

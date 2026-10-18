@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { CASE_EVIDENCE_IDS, evidenceOrFallback } from "@/lib/domain/evidence";
 import { PROMPT_CHIPS } from "@/lib/domain/copilot";
 import { formatMoney } from "@/lib/format";
+import { usePiiGuard } from "@/lib/privacy/use-pii-guard";
 import { ROUTES } from "@/lib/routes";
 import { EDGES, edgeByTx, NODES } from "@/lib/seed/graph";
 import { askCopilot, clearChat, copilotBlockedReason, openModal, setCopilotFocus, switchCopilotCase, updateGraph } from "@/lib/store/actions";
@@ -17,6 +18,7 @@ import { CiteChip } from "@/components/ui/cite";
 import { Chip, OptionCard } from "@/components/ui/controls";
 import { TextInput } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
+import { PiiWarning } from "@/components/ui/pii-warning";
 import { Pill } from "@/components/ui/pill";
 import { EvidenceBody } from "@/features/evidence/evidence-body";
 import { ChatMessageView } from "./chat-message";
@@ -37,6 +39,7 @@ function DemoCopilotWorkspace() {
   const role = useRole();
   const registry = useEvidenceRegistry();
   const [draft, setDraft] = useState("");
+  const pii = usePiiGuard();
   const endRef = useRef<HTMLDivElement>(null);
   const { messages, focus, contextCase } = state.copilot;
   const fixed = state.data.driftFixed;
@@ -55,8 +58,19 @@ function DemoCopilotWorkspace() {
     event.preventDefault();
     const text = draft.trim();
     if (text.length < MIN_QUESTION_LENGTH) return;
+    // Questions go to the language model, so personal data is held back until the user redacts or edits it.
+    if (!pii.check(text)) return;
     askCopilot(text);
     setDraft("");
+  };
+
+  // The redacted copy passes the same checks as a typed question.
+  const redactedBlocked = blocked ? "The copilot is unavailable right now." : pii.held && pii.held.substance < MIN_QUESTION_LENGTH ? "Nothing would be left to ask once redacted; edit the question." : null;
+  const sendRedacted = () => {
+    if (!pii.held || redactedBlocked) return;
+    askCopilot(pii.held.redacted);
+    setDraft("");
+    pii.clear();
   };
 
   const hops = EDGES.filter((e) => !e.cycle);
@@ -178,13 +192,14 @@ function DemoCopilotWorkspace() {
             <div className="flex gap-2">
               <label className="flex-1">
                 <span className="sr-only">Ask a question about this case</span>
-                <TextInput value={draft} disabled={Boolean(blocked)} onChange={(e) => setDraft(e.target.value)} placeholder="Ask about CASE-0412, for example: where did the funds go next?" />
+                <TextInput value={draft} disabled={Boolean(blocked)} onChange={(e) => { setDraft(e.target.value); pii.clear(); }} placeholder="For example: where did the funds go next?" />
               </label>
               <Button type="submit" disabled={Boolean(blocked) || draft.trim().length < MIN_QUESTION_LENGTH}>
                 Send
               </Button>
             </div>
-            <span className={cn("text-xs text-muted")}>The copilot cannot file reports, freeze accounts or contact customers. Questions outside your case scope are refused and logged.</span>
+            {pii.held ? <PiiWarning held={pii.held} sendBlocked={redactedBlocked} onSendRedacted={sendRedacted} onEdit={pii.clear} /> : null}
+            <span className={cn("text-xs text-muted")}>The copilot cannot file reports, freeze accounts or contact customers. Questions outside your case scope are refused and logged. Emails, SSNs, card and phone numbers are never sent.</span>
           </form>
         </Card>
       </div>

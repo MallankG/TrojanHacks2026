@@ -8,12 +8,14 @@ import { useLive } from "@/lib/live/api";
 import { commandApi, useLiveNotifications, type SearchHit } from "@/lib/live/api-command";
 import { utc } from "@/lib/live/format";
 import { useLiveProfile } from "@/lib/live/session";
+import { setMasked, useMaskers } from "@/lib/privacy/store";
 import { useDemoState, useRole } from "@/lib/store/hooks";
 import { ROLE_ORDER, ROLES } from "@/lib/seed/roles";
 import type { RoleId } from "@/lib/types";
 import { buttonClasses } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Pill } from "@/components/ui/pill";
+import { useCanReveal } from "@/components/ui/sensitive";
 
 interface SearchEntry {
   id: string;
@@ -56,6 +58,7 @@ function GlobalSearch() {
   const router = useRouter();
   const state = useDemoState();
   const role = useRole();
+  const mask = useMaskers();
   const [query, setQuery] = useState("");
   const ref = useDismiss(query !== "", () => setQuery(""));
   const fixed = state.data.driftFixed;
@@ -145,8 +148,8 @@ function GlobalSearch() {
                 setQuery("");
               }}
             >
-              <b className="font-mono text-[12.5px]">{entry.id}</b>
-              <span className="text-xs text-muted">{entry.description}</span>
+              <b className="font-mono text-[12.5px]">{mask.text(entry.id)}</b>
+              <span className="text-xs text-muted">{mask.text(entry.description)}</span>
             </button>
           ))}
           {results.length === 0 ? (
@@ -214,6 +217,29 @@ function Notifications() {
   );
 }
 
+/** Account identifiers are masked by default; the toggle is in memory only and resets on reload or sign-in. */
+function MaskToggle() {
+  const { masked } = useMaskers();
+  const canReveal = useCanReveal();
+  // Switching to a role without reveal rights re-masks immediately.
+  useEffect(() => {
+    if (!canReveal && !masked) setMasked(true);
+  }, [canReveal, masked]);
+  return (
+    <button
+      type="button"
+      className={buttonClasses("ghost", "sm")}
+      aria-pressed={masked}
+      disabled={!canReveal}
+      title={!canReveal ? "Your role sees masked identifiers only." : masked ? "Account identifiers are masked. Click to show them in full." : "Account identifiers are shown in full. Click to mask them."}
+      onClick={() => setMasked(!masked)}
+    >
+      <Icon name={masked ? "eyeOff" : "eye"} size={16} />
+      {masked ? "IDs masked" : "IDs visible"}
+    </button>
+  );
+}
+
 export function Topbar() {
   const pathname = usePathname();
   const state = useDemoState();
@@ -227,6 +253,7 @@ export function Topbar() {
       </div>
       <GlobalSearch />
       <Pill tone="warn">Synthetic data</Pill>
+      <MaskToggle />
       <label className="flex items-center gap-2 text-[12.5px] text-muted" title={live ? "Your role comes from your account" : undefined}>
         Role
         <select

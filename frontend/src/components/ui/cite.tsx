@@ -2,6 +2,7 @@
 
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/cn";
+import { useMaskers } from "@/lib/privacy/store";
 import { openEvidence } from "@/lib/store/actions";
 
 interface CiteChipProps extends Omit<ComponentProps<"button">, "type" | "children"> {
@@ -11,11 +12,13 @@ interface CiteChipProps extends Omit<ComponentProps<"button">, "type" | "childre
 
 /** A citation to a piece of evidence. Defaults to opening the evidence viewer. */
 export function CiteChip({ id, pressed, onClick, className, ...props }: CiteChipProps) {
+  // Evidence can be an account; its id is masked in both the label and the accessible name.
+  const shown = useMaskers().text(id);
   return (
     <button
       type="button"
       aria-pressed={pressed}
-      aria-label={`Open evidence ${id}`}
+      aria-label={`Open evidence ${shown}`}
       onClick={onClick ?? (() => openEvidence(id))}
       className={cn(
         "my-0.5 mr-1 inline-flex min-h-[26px] items-center rounded-md border px-2 font-mono text-[11.5px] font-medium transition-colors",
@@ -24,7 +27,7 @@ export function CiteChip({ id, pressed, onClick, className, ...props }: CiteChip
       )}
       {...props}
     >
-      {id}
+      {shown}
     </button>
   );
 }

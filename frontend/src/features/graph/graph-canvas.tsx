@@ -3,9 +3,11 @@
 import type { GraphModel } from "@/lib/domain/graph";
 import { cn } from "@/lib/cn";
 import { formatMoneyShort } from "@/lib/format";
+import { useMaskers } from "@/lib/privacy/store";
 import { GRAPH_VIEWBOX, NODES } from "@/lib/seed/graph";
 import { selectGraphNode, updateGraph } from "@/lib/store/actions";
 import type { EdgeKey, GraphNode, NodeKey } from "@/lib/types";
+import { MaskedRef } from "@/components/ui/sensitive";
 
 const COLORS = { path: "#0B7A70", selected: "#1F4F8F", hold: "#B8860B" };
 
@@ -36,6 +38,7 @@ function NodeShape({ node, opacity }: { node: GraphNode; opacity: number }) {
 /** SVG draws shapes; HTML buttons on top make every node and edge keyboard-selectable. */
 export function GraphCanvas({ model, fixed }: { model: GraphModel; fixed: boolean }) {
   const { width, height } = GRAPH_VIEWBOX;
+  const mask = useMaskers();
   const edgeKeys = Object.keys(model.edges) as EdgeKey[];
   const nodeKeys = Object.keys(NODES) as NodeKey[];
   const token = NODES.T;
@@ -93,7 +96,7 @@ export function GraphCanvas({ model, fixed }: { model: GraphModel; fixed: boolea
             key={key}
             type="button"
             aria-pressed={e.selected}
-            aria-label={`${e.edge.tx}, ${from.id} to ${to.id}`}
+            aria-label={`${e.edge.tx}, ${mask.ref(from.id)} to ${mask.ref(to.id)}`}
             onClick={() => updateGraph({ selection: { kind: "edge", key } })}
             className={cn(
               "absolute flex min-h-8 -translate-x-1/2 -translate-y-1/2 flex-col justify-center whitespace-nowrap rounded-lg border bg-white px-2 py-0.5 text-center text-[11.5px] font-semibold leading-tight",
@@ -121,7 +124,7 @@ export function GraphCanvas({ model, fixed }: { model: GraphModel; fixed: boolea
             className={cn("absolute flex min-h-[26px] -translate-x-1/2 flex-col items-center whitespace-nowrap rounded-md px-1.5 py-0.5 font-mono text-[11.5px] font-bold leading-tight", render.selected ? "bg-ink text-white" : "bg-white/85")}
             style={{ left: pct(node.x, width), top: pct(above ? node.y - (render.unreached && !fixed ? 74 : 62) : node.y + 30, height) }}
           >
-            <span>{node.id}</span>
+            <MaskedRef value={node.id} />
             {render.unreached && !fixed ? <span className="font-sans text-[10.5px] font-medium">not reached</span> : null}
           </button>
         );

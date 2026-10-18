@@ -1,4 +1,4 @@
-import { LIVE_ROLES } from "@/lib/live/roles";
+import { LIVE_ROLES, profileName } from "@/lib/live/roles";
 import type { LiveProfile } from "@/lib/live/session";
 import { ROLES } from "@/lib/seed/roles";
 import type { Role, RoleId } from "@/lib/types";
@@ -14,7 +14,7 @@ export function resolveRole(seededRole: RoleId, profile: LiveProfile | null): Ro
   const live = LIVE_ROLES[profile.role];
   return {
     ...ROLES[live.uiRole],
-    name: profile.display_name ?? profile.email ?? "Signed in",
+    name: profileName(profile),
     label: live.label,
     canUpload: live.canUpload,
     canAccessCases: live.canInvestigate,

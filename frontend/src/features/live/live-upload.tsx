@@ -6,6 +6,8 @@ import { runToBatch } from "@/lib/live/adapters";
 import { errorMessage, invalidateLive, liveApi, type UploadResult } from "@/lib/live/api";
 import { dataOpsApi, type MappingPreview } from "@/lib/live/api-data-ops";
 import { SEVERITY_TONE, words } from "@/lib/live/format";
+import { SENSITIVE_FIELDS } from "@/lib/privacy/pii";
+import { useMaskers } from "@/lib/privacy/store";
 import { closeModal, selectBatch, toast } from "@/lib/store/actions";
 import type { Tone } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -186,6 +188,7 @@ function MappingStep({ preview, previewing, locked, onChange }: { preview: Mappi
   const counts = preview.rows.reduce<Record<string, number>>((acc, r) => (r.status ? { ...acc, [r.status]: (acc[r.status] ?? 0) + 1 } : acc), {});
   const blocking = preview.schema_issues.filter((i) => i.severity === "critical" || i.severity === "error");
   const sampleColumns = required.filter((f) => f.column);
+  const mask = useMaskers();
 
   return (
     <div className="flex flex-col gap-3.5" aria-busy={previewing}>
@@ -199,6 +202,9 @@ function MappingStep({ preview, previewing, locked, onChange }: { preview: Mappi
         </Callout>
       ) : null}
 
+      <p className="text-xs text-muted">
+        Fields marked Sensitive carry personal data. Party names are used only for entity resolution; account references and names are masked wherever they are displayed, and free text is scanned for PII.
+      </p>
       <DataTable caption="Column mapping to the canonical schema">
         <thead>
           <tr>
@@ -216,6 +222,11 @@ function MappingStep({ preview, previewing, locked, onChange }: { preview: Mappi
                 {f.required ? (
                   <Pill tone="info" className="ml-1.5">
                     Required
+                  </Pill>
+                ) : null}
+                {SENSITIVE_FIELDS[f.field] ? (
+                  <Pill tone="warn" className="ml-1.5">
+                    Sensitive<span className="sr-only">: {SENSITIVE_FIELDS[f.field]}</span>
                   </Pill>
                 ) : null}
               </Td>
@@ -272,7 +283,7 @@ function MappingStep({ preview, previewing, locked, onChange }: { preview: Mappi
                 </Td>
                 {sampleColumns.map((f) => (
                   <Td key={f.field} className="max-w-[160px] truncate font-mono text-xs">
-                    {row.values[f.column!] ?? ""}
+                    {mask.record({ [f.field]: row.values[f.column!] ?? "" })[f.field]}
                   </Td>
                 ))}
                 <Td className="min-w-[200px] text-xs">

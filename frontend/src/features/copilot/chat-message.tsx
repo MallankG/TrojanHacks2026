@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { CiteChip } from "@/components/ui/cite";
 import { Pill } from "@/components/ui/pill";
+import { SensitiveText } from "@/components/ui/sensitive";
 
 interface ChatMessageViewProps {
   message: ChatMessage;
@@ -17,7 +18,7 @@ interface ChatMessageViewProps {
 
 export function ChatMessageView({ message, focus, fixed, graphDown }: ChatMessageViewProps) {
   if (message.who === "user") {
-    return <div className="max-w-[85%] self-end rounded-[14px_14px_4px_14px] bg-ink px-3.5 py-2.5 text-sm text-white">{message.text}</div>;
+    return <div className="max-w-[85%] self-end rounded-[14px_14px_4px_14px] bg-ink px-3.5 py-2.5 text-sm text-white"><SensitiveText value={message.text} /></div>;
   }
 
   // Answers are rebuilt from current state so they always reflect data fixes and outages.
@@ -47,7 +48,7 @@ export function ChatMessageView({ message, focus, fixed, graphDown }: ChatMessag
           <ul className="mt-1 flex list-disc flex-col gap-1.5 pl-[18px] text-[13.5px]">
             {section.items.map((item) => (
               <li key={item.text}>
-                {item.text}{" "}
+                <SensitiveText value={item.text} />{" "}
                 {item.cites.map((id) => (
                   <CiteChip key={id} id={id} pressed={focus === id} onClick={() => setCopilotFocus(id)} />
                 ))}
@@ -81,7 +82,7 @@ export function ChatMessageView({ message, focus, fixed, graphDown }: ChatMessag
           {answer.tools.map((tool) => (
             <li key={`${tool.name}-${tool.args}`} className="flex flex-wrap justify-between gap-2 rounded-lg bg-subtle px-2.5 py-2 text-[12.5px]">
               <span>
-                <b className="font-mono">{tool.name}</b> <span className="text-xs text-muted">({tool.args})</span>
+                <b className="font-mono">{tool.name}</b> <span className="text-xs text-muted">(<SensitiveText value={tool.args} />)</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="text-xs text-muted">{tool.duration}</span>

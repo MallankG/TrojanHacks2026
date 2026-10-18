@@ -20,7 +20,13 @@ const FORMATS: Array<{ key: "json" | "csv" | "pdf"; label: string }> = [
   { key: "pdf", label: "Readable PDF" },
 ];
 
-const PRIVACY_CHECKS = ["Identifiers are synthetic or tokenized", "No raw SSN or full identity numbers", "Free-text fields scanned for PII", "Download requires sign-in"];
+// Each check names a control the app enforces (see docs/PRIVACY.md).
+const PRIVACY_CHECKS = [
+  "Identifiers are synthetic, and masked in display by default",
+  "Emails, SSNs, card and phone numbers redacted from free text",
+  "Narratives and notes pass the PII filter before display",
+  "Download requires sign-in; sensitive exports require step-up authentication",
+];
 
 /** Human-reviewed SAR-support package. It is a case-support artifact, never a FinCEN filing. */
 export function ReportBuilder() {

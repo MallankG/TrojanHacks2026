@@ -3,6 +3,7 @@
 import { useMemo, type KeyboardEvent } from "react";
 import type { GraphEdge, GraphNode, WorkbenchGraph } from "@/lib/live/api-graph";
 import { money } from "@/lib/live/format";
+import { useMaskers } from "@/lib/privacy/store";
 
 const COLORS = { edge: "#9aa7b9", highlight: "#B8860B", selected: "#1F4F8F", focus: "#F2B84B" };
 const COL_W = 180;
@@ -91,7 +92,8 @@ interface CanvasProps {
 /** Money-flow graph for the live workbench. Every node and edge is focusable and selectable by keyboard. */
 export function LiveGraphCanvas({ graph, focus, selection, onSelect, highlight, marked }: CanvasProps) {
   const layout = useMemo(() => layeredLayout(graph, focus), [graph, focus]);
-  const label = (n: GraphNode | undefined, id: string) => n?.account_ref ?? id.slice(0, 8);
+  const mask = useMaskers();
+  const label = (n: GraphNode | undefined, id: string) => mask.ref(n?.account_ref ?? id.slice(0, 8));
   const nodesById = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n])), [graph]);
 
   // Parallel edges between the same pair fan out so each stays clickable.
