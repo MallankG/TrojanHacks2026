@@ -321,3 +321,10 @@ def checkpoint_serializer():
     from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
     types = [v for v in vars(contracts).values() if isinstance(v, type) and v.__module__ == contracts.__name__]
     return JsonPlusSerializer(allowed_msgpack_modules=types)
+
+
+def verify_narrative(draft: contracts.NarrativeDraft, bundle: contracts.EvidenceBundle,
+                     sources: list[contracts.RetrievedChunk]) -> list[contracts.VerifierError]:
+    """Deterministic verification for human edits and preview; never modifies a workflow."""
+    from tracelayer_agents.nodes.verify import verify_evidence
+    return verify_evidence(draft,bundle,sources)

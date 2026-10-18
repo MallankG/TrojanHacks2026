@@ -211,8 +211,58 @@ def test_other_reviewer_can_decide(as_user):
     case = {"id": CASE, "status": "pending_review", "escalation_requested_by": REVIEWER}
     decision = {"id": "d1", "decision": "escalate"}
     with patch("app.api.routes.cases.get_one", return_value=case), \
+            patch("app.api.routes.cases._active_agent_run", return_value=False), \
+            patch("app.api.routes.cases._latest_narrative", return_value=[]), \
             patch("app.api.routes.cases.insert_many", return_value=[decision]):
         response = client.post(f"/cases/{CASE}/decisions", json={"decision": "escalate", "notes": "agree"})
+    assert response.status_code == 201
+
+
+def test_decision_blocked_while_agent_review_active(as_user):
+    client = as_user(_user(REVIEWER_2, "reviewer"))
+    case = {"id": CASE, "status": "pending_review", "escalation_requested_by": REVIEWER}
+    with patch("app.api.routes.cases.get_one", return_value=case), \
+            patch("app.api.routes.cases._active_agent_run", return_value=True), \
+            patch("app.api.routes.cases.insert_many") as insert:
+        response = client.post(f"/cases/{CASE}/decisions", json={"decision": "escalate", "notes": "agree"})
+    assert response.status_code == 409
+    insert.assert_not_called()
+
+
+def test_final_decision_needs_passed_latest_narrative(as_user):
+    client = as_user(_user(REVIEWER_2, "reviewer"))
+    case = {"id": CASE, "status": "pending_review", "escalation_requested_by": REVIEWER}
+    with patch("app.api.routes.cases.get_one", return_value=case), \
+            patch("app.api.routes.cases._active_agent_run", return_value=False), \
+            patch("app.api.routes.cases._latest_narrative", return_value=[{"id": CASE, "verification_status": "failed", "author_type": "agent", "agent_drafted": True}]), \
+            patch("app.api.routes.cases.insert_many") as insert:
+        response = client.post(f"/cases/{CASE}/decisions", json={"decision": "accept", "notes": "ok"})
+    assert response.status_code == 422
+    insert.assert_not_called()
+
+
+def test_unverified_user_narrative_cannot_skip_the_agent_check(as_user):
+    client = as_user(_user(REVIEWER_2, "reviewer"))
+    case = {"id": CASE, "status": "pending_review", "escalation_requested_by": REVIEWER}
+    latest = [{"id": CASE, "verification_status": "pending", "author_type": "user", "agent_drafted": True}]
+    with patch("app.api.routes.cases.get_one", return_value=case), \
+            patch("app.api.routes.cases._active_agent_run", return_value=False), \
+            patch("app.api.routes.cases._latest_narrative", return_value=latest), \
+            patch("app.api.routes.cases.insert_many") as insert:
+        response = client.post(f"/cases/{CASE}/decisions", json={"decision": "accept", "notes": "ok"})
+    assert response.status_code == 422
+    insert.assert_not_called()
+
+
+def test_human_narrative_does_not_need_a_verifier_receipt(as_user):
+    client = as_user(_user(REVIEWER_2, "reviewer"))
+    case = {"id": CASE, "status": "pending_review", "escalation_requested_by": REVIEWER}
+    with patch("app.api.routes.cases.get_one", return_value=case), \
+            patch("app.api.routes.cases._active_agent_run", return_value=False), \
+            patch("app.api.routes.cases._latest_narrative",
+                  return_value=[{"id": CASE, "verification_status": "pending", "author_type": "user"}]), \
+            patch("app.api.routes.cases.insert_many", return_value=[{"id": "d1", "decision": "accept"}]):
+        response = client.post(f"/cases/{CASE}/decisions", json={"decision": "accept", "notes": "ok"})
     assert response.status_code == 201
 
 

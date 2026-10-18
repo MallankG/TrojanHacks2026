@@ -71,7 +71,7 @@ def at_k(y, scores, ks=(100, 500, 1000)) -> dict:
     order = np.argsort(-np.asarray(scores), kind="stable")
     y = np.asarray(y)[order]
     total = max(int(y.sum()), 1)
-    return {f"{m}@{k}": float(y[:k].sum() / (k if m == "precision" else total)) for k in ks for m in ("precision", "recall")}
+    return {f"{m}@{k}": float(y[:k].sum() / (max(1,min(k,len(y))) if m == "precision" else total)) for k in ks for m in ("precision", "recall")}
 
 
 def write_manifest(manifest: dict, out_dir) -> Path:

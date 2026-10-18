@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { call, errorMessage, invalidateLive, liveApi, useLive } from "@/lib/live/api";
 import { useLiveProfile } from "@/lib/live/session";
 import { usePiiGuard } from "@/lib/privacy/use-pii-guard";
@@ -12,9 +12,10 @@ import { Pill } from "@/components/ui/pill";
 import { PiiWarning } from "@/components/ui/pii-warning";
 import { SensitiveText } from "@/components/ui/sensitive";
 
-interface Draft {
+export interface Draft {
   summary: string;
-  observed_facts: Array<{ text: string }>;
+  observed_facts: Array<{ text: string; claim_type: string; transaction_ids: string[]; account_ids: string[]; amounts: string[]; dates: string[]; citation_chunk_ids: string[] }>;
+  citations: string[]; evidence_transaction_ids: string[]; prompt_version: string;
   uncertainties: string[];
   follow_up_questions: string[];
   provider: string;
@@ -32,7 +33,7 @@ export interface AgentRun {
     halted?: boolean;
     alerts?: Array<{ alert_id: string }>;
     case_status?: string;
-    verifier_errors?: Array<{ code: string; message: string }>;
+    verifier_errors?: Array<{ code: string; detail: string; claim_index: number | null }>;
     answer?: { answer: string; no_answer: boolean; provider: string; model: string; fallback_used: boolean; unknowns: string[] };
     sources?: Array<{ chunk_id: string; doc_title: string; excerpt: string; source_uri: string }>;
   };
@@ -84,7 +85,13 @@ function RunReceipt({ run }: { run: AgentRun | null }) {
     {r?.draft ? <>
       <p className="text-sm"><SensitiveText value={r.draft.summary} /></p>
       <p className="text-xs text-muted">{r.draft.fallback_used ? "Deterministic fallback · human review required" : "Model synthesis"} · {r.draft.provider} / {r.draft.model}</p>
-      <ul className="list-disc pl-5 text-sm">{r.draft.observed_facts.map((c,i)=><li key={i}><SensitiveText value={c.text} /></li>)}</ul>
+      <ol className="flex list-decimal flex-col gap-3 pl-5 text-sm">{r.draft.observed_facts.map((c,i)=><li key={i}>
+        <p><SensitiveText value={c.text} /></p><details><summary className="cursor-pointer text-xs font-semibold">Claim {i+1} · {c.claim_type} · Evidence references</summary>
+          <p className="break-all text-xs">Transactions: {c.transaction_ids.join(", ") || "None"}</p>
+          <p className="break-all text-xs">Accounts: {c.account_ids.join(", ") || "None"}</p>
+          <p className="break-all text-xs">Amounts: {c.amounts.join(", ") || "None"} · Dates: {c.dates.join(", ") || "None"}</p>
+          <p className="break-all text-xs">Policy chunks: {c.citation_chunk_ids.join(", ") || "None"}</p>
+        </details></li>)}</ol>
       <p className="text-sm">Unknowns: <SensitiveText value={r.draft.uncertainties.join(" ")} /></p>
       <p className="text-sm">Follow up: <SensitiveText value={r.draft.follow_up_questions.join(" ")} /></p>
     </> : null}
@@ -95,9 +102,9 @@ function RunReceipt({ run }: { run: AgentRun | null }) {
       {r.sources?.map(s=><blockquote key={s.chunk_id} className="border-l-2 border-line pl-3 text-sm"><b>{s.doc_title}</b><p>{s.excerpt}</p><span className="break-all text-xs text-muted">{s.source_uri} · {s.chunk_id}</span></blockquote>)}
     </> : null}
     {r?.governance_status ? <Callout tone={r.halted ? "warn" : "ok"}>
-      Governance: {r.governance_status}. {r.halted ? "Strict mode stopped analysis. Resolve quality issues or explicitly choose exploratory analysis." : `${r.alerts?.length ?? 0} alerts published from this batch. Graph risk is unavailable until a graph model is deployed.`}
+      Governance: {r.governance_status}. {r.halted ? "Strict mode stopped analysis. Resolve quality issues or explicitly choose exploratory analysis." : `${r.alerts?.length ?? 0} alerts published from this batch. Inspect saved model runs for versions, availability and research-model limitations.`}
     </Callout> : null}
-    {r?.verifier_errors?.length ? <Callout tone="warn">Verifier flagged {r.verifier_errors.length} issue(s). Review the saved receipt before making a decision.</Callout> : null}
+    {r?.verifier_errors?.length ? <Callout tone="warn"><b>Verifier flagged {r.verifier_errors.length} issue(s).</b><ul>{r.verifier_errors.map((e,i)=><li key={i}>{e.claim_index != null && e.claim_index >= 0 ? `Claim ${e.claim_index+1}` : "Narrative text"} · {e.code}: {e.detail}</li>)}</ul></Callout> : null}
     <details><summary className="cursor-pointer text-xs font-semibold">Saved workflow steps ({run.steps.length})</summary>
       <ol className="mt-2 text-xs">{run.steps.map((s,i)=><li key={i}>{s.node.replaceAll("_", " ")} · {s.status} · {Math.round(s.duration_ms)} ms</li>)}</ol>
       <p className="mt-1 break-all text-xs text-muted">Run {run.id}</p>
@@ -138,6 +145,7 @@ export function CaseAgents({ caseId, initialRunId, closed }: { caseId: string; i
     <Button onClick={start} disabled={closed || active || !profile || !["admin","analyst","investigator","reviewer"].includes(profile.role)}>Draft with investigation agents</Button>
     {error ? <Callout tone="bad" role="alert">{error}</Callout> : null}
     <RunReceipt key={`${run?.id}:${run?.status}`} run={run}/>
+    {run?.result?.draft ? <DraftReviewEditor key={run.id} run={run} canSave={!closed && run.status==="awaiting_review"} onSaved={()=>setRun({...run,status:"completed"})}/> : null}
     {run && ["queued","running","failed"].includes(run.status) ? <Button variant="ghost" onClick={recover} disabled={busy}>Recover interrupted run</Button> : null}
     {run?.status === "awaiting_review" && !closed ? <div className="mt-4 flex flex-col gap-3">
       <Field label="Agent review decision">{p=><Select {...p} value={action} onChange={e=>setAction(e.target.value)}>
@@ -199,4 +207,43 @@ export function LiveAgentCopilot() {
       {error || cases.error ? <Callout tone="bad">{error || cases.error}</Callout> : null}<RunReceipt key={`${run?.id}:${run?.status}`} run={run}/>
     </div>
   </Panel>;
+}
+
+
+function DraftReviewEditor({run,canSave,onSaved}:{run:AgentRun;canSave:boolean;onSaved:()=>void}) {
+  const [draft,setDraft]=useState<Draft>(()=>structuredClone(run.result!.draft!));
+  const [result,setResult]=useState<{passed:boolean;verifier_errors:Array<{code:string;detail:string;claim_index:number|null}>}|null>(null);
+  const [message,setMessage]=useState(""); const [busy,setBusy]=useState(false);
+  // One key per draft content: a retry of the same draft replays, an edited draft is a new save.
+  const revisionKey=useMemo(()=>crypto.randomUUID(),[draft]);
+  const check=async(candidate:Draft)=>{
+    setBusy(true);setMessage("");
+    try {setResult(await call(`/agents/runs/${run.id}/verify-draft`,{method:"POST",body:{draft:candidate}}));}
+    catch(e){setMessage(errorMessage(e));}finally{setBusy(false);}
+  };
+  const inject=()=>{
+    const candidate=structuredClone(draft);
+    candidate.observed_facts.unshift({text:"Transaction TX-UNSUPPORTED-DEMO moved $987654321.09.",claim_type:"fact",transaction_ids:["TX-UNSUPPORTED-DEMO"],account_ids:[],amounts:["987654321.09"],dates:[],citation_chunk_ids:[]});
+    check(candidate);
+    setMessage("Unsaved verification preview with an unsupported claim. The saved case and editor text are unchanged.");
+  };
+  const save=async()=>{
+    setBusy(true);setMessage("");
+    try {const r=await call<{version:number}>(`/agents/runs/${run.id}/revisions`,{method:"POST",body:{draft,request_key:revisionKey}});
+      setMessage(`Human revision ${r.version} saved with a passed verifier receipt. Review it in Narratives, then use the case decision panel to accept, reject or escalate.`);
+      for(const key of ["case:","cases","audit:"])invalidateLive(key);onSaved();
+    }catch(e){setMessage(errorMessage(e));}finally{setBusy(false);}
+  };
+  return <details className="mt-4"><summary className="cursor-pointer font-semibold">Review draft and check evidence</summary>
+    <div className="mt-3 flex flex-col gap-3">
+      <p className="text-xs text-muted">Edit the summary or claim wording. Evidence references remain visible above. Checks run against actual case evidence; an unsupported preview is never saved.</p>
+      <Field label="Edited narrative summary">{p=><TextArea {...p} rows={4} value={draft.summary} onChange={e=>{setDraft({...draft,summary:e.target.value});setResult(null);}}/>}</Field>
+      {draft.observed_facts.map((c,i)=><Field key={i} label={`Edited claim ${i+1}`}>{p=><TextArea {...p} rows={2} value={c.text} onChange={e=>{setDraft({...draft,observed_facts:draft.observed_facts.map((v,j)=>j===i?{...v,text:e.target.value}:v)});setResult(null);}}/>}</Field>)}
+      <div className="flex flex-wrap gap-2"><Button variant="ghost" onClick={()=>check(draft)} disabled={busy}>Check edited draft</Button>
+      <Button variant="ghost" onClick={inject} disabled={busy}>Preview unsupported claim</Button>
+      <Button onClick={save} disabled={busy || !canSave}>Save verified human revision</Button></div>
+      {result ? <Callout tone={result.passed?"ok":"warn"}>{result.passed?"All evidence checks passed.":"Unsupported claims blocked."}<ul>{result.verifier_errors.map((e,i)=><li key={i}>{e.claim_index!=null && e.claim_index>=0?`Claim ${e.claim_index+1}`:"Narrative text"} · {e.code}: {e.detail}</li>)}</ul></Callout>:null}
+      {message?<p role="status" className="text-sm">{message}</p>:null}
+    </div>
+  </details>;
 }

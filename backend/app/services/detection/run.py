@@ -10,7 +10,7 @@ from app.core.security import CurrentUser
 from app.schemas import AlertBatch
 from app.services import alerts as alert_service
 
-from . import anomaly, config, supervised
+from . import anomaly, config, benchmarks
 from .detectors import Finding, run_rules
 from .fusion import fuse
 from .ledger import Ledger, Txn, parse_ts
@@ -86,17 +86,20 @@ def run_detection(user: CurrentUser, window_days: int | None = None, max_transac
         _finish_run(user, current, "completed", {"signals": len(anomalies)})
         current = None
 
-        sup = supervised.score(ledger, {t for f in rules for t in f.evidence})
-        if sup.skipped_reason is None:
-            current = runs["supervised"] = _start_run(user, sup.model_card.get("model_name", "xgboost"), "supervised",
-                                                      str(sup.model_card.get("model_version", "unknown")), dataset,
-                                                      {"artifact": config.SUPERVISED["artifact_dir"]})["id"]
-            _write_signals(user, current, sup.findings)
-            _finish_run(user, current, "completed", {"signals": len(sup.findings), "scored": sup.scored})
-            current = None
+        models=benchmarks.score(ledger,{t for f in rules for t in f.evidence})
+        sup=models['xgb_temporal']
+        model_findings=[]
+        for name,result in models.items():
+            if result.skipped_reason: continue
+            kind='graph_model' if name=='gnn_temporal' else 'supervised'
+            current=runs[name]=_start_run(user,name,kind,result.card['model_version'],dataset,result.card)['id']
+            _write_signals(user,current,result.findings)
+            _finish_run(user,current,'completed',{'signals':len(result.findings),'scored':result.scored,**result.card})
+            model_findings.extend(result.findings)
+            current=None
 
         current = runs["ranker"] = _start_run(user, "alert-fusion", "ranker", config.POLICY_VERSION, dataset, config.snapshot())["id"]
-        fused = fuse(rules, anomalies, sup.findings)
+        fused = fuse(rules, anomalies, model_findings)
         caveat = (f"Data-quality caveat: {ledger.excluded_no_usd} non-USD transaction(s) were excluded from USD scoring "
                   "because their USD conversion is missing.") if ledger.excluded_no_usd else None
         if caveat:

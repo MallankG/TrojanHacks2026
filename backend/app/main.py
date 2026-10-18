@@ -17,6 +17,9 @@ from app.core.errors import install_error_handlers
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
+from app.core.logging_safety import install as install_log_redaction
+install_log_redaction()
+
 settings = get_settings()
 
 app = FastAPI(
