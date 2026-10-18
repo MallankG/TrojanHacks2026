@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 from uuid import UUID
 
@@ -5,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.deps import Limit, Offset, ensure_tenant_ids, page
 from app.core import audit
+from app.core.config import get_settings
 from app.core.db import fetch_by_ids, get_db, get_one, insert_many, to_json, with_actor
 from app.core.errors import NotFound
 from app.core.security import ANY_CALLER, CAN_INVESTIGATE, CAN_INVESTIGATE_OR_SERVICE, CurrentUser
@@ -30,8 +32,9 @@ def _check_assignee(user: CurrentUser, assignee: UUID | None) -> None:
 def create_case(body: CaseCreate, user: CurrentUser = Depends(CAN_INVESTIGATE)) -> dict:
     _check_assignee(user, body.assigned_to)
     ensure_tenant_ids("alerts", user.tenant_id, body.alert_ids, "alert ids")
+    due_at = datetime.now(UTC) + timedelta(hours=get_settings().case_review_sla_hours)
     row = {"tenant_id": user.tenant_id, "title": body.title, "summary": body.summary, "priority_band": body.priority_band,
-           "assigned_to": body.assigned_to or user.id, "created_by": user.id}
+           "assigned_to": body.assigned_to or user.id, "created_by": user.id, "due_at": due_at}
     case = with_actor(get_db().table("cases").insert(to_json(row)), user).execute().data[0]
     evidence = case_service.attach_alerts(user, case["id"], [str(a) for a in body.alert_ids])
     return {**case, "evidence_added": len(evidence)}
@@ -86,7 +89,14 @@ def update_case(case_id: UUID, body: CaseUpdate, user: CurrentUser = Depends(CAN
         _check_assignee(user, body.assigned_to)
     if not changes:
         raise HTTPException(422, "Nothing to update")
-    return case_service.update_case(user, str(case_id), changes)
+    if "due_at" in changes and changes["due_at"] is not None:
+        changes["due_at"] = changes["due_at"].astimezone(UTC)
+    updated = case_service.update_case(user, str(case_id), changes)
+    # Status and owner changes are audited by a database trigger; record the other fields here.
+    other = {k: v for k, v in changes.items() if k not in ("status", "assigned_to")}
+    if other:
+        audit.record(user, "case.updated", "case", str(case_id), {"fields": sorted(other), "due_at": changes.get("due_at")})
+    return updated
 
 
 @router.post("/{case_id}/alerts", status_code=201)
@@ -107,7 +117,10 @@ def add_evidence(case_id: UUID, body: EvidenceIn, user: CurrentUser = Depends(CA
             raise HTTPException(422, "Unknown policy chunk")
     row = {**body.model_dump(), "tenant_id": user.tenant_id, "case_id": str(case_id), "added_by": user.id,
            "added_by_type": user.actor_type}
-    return insert_many("case_evidence", [row], actor=user)[0]
+    evidence = insert_many("case_evidence", [row], actor=user)[0]
+    audit.record(user, "case.evidence_added", "case", str(case_id),
+                 {"evidence_id": evidence["id"], "evidence_type": body.evidence_type, "kind": body.payload.get("kind")})
+    return evidence
 
 
 @router.get("/{case_id}/evidence-bundle")
@@ -131,9 +144,10 @@ def evidence_passport(case_id: UUID, user: CurrentUser = Depends(ANY_CALLER)) ->
 @router.post("/{case_id}/decisions", status_code=201)
 def record_decision(case_id: UUID, body: DecisionIn, user: CurrentUser = Depends(CAN_INVESTIGATE)) -> dict:
     """Human review step. The database enforces that only reviewers/admins accept, reject, escalate or dispose."""
-    case = _case_or_404(user, case_id, "id, status")
+    case = _case_or_404(user, case_id, "id, status, escalation_requested_by")
     if case["status"] == "closed":
         raise HTTPException(409, "Case is already closed")
+    case_service.check_four_eyes(case, user, body.decision, body.disposition)
     if body.decision != "edit" and user.role not in ("reviewer", "admin"):
         raise HTTPException(403, "Only reviewers can accept, reject or escalate")
     if body.disposition and user.role not in ("reviewer", "admin"):
@@ -156,16 +170,16 @@ def list_decisions(case_id: UUID, user: CurrentUser = Depends(ANY_CALLER)) -> li
 @router.get("/{case_id}/export-url")
 def export_url(case_id: UUID, user: CurrentUser = Depends(CAN_INVESTIGATE)) -> dict:
     """Writes the evidence bundle to the private case-exports bucket and returns a short-lived signed URL."""
+    import hashlib
     import json
-    from datetime import UTC, datetime
-
-    from app.core.config import get_settings
 
     _case_or_404(user, case_id, "id")
     bundle = case_service.evidence_bundle(user.tenant_id, str(case_id))
     path = f"{user.tenant_id}/cases/{case_id}/{datetime.now(UTC):%Y%m%dT%H%M%SZ}.json"
+    data = json.dumps(bundle, indent=2).encode()
+    digest = hashlib.sha256(data).hexdigest()
     storage = get_db().storage.from_(get_settings().case_exports_bucket)
-    storage.upload(path, json.dumps(bundle, indent=2).encode(), {"content-type": "application/json"})
+    storage.upload(path, data, {"content-type": "application/json"})
     signed = storage.create_signed_url(path, 300)
-    audit.record(user, "case.exported", "case", str(case_id), {"path": path})
-    return {"path": path, "url": signed.get("signedURL") or signed.get("signedUrl"), "expires_in": 300}
+    audit.record(user, "case.exported", "case", str(case_id), {"path": path, "sha256": digest, "format": "evidence-bundle-json"})
+    return {"path": path, "url": signed.get("signedURL") or signed.get("signedUrl"), "expires_in": 300, "sha256": digest}

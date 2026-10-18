@@ -3,15 +3,17 @@
 import { useMemo } from "react";
 import { buildEvidence } from "@/lib/domain/evidence";
 import { scoreAlerts } from "@/lib/domain/priority";
-import { ROLES } from "@/lib/seed/roles";
+import { useLiveProfile } from "@/lib/live/session";
 import type { Role } from "@/lib/types";
+import { resolveRole } from "./role";
 import { useDemoState } from "./store";
 
 export { useDemoState, useHydrated } from "./store";
 
 export function useRole(): Role {
   const state = useDemoState();
-  return ROLES[state.role];
+  const profile = useLiveProfile();
+  return useMemo(() => resolveRole(state.role, profile), [profile, state.role]);
 }
 
 export function useScoredAlerts() {

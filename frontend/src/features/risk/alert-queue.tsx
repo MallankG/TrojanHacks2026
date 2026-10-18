@@ -15,11 +15,12 @@ import { Chip, Segmented } from "@/components/ui/controls";
 import { TextInput } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/misc";
 import { Pill } from "@/components/ui/pill";
+import { LiveAlertEntries } from "@/features/live/live-alerts";
 
 type BandFilter = QueueBandFilter;
 type StatusFilter = QueueStatusFilter;
 
-export function AlertQueue({ selectedId }: { selectedId: AlertId }) {
+export function AlertQueue({ selectedId }: { selectedId: AlertId | string }) {
   const alerts = useScoredAlerts();
   // Filters live in the store so they survive moving between alert pages.
   const { text, band, status, grouped } = useDemoState().riskQueue;
@@ -39,6 +40,8 @@ export function AlertQueue({ selectedId }: { selectedId: AlertId }) {
 
   return (
     <Card aria-label="Ranked alerts" className="flex min-w-0 max-w-[420px] flex-[1_1_340px] flex-col gap-2.5 p-3.5">
+      {/* Live backend alerts (nothing without a live session), then the seeded sample queue. */}
+      <LiveAlertEntries selectedId={selectedId} />
       <label>
         <span className="sr-only">Filter alerts</span>
         <TextInput value={text} onChange={(e) => setText(e.target.value)} placeholder="Filter by ID or typology" />

@@ -18,6 +18,19 @@ Interactive docs: http://127.0.0.1:8000/docs. Tests: `python -m pytest -q`.
 
 Database schema lives in `../supabase/migrations` (already applied to the project).
 
+### Test the full system with the frontend
+
+```bash
+# test users in the demo-bank tenant (Supabase Auth, email confirmed)
+python -m scripts.create_user --email analyst@demo.test  --password 'choose-a-long-one' --role analyst
+python -m scripts.create_user --email reviewer@demo.test --password 'choose-a-long-one' --role reviewer
+python -m scripts.create_user --email steward@demo.test  --password 'choose-a-long-one' --role data_steward
+```
+
+Then sign in to the frontend with one of these emails (`frontend/README.md`) and upload `sample_data/demo_transactions.csv` from Data operations → Upload CSV batch.
+It has a 5-hop layering chain, structuring-like cash deposits, a 3-account cycle, benign payroll and 7 malformed
+rows (bad timestamp, unknown currency, negative amount, duplicate ID, unknown channel, missing account, no timezone).
+
 ## Auth
 
 | Caller | How | Role |

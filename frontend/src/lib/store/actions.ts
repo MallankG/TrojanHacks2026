@@ -5,6 +5,10 @@ import { routeIntent } from "@/lib/domain/copilot";
 import { bundleBlockers, isCaseVerified, MIN_RATIONALE, verifyClaimEdit } from "@/lib/domain/case";
 import { bandError } from "@/lib/domain/governance";
 import { parseWeights, scoringInputs } from "@/lib/domain/priority";
+import { LIVE_ROLES } from "@/lib/live/roles";
+import { getSession, liveSignOut } from "@/lib/live/session";
+import { clearLiveCache } from "@/lib/live/api";
+import { resolveRole } from "./role";
 import { ROLES, deniedMessage } from "@/lib/seed/roles";
 import type { FeatureFlagKey } from "@/lib/seed/governance";
 import type { AlertId, AnswerKey, AuditType, Batch, CaseId, CaseStatus, DispositionChoice, NodeKey, Rail, RoleId } from "@/lib/types";
@@ -25,7 +29,7 @@ type EventSpec = { type: AuditType; action: string; object?: string; system?: bo
 
 /** Appends audit events, newest first, advancing the demo clock. */
 function withEvents(state: DemoState, specs: EventSpec[]): DemoState {
-  const role = ROLES[state.role];
+  const role = resolveRole(state.role, getSession()?.profile ?? null);
   let seq = state.seq;
   const created = specs.map((spec) => {
     seq += 1;
@@ -62,7 +66,7 @@ export function dismissToast(id: number): void {
 }
 
 function role() {
-  return ROLES[getState().role];
+  return resolveRole(getState().role, getSession()?.profile ?? null);
 }
 
 /** Returns false (and explains why) when the current role cannot do something. */
@@ -73,23 +77,36 @@ function guard(allowed: boolean, message?: string): boolean {
 
 // ---------- session ----------
 
-export function signIn(): void {
-  setState((s) => ({ ...s, authed: true }));
+/** With a live backend session the role comes from the user's profile, never from the role menu. */
+function liveUiRole(): RoleId | null {
+  const profile = getSession()?.profile;
+  return profile ? LIVE_ROLES[profile.role].uiRole : null;
+}
+
+/** `role` is passed for a live sign-in, where it comes from the backend profile. */
+export function signIn(role?: RoleId): void {
+  setState((s) => ({ ...s, authed: true, role: role ?? s.role }));
   toast("Signed in. Sessions end after 15 minutes of inactivity.");
 }
 
 export function signOut(): void {
+  void liveSignOut();
+  clearLiveCache();
   setState((s) => ({ ...s, authed: false, modal: null }));
 }
 
 export function setRole(next: RoleId): void {
+  if (liveUiRole()) {
+    toast("Your role comes from your account. Sign in as a different user to change it.");
+    return;
+  }
   setState((s) => ({ ...s, role: next }));
   toast(`Signed in as ${ROLES[next].name}, ${ROLES[next].label}. Permissions updated.`);
 }
 
 export function resetDemo(): void {
-  setState(() => ({ ...createInitialState(), authed: true }));
-  toast("Demo reset to the seeded scenario.");
+  setState(() => ({ ...createInitialState(), authed: true, role: liveUiRole() ?? "analyst" }));
+  toast(liveUiRole() ? "Seeded scenario reset. Live backend data is unchanged." : "Demo reset to the seeded scenario.");
 }
 
 export function toggleSimulation(kind: "llm" | "graph"): void {

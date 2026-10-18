@@ -21,15 +21,22 @@ class Settings(BaseSettings):
     # Sent as X-Service-Key together with X-Tenant-Id. Leave unset to disable worker access.
     service_api_key: str | None = None
 
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000", "http://127.0.0.1:3000"])
     max_upload_mb: int = 25
+    # Internal review SLA for open alerts on the command center (a demo setting, not a regulatory deadline).
+    review_sla_days: int = Field(default=5, ge=1, le=90)
 
     source_files_bucket: str = "source-files"
     case_exports_bucket: str = "case-exports"
     model_artifacts_bucket: str = "model-artifacts"
 
+    # Default internal review SLA for new cases (demo setting, not a legal obligation).
+    case_review_sla_hours: int = Field(default=72, ge=1, le=24 * 90)
+
     canonical_schema_version: str = "canonical-txn-v1"
     pipeline_version: str = "ingest-pipeline-1.0.0"
+    # A source feed with no upload for longer than this is shown as late on the data operations screen.
+    source_freshness_sla_hours: int = 24
 
 
 @lru_cache

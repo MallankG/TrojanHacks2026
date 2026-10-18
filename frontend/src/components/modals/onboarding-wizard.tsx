@@ -21,6 +21,7 @@ import {
 import { deniedMessage } from "@/lib/seed/roles";
 import { closeModal, commitBatch } from "@/lib/store/actions";
 import { useRole } from "@/lib/store/hooks";
+import { useLiveProfile } from "@/lib/live/session";
 import type { Batch } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
@@ -42,6 +43,8 @@ type Step = 1 | 2 | 3 | 4 | 5;
 export function OnboardingWizard() {
   const router = useRouter();
   const role = useRole();
+  // With a live session this wizard is still the scripted walkthrough; real uploads use Upload CSV batch.
+  const live = useLiveProfile() !== null;
   const [step, setStep] = useState<Step>(1);
   const [file, setFile] = useState<OnboardFileKey | null>(null);
   const [mapping, setMapping] = useState<TargetMapping>("");
@@ -145,7 +148,7 @@ export function OnboardingWizard() {
   return (
     <Dialog
       key="wizard"
-      eyebrow="Source onboarding"
+      eyebrow={live ? "Guided sample · nothing is uploaded" : "Source onboarding"}
       title={ONBOARD_TITLES[step - 1]}
       size="lg"
       onClose={requestClose}

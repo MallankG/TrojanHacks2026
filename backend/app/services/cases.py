@@ -1,5 +1,7 @@
 """Case assembly and the structured evidence bundle consumed by the agent service."""
 
+from fastapi import HTTPException
+
 from app.core.db import fetch_by_ids, get_db, insert_many, to_json, with_actor
 from app.core.security import CurrentUser
 
@@ -135,3 +137,10 @@ def next_narrative_version(tenant_id: str, case_id: str) -> int:
 def update_case(user: CurrentUser, case_id: str, changes: dict) -> dict:
     query = get_db().table("cases").update(to_json(changes)).eq("tenant_id", user.tenant_id).eq("id", case_id)
     return with_actor(query, user).execute().data[0]
+
+
+def check_four_eyes(case: dict, user: CurrentUser, decision: str, disposition: str | None) -> None:
+    """Four-eyes rule: whoever requested an escalation cannot also record the escalate decision or the disposition."""
+    final = decision == "escalate" or disposition is not None
+    if final and case.get("escalation_requested_by") and case["escalation_requested_by"] == user.id:
+        raise HTTPException(403, "Four-eyes rule: a different reviewer must decide on an escalation you requested")

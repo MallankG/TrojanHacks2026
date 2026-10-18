@@ -136,6 +136,7 @@ export type ConfirmAction = "escalate" | "close" | "more" | "approve" | "return"
 
 export type ModalState =
   | { kind: "onboard" }
+  | { kind: "liveUpload" }
   | { kind: "mappingFix" }
   | { kind: "evidence"; id: string }
   | { kind: "confirm"; action: ConfirmAction }

@@ -1,7 +1,5 @@
-import { redirect } from "next/navigation";
-import { ROUTES } from "@/lib/routes";
-import { DEFAULT_ENTITY } from "@/lib/seed/entities";
+import { EntitiesIndex } from "@/features/entity/entities-index";
 
 export default function EntitiesIndexPage() {
-  redirect(ROUTES.entity(DEFAULT_ENTITY));
+  return <EntitiesIndex />;
 }

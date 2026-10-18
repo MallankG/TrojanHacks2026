@@ -36,6 +36,26 @@ FIELD_DESCRIPTIONS = {
     "typology": "Ground-truth typology for synthetic/benchmark data only",
 }
 
+# Value type of each canonical field as stored after normalization (shown in the data contract).
+FIELD_TYPES = {
+    "transaction_id": "text",
+    "timestamp": "timestamptz (UTC)",
+    "amount": "decimal (4 dp)",
+    "currency": "ISO-4217 code",
+    "origin_account": "text (2-64 chars)",
+    "destination_account": "text (2-64 chars)",
+    "channel": "enum",
+    "origin_bank": "text",
+    "destination_bank": "text",
+    "origin_name": "text",
+    "destination_name": "text",
+    "description": "text (max 1000)",
+    "status": "enum",
+    "direction": "enum",
+    "is_suspicious": "boolean",
+    "typology": "enum",
+}
+
 # Aliases are compared after lower-casing and stripping non-alphanumerics.
 FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     "transaction_id": ("transactionid", "txnid", "txid", "id", "transactionref", "reference"),
@@ -117,17 +137,49 @@ def normalize_entity_name(name: str) -> str:
     return re.sub(r"\s+", " ", upper).strip()
 
 
+def dedupe_headers(headers: list[str]) -> list[str]:
+    """Make repeated column names unique the way pandas does ("Account", "Account.1").
+
+    IBM AML exports repeat "Account" for the sending and receiving side; without this the second
+    column would silently overwrite the first when rows are read into dictionaries.
+    """
+    seen: set[str] = set()
+    result: list[str] = []
+    for header in headers:
+        name, n = header, 0
+        while name in seen:
+            n += 1
+            name = f"{header}.{n}"
+        seen.add(name)
+        result.append(name)
+    return result
+
+
+def match_kind(field: str, column: str) -> str:
+    """How an auto-detected column matched a field: 'exact' (same name) or 'alias'."""
+    return "exact" if key(column) == key(field) else "alias"
+
+
 def auto_map(headers: list[str], overrides: dict[str, str] | None = None) -> dict[str, str]:
-    """Map canonical fields to source columns. Explicit overrides win; aliases fill the rest."""
+    """Map canonical fields to source columns. Explicit overrides win; aliases fill the rest.
+
+    An override with an empty column ("") marks the field as deliberately unmapped, so auto-detection
+    does not fill it back in.
+    """
     mapping: dict[str, str] = {}
     used: set[str] = set()
+    skipped: set[str] = set()
     for field, column in (overrides or {}).items():
-        if field in CANONICAL_FIELDS and column:
+        if field not in CANONICAL_FIELDS:
+            continue
+        if column:
             mapping[field] = column
             used.add(column)
+        else:
+            skipped.add(field)
     by_key = {key(h): h for h in headers}
     for field in CANONICAL_FIELDS:
-        if field in mapping:
+        if field in mapping or field in skipped:
             continue
         for alias in (key(field),) + FIELD_ALIASES.get(field, ()):
             column = by_key.get(alias)

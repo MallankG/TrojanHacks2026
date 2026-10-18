@@ -307,3 +307,81 @@ class RowValidator:
                     "typology": typology if label and typology in c.TYPOLOGIES else None,
                 }
         return RowResult(row_number, raw, normalized, issues)
+
+
+@dataclass(frozen=True)
+class RuleSpec:
+    """Catalog entry for one data-quality rule. Documentation only: the checks above are the behaviour."""
+
+    rule_id: str
+    issue_type: str
+    severity: str
+    scope: str  # "file" (whole upload) or "row"
+    fields: tuple[str, ...]
+    checks: str
+
+    @property
+    def outcome(self) -> str:
+        if self.severity in ("error", "critical"):
+            return "Run fails; nothing is loaded" if self.scope == "file" else "Row rejected; never reaches transactions"
+        return "Kept with a caveat" if self.severity == "warning" else "Recorded for information"
+
+
+_REQUIRED = tuple(c.REQUIRED_FIELDS)
+
+# Every rule_id raised in this module, in evaluation order. tests/test_data_ops.py checks this list
+# against the Issue(...) calls above so the catalog cannot drift from the rules that actually run.
+RULE_CATALOG: tuple[RuleSpec, ...] = (
+    RuleSpec("DQ-SCH-001", "schema_mismatch", "critical", "file", _REQUIRED,
+             "Every required canonical field is mapped to a source column"),
+    RuleSpec("DQ-SCH-002", "schema_mismatch", "critical", "file", _REQUIRED,
+             "Each mapped column for a required field exists in the file header"),
+    RuleSpec("DQ-SCH-003", "schema_mismatch", "info", "file", (),
+             "Columns not mapped to the canonical schema are listed (possible schema drift)"),
+    RuleSpec("DQ-REQ-001", "missing_required_field", "error", "row", _REQUIRED,
+             "Required values are present in the row"),
+    RuleSpec("DQ-TS-001", "invalid_timestamp", "error", "row", ("timestamp",),
+             "Timestamp parses as ISO-8601 or a known date format"),
+    RuleSpec("DQ-TS-002", "invalid_timestamp", "error", "row", ("timestamp",),
+             f"Timestamp is not before {MIN_TIMESTAMP:%Y-%m-%d}"),
+    RuleSpec("DQ-TS-003", "invalid_timestamp", "warning", "row", ("timestamp",),
+             "Timestamp is no more than one day in the future"),
+    RuleSpec("DQ-TS-004", "invalid_timestamp", "info", "row", ("timestamp",),
+             "Timestamp carries a timezone; naive times are interpreted as UTC and the original is kept"),
+    RuleSpec("DQ-CUR-001", "invalid_currency", "error", "row", ("currency",),
+             "Currency is a known ISO-4217 code or currency name"),
+    RuleSpec("DQ-AMT-001", "invalid_amount", "error", "row", ("amount",), "Amount is numeric"),
+    RuleSpec("DQ-AMT-002", "invalid_amount", "error", "row", ("amount",), "Amount is greater than zero"),
+    RuleSpec("DQ-AMT-004", "invalid_amount", "error", "row", ("amount",),
+             f"Amount does not round to zero at {-AMOUNT_QUANTUM.as_tuple().exponent} decimal places"),
+    RuleSpec("DQ-AMT-003", "invalid_amount", "error", "row", ("amount",),
+             f"USD-equivalent amount is at most {MAX_PLAUSIBLE_AMOUNT:,}"),
+    RuleSpec("DQ-ACC-001", "unresolved_account", "error", "row", ("origin_account", "destination_account"),
+             "Account identifier is 2-64 characters [A-Za-z0-9_-:.] and not a placeholder such as 'unknown'"),
+    RuleSpec("DQ-CHN-001", "invalid_format", "warning", "row", ("channel",),
+             "Channel is a known payment rail; unknown values are mapped to 'other'"),
+    RuleSpec("DQ-STS-001", "invalid_format", "warning", "row", ("status",),
+             "Status is a known value; unknown values are treated as 'posted'"),
+    RuleSpec("DQ-DUP-001", "duplicate_record", "error", "row", ("transaction_id",),
+             "transaction_id is unique within the file"),
+    RuleSpec("DQ-DUP-002", "duplicate_record", "error", "row", ("transaction_id",),
+             "transaction_id has not been ingested before for this tenant"),
+    RuleSpec("DQ-DUP-003", "duplicate_record", "warning", "row", (),
+             "Without a transaction_id, an identical event (time, amount, currency, accounts, channel) "
+             "does not repeat within the file"),
+)
+
+
+def rule_catalog() -> list[dict]:
+    return [
+        {
+            "rule_id": r.rule_id,
+            "issue_type": r.issue_type,
+            "severity": r.severity,
+            "scope": r.scope,
+            "fields": list(r.fields),
+            "checks": r.checks,
+            "outcome": r.outcome,
+        }
+        for r in RULE_CATALOG
+    ]

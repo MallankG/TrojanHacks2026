@@ -25,7 +25,7 @@ def list_issues(
 ) -> dict:
     query = (
         get_db().table("data_quality_issues").select("*, source_rows(row_number, status)", count="exact")
-        .eq("tenant_id", user.tenant_id).order("created_at", desc=True)
+        .eq("tenant_id", user.tenant_id).order("created_at", desc=True).order("id")
     )
     for column, value in (("status", status), ("severity", severity), ("issue_type", issue_type), ("run_id", run_id)):
         if value:

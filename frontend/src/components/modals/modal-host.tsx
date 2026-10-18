@@ -1,6 +1,7 @@
 "use client";
 
 import { useDemoState } from "@/lib/store/hooks";
+import { LiveUploadDialog } from "@/features/live/live-upload";
 import { ConfirmCaseDialog } from "./confirm-case-dialog";
 import { EditClaimDialog } from "./edit-claim-dialog";
 import { EvidenceDialog } from "./evidence-dialog";
@@ -19,6 +20,8 @@ export function ModalHost() {
   switch (modal.kind) {
     case "onboard":
       return <OnboardingWizard />;
+    case "liveUpload":
+      return <LiveUploadDialog />;
     case "mappingFix":
       return <MappingFixDialog />;
     case "evidence":
