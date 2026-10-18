@@ -270,3 +270,54 @@ def verify_audit_chain() -> AuditVerification:
         return AuditVerification(
             ok=False, checked=0, reason=_internal(exc, "verify_audit_chain")
         )
+
+
+class AgentRuntime:
+    """Explicit live runtime. No module-global repositories, mock fallback or golden fixtures.
+
+    The backend creates one per authorized run and supplies a durable, run-scoped checkpointer.
+    Node traces are streamed through the audit adapter's optional record_trace method.
+    """
+
+    def __init__(self, services: Services, config: AgentConfig, *, checkpointer, thread_id: str):
+        from dataclasses import fields
+        from tracelayer_agents.registry import mocks_forced
+        if mocks_forced() or config.use_precomputed:
+            raise ValueError("Mock and precomputed execution are forbidden in the live runtime")
+        if any(getattr(services, f.name) is None for f in fields(Services)):
+            raise ValueError("Every live service adapter must be supplied explicitly")
+        self.services, self.config = services, config
+        self.checkpointer, self.thread_id = checkpointer, thread_id
+
+    async def run_analysis(self, batch_ref: str, mode: Mode = "strict") -> AnalysisResult:
+        state = await analysis_workflow.run_analysis(batch_ref, mode, self.services, self.config)
+        halted = state.get("case_status") == CaseStatus.HELD_FOR_DATA_REVIEW
+        return AnalysisResult(status="halted" if halted else "ok", halted=halted,
+            trace_id=state["trace_id"], governance_status=state.get("governance_status"),
+            alerts=state.get("alerts", []), trace=state.get("trace_events", []))
+
+    async def start_case(self, alert_id: str, case_id: str) -> CaseDraftResult:
+        return await case_workflow.start_case(alert_id, self.services, self.config,
+            case_id=case_id, thread_id=self.thread_id, checkpointer=self.checkpointer)
+
+    async def resume_case(self, case_id: str, decision: Decision) -> CaseDecisionResult:
+        return await case_workflow.resume_case(case_id, decision, self.services, self.config,
+            thread_id=self.thread_id, checkpointer=self.checkpointer)
+
+    async def recover_case(self, alert_id: str, case_id: str):
+        return await case_workflow.recover_case(case_id, alert_id, self.services, self.config,
+            thread_id=self.thread_id, checkpointer=self.checkpointer)
+
+    async def copilot_query(self, question: str, alert_id: str | None = None) -> CopilotResult:
+        return await copilot_workflow.run_copilot(question, alert_id, self.services, self.config)
+
+# Public contracts/helpers for backend adapters. Workflow internals remain private.
+from tracelayer_agents import schemas as contracts
+canonical_hash = audit.sha256_json
+hash_event = audit.event_hash
+verify_events = audit.verify_chain
+
+def checkpoint_serializer():
+    from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+    types = [v for v in vars(contracts).values() if isinstance(v, type) and v.__module__ == contracts.__name__]
+    return JsonPlusSerializer(allowed_msgpack_modules=types)

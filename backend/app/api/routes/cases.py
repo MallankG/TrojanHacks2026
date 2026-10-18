@@ -35,7 +35,17 @@ def create_case(body: CaseCreate, user: CurrentUser = Depends(CAN_INVESTIGATE)) 
     due_at = datetime.now(UTC) + timedelta(hours=get_settings().case_review_sla_hours)
     row = {"tenant_id": user.tenant_id, "title": body.title, "summary": body.summary, "priority_band": body.priority_band,
            "assigned_to": body.assigned_to or user.id, "created_by": user.id, "due_at": due_at}
+    attrs = None
+    if get_settings().enterprise_enabled or get_settings().case_authorization_enabled:
+        attrs = get_one("investigator_attributes", user.tenant_id, user.id)
+        if not attrs or not attrs.get("purposes"):
+            raise HTTPException(403, "An administrator must provision your investigation attributes first")
     case = with_actor(get_db().table("cases").insert(to_json(row)), user).execute().data[0]
+    if attrs:
+        # New cases inherit the creator's approved region/purpose; future changes use enterprise controls.
+        with_actor(get_db().table("case_access_policies").insert({"tenant_id": user.tenant_id,
+            "case_id": case["id"], "region": attrs["region"], "classification": "internal",
+            "purpose": attrs["purposes"][0], "review_at": due_at.isoformat(), "updated_by": user.id}), user).execute()
     evidence = case_service.attach_alerts(user, case["id"], [str(a) for a in body.alert_ids])
     return {**case, "evidence_added": len(evidence)}
 
@@ -76,7 +86,7 @@ def get_case(case_id: UUID, user: CurrentUser = Depends(ANY_CALLER)) -> dict:
         .eq("tenant_id", tid).eq("case_id", cid).order("version", desc=True).execute().data,
         "decisions": db.table("case_decisions").select("*, decided_by_profile:profiles!case_decisions_decided_by_fkey(display_name, role)")
         .eq("tenant_id", tid).eq("case_id", cid).order("decided_at", desc=True).execute().data,
-        "agent_runs": db.table("agent_runs").select("id, graph_name, status, current_step, created_at, completed_at")
+        "agent_runs": db.table("agent_runs").select("id, graph_name, managed, status, current_step, created_at, completed_at")
         .eq("tenant_id", tid).eq("case_id", cid).order("created_at", desc=True).execute().data,
     }
     audit.record(user, "case.evidence_viewed", "case", cid)

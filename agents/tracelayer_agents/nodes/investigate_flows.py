@@ -33,6 +33,7 @@ def investigate_one(alert: Alert, state: Mapping[str, Any], ctx: NodeContext) ->
         "transactions": transactions,
         "flow_findings": findings,
         "quality_caveats": caveats,
+        "limitations": findings.query_caveats,
         "lineage_refs": [
             f"ingestion_run:{state['ingestion_run_id']}",
             f"transaction_batch:{state['transaction_batch_id']}",

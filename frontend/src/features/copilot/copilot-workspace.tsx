@@ -23,9 +23,17 @@ import { Pill } from "@/components/ui/pill";
 import { EvidenceBody } from "@/features/evidence/evidence-body";
 import { ChatMessageView } from "./chat-message";
 
+import { useLiveProfile } from "@/lib/live/session";
+import { LiveAgentCopilot } from "@/features/live/live-agents";
+
 const MIN_QUESTION_LENGTH = 3;
 
 export function CopilotWorkspace() {
+  const profile = useLiveProfile();
+  return profile ? <LiveAgentCopilot key={profile.id} /> : <DemoCopilotWorkspace />;
+}
+
+function DemoCopilotWorkspace() {
   const router = useRouter();
   const state = useDemoState();
   const role = useRole();

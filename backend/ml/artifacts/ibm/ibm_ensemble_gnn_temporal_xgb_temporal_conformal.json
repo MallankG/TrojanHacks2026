@@ -1,14 +1,14 @@
 {
   "alpha": 0.1,
-  "coverage": 0.9079424351393516,
-  "coverage_illicit": 0.9293218720152817,
-  "coverage_licit": 0.9079062051105671,
-  "avg_set_size": 0.9681572248133538,
-  "singleton_rate": 0.9681572248133538,
-  "empty_rate": 0.0318427751866463,
-  "illicit_flagged_singleton": 76391,
+  "coverage": 0.8985376108142957,
+  "coverage_illicit": 0.9369627507163324,
+  "coverage_licit": 0.8984724947902968,
+  "avg_set_size": 0.9681766145379307,
+  "singleton_rate": 0.9681766145379307,
+  "empty_rate": 0.031823385462069254,
+  "illicit_flagged_singleton": 88085,
   "q": [
-    0.9032374024391174,
-    0.07138574123382568
+    0.9047905802726746,
+    0.06999772787094116
   ]
 }
