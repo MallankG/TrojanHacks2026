@@ -1,7 +1,11 @@
 """Structured LLM calls with graceful degradation (CLAUDE.md rule 8).
 
-Chain: Ollama → deterministic template. The demo works with no network and Ollama not running:
-- `LLM_PROVIDER=template` skips Ollama entirely.
+Chain: Ollama (local) or Groq (hosted, `LLM_PROVIDER=groq`) → deterministic template. The demo
+works with no network and Ollama not running:
+- `LLM_PROVIDER=template` skips the LLM entirely.
+- Groq: OpenAI-compatible `/chat/completions` with a `json_schema` response format (best-effort
+  mode, so optional fields are allowed); no `GROQ_API_KEY`, rate limit (429), HTTP error or
+  timeout → template.
 - Ollama unreachable / timeout / HTTP error / model not found / no local models → template.
 - `LLM_TIMEOUT_S` bounds the whole Ollama phase of one call (health check, every attempt and the
   validation retry), not each request, so a slow model always reaches the template in time. LLM
@@ -75,28 +79,43 @@ if _missing_templates:
     raise RuntimeError(f"prompts without a deterministic template: {_missing_templates}")
 
 
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+GROQ_DEFAULT_MODEL = "openai/gpt-oss-20b"  # free tier, supports json_schema output
+
+
 @dataclass(frozen=True)
 class LLMSettings:
     provider: LLMProvider = "ollama"
     ollama_host: str = "http://localhost:11434"
     ollama_model: str | None = None  # None → first model listed by GET /api/tags
+    groq_api_key: str | None = field(default=None, repr=False)
+    groq_model: str = GROQ_DEFAULT_MODEL
+    groq_base_url: str = GROQ_BASE_URL
     timeout_s: float = DEFAULT_LLM_TIMEOUT_S  # whole Ollama phase of one call
     max_calls_per_run: int = 6
 
     @classmethod
     def from_env(cls) -> LLMSettings:
         provider = os.environ.get("LLM_PROVIDER", "ollama").strip().lower() or "ollama"
-        if provider not in ("ollama", "template"):
-            raise ValueError(f"LLM_PROVIDER must be 'ollama' or 'template', got {provider!r}")
+        if provider not in ("ollama", "groq", "template"):
+            raise ValueError(
+                f"LLM_PROVIDER must be 'ollama', 'groq' or 'template', got {provider!r}")
         return cls(
             provider=provider,  # type: ignore[arg-type]
             ollama_host=os.environ.get("OLLAMA_HOST", "").strip() or cls.ollama_host,
             ollama_model=os.environ.get("OLLAMA_MODEL", "").strip() or None,
+            groq_api_key=os.environ.get("GROQ_API_KEY", "").strip() or None,
+            groq_model=os.environ.get("GROQ_MODEL", "").strip() or cls.groq_model,
             timeout_s=llm_timeout_s(),
             max_calls_per_run=int(
                 os.environ.get("LLM_MAX_CALLS_PER_RUN", "") or cls.max_calls_per_run
             ),
         )
+
+    @property
+    def model(self) -> str | None:
+        """The configured model of the active provider (None: Ollama's first listed model)."""
+        return self.groq_model if self.provider == "groq" else self.ollama_model
 
 
 @dataclass
@@ -140,22 +159,24 @@ class LLMClient:
         run = _Attempt(trace_id=trace_id)
 
         output: T | None = None
-        if self.settings.provider == "ollama":
+        remote = self.settings.provider
+        if remote in ("ollama", "groq"):
+            attempt = self._try_ollama if remote == "ollama" else self._try_groq
             try:
                 output = await asyncio.wait_for(
-                    self._try_ollama(prompt_name, variables, output_model, run),
+                    attempt(prompt_name, variables, output_model, run),
                     timeout=self.settings.timeout_s,
                 )
             except TimeoutError:
-                run.errors.append("ollama_timeout")
+                run.errors.append(f"{remote}_timeout")
 
-        provider: LLMProvider = "ollama" if output is not None else "template"
+        provider: LLMProvider = remote if output is not None else "template"
         if output is None:
             output = _run_template(prompt_name, variables, output_model)
 
         meta = LLMMeta(
             provider=provider,
-            model=run.model if provider == "ollama" and run.model else TEMPLATE_MODEL,
+            model=run.model if provider != "template" and run.model else TEMPLATE_MODEL,
             prompt_version=prompt_version,
             input_hash=input_hash,
             attempts=run.attempts,
@@ -201,22 +222,41 @@ class LLMClient:
             run.model = model
 
             schema = output_model.model_json_schema()
-            for attempt in (1, 2):
-                content = await self._chat(http, model, prompt, schema, run)
-                if content is None:
-                    return None
-                try:
-                    return output_model.model_validate_json(content, context={"source": "ollama"})
-                except ValidationError as exc:
-                    run.errors.append(f"invalid_output_attempt_{attempt}")
-                    feedback = json.dumps(
-                        exc.errors(include_input=False, include_url=False), default=str
-                    )
-                    prompt = (
-                        f"{prompt}\n\nYour previous reply failed validation with these errors:\n"
-                        f"{feedback}\nReply again with only a JSON object matching the schema."
-                    )
+            return await self._validated(
+                prompt, output_model, run, lambda p: self._chat(http, model, p, schema, run))
+
+    async def _validated(
+        self, prompt: str, output_model: type[T], run: _Attempt, send: Any
+    ) -> T | None:
+        """`send(prompt)` up to twice: a reply that fails `output_model` validation is retried once
+        with the errors appended. Model output is parsed with `source=<provider>` so the schemas
+        apply their model-only checks."""
+        for attempt in (1, 2):
+            content = await send(prompt)
+            if content is None:
+                return None
+            try:
+                return output_model.model_validate_json(
+                    content, context={"source": self.settings.provider})
+            except ValidationError as exc:
+                run.errors.append(f"invalid_output_attempt_{attempt}")
+                feedback = json.dumps(
+                    exc.errors(include_input=False, include_url=False), default=str
+                )
+                prompt = (
+                    f"{prompt}\n\nYour previous reply failed validation with these errors:\n"
+                    f"{feedback}\nReply again with only a JSON object matching the schema."
+                )
         return None
+
+    def _take_call(self, run: _Attempt) -> bool:
+        """Count one LLM call against the per-trace cap; False (and recorded) once it is reached."""
+        if self._calls[run.trace_id] >= self.settings.max_calls_per_run:
+            run.errors.append("llm_call_cap_reached")
+            return False
+        self._calls[run.trace_id] += 1
+        run.attempts += 1
+        return True
 
     async def _list_models(self, http: httpx.AsyncClient) -> list[str] | None:
         """GET /api/tags once per process; None when Ollama is unreachable."""
@@ -248,11 +288,8 @@ class LLMClient:
         """One /api/chat call (plus one retry without `think` if the model rejects it). Returns
         the message content, or None after recording why in `run.errors`."""
         while True:
-            if self._calls[run.trace_id] >= self.settings.max_calls_per_run:
-                run.errors.append("llm_call_cap_reached")
+            if not self._take_call(run):
                 return None
-            self._calls[run.trace_id] += 1
-            run.attempts += 1
 
             body: dict[str, Any] = {
                 "model": model,
@@ -292,6 +329,75 @@ class LLMClient:
                 return str(resp.json()["message"]["content"])
             except (ValueError, KeyError, TypeError):
                 return ""  # malformed envelope: fails validation and takes the retry path
+
+    # ----------------------------------------------------------------------------- groq
+
+    async def _try_groq(
+        self, prompt_name: str, variables: dict[str, Any], output_model: type[T], run: _Attempt
+    ) -> T | None:
+        if not self.settings.groq_api_key:
+            run.errors.append("groq_no_api_key")
+            return None
+        try:
+            prompt = _render(PROMPTS[prompt_name], variables)
+        except (KeyError, ValueError):
+            run.errors.append("prompt_render_failed")
+            return None
+        run.model = self.settings.groq_model
+        schema = output_model.model_json_schema()
+        async with httpx.AsyncClient(
+            base_url=self.settings.groq_base_url,
+            transport=self._transport,
+            timeout=self.settings.timeout_s,
+            headers={"Authorization": f"Bearer {self.settings.groq_api_key}"},
+        ) as http:
+            return await self._validated(
+                prompt, output_model, run,
+                lambda p: self._groq_chat(http, p, output_model.__name__, schema, run))
+
+    async def _groq_chat(
+        self, http: httpx.AsyncClient, prompt: str, name: str, schema: dict[str, Any],
+        run: _Attempt,
+    ) -> str | None:
+        """One /chat/completions call. Returns the message content ("" when the reply did not
+        match the schema, so the validation retry runs), or None after recording why."""
+        if not self._take_call(run):
+            return None
+        body: dict[str, Any] = {
+            "model": self.settings.groq_model,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": 0.1,
+            "max_completion_tokens": 2048,
+            # best-effort (non-strict): strict mode needs every field required, our schemas aren't
+            "response_format": {"type": "json_schema",
+                                "json_schema": {"name": name, "schema": schema}},
+        }
+        if self.settings.groq_model.startswith("openai/gpt-oss"):
+            body["reasoning_effort"] = "low"  # keep reasoning short: it shares the token budget
+        try:
+            resp = await http.post("/chat/completions", json=body)
+        except httpx.TimeoutException:
+            run.errors.append("groq_timeout")
+            return None
+        except httpx.TransportError:
+            run.errors.append("groq_unreachable")
+            return None
+        if resp.status_code == 400 and "json_validate_failed" in resp.text:
+            run.errors.append("groq_schema_mismatch")
+            return ""
+        if resp.status_code == 429:
+            run.errors.append("groq_rate_limited")
+            return None
+        if resp.status_code >= 400:
+            run.errors.append(f"groq_http_{resp.status_code}")
+            return None
+        try:
+            return str(resp.json()["choices"][0]["message"]["content"])
+        except (ValueError, KeyError, IndexError, TypeError):
+            return ""
 
 
 def _render(path: Path, variables: dict[str, Any]) -> str:

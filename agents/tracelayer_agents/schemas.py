@@ -94,7 +94,8 @@ Severity = Literal["critical", "warning", "info"]
 RemediationStatus = Literal["open", "in_progress", "resolved", "accepted_risk"]
 AlertTier = Literal["high", "medium", "low"]
 ClaimType = Literal["fact", "hypothesis", "policy"]
-LLMProvider = Literal["ollama", "template"]
+LLMProvider = Literal["ollama", "groq", "template"]
+LLM_SOURCES = ("ollama", "groq")  # parse contexts of real model output (model-only checks apply)
 NodeStatus = Literal["ok", "error", "skipped"]
 
 
@@ -500,7 +501,7 @@ class NarrativeSynthesis(Contract):
         # amounts and dates and flags any it cannot ground (PRD 16), but it cannot check
         # "twelve accounts" or "double". Only model output is restricted; the template and
         # checkpoint deserialization (no context) may quote computed facts.
-        if (info.context or {}).get("source") == "ollama":
+        if (info.context or {}).get("source") in LLM_SOURCES:
             prose = [self.summary, *self.uncertainties, *self.follow_up_questions,
                      *(h.text for h in [*self.hypotheses, *self.contradictions])]
             if _model_states_numbers(prose):
@@ -1099,8 +1100,8 @@ class ChatSynthesis(Contract):
 
     @model_validator(mode="after")
     def synthesis_cannot_state_counts(self, info: ValidationInfo):
-        # Same rule as NarrativeSynthesis: only model output (parsed with source=ollama) is checked.
-        if (info.context or {}).get("source") == "ollama" and _model_states_numbers(
+        # Same rule as NarrativeSynthesis: only model output (an LLM parse source) is checked.
+        if (info.context or {}).get("source") in LLM_SOURCES and _model_states_numbers(
                 [self.summary, *self.next_steps, *(h.text for h in self.hypotheses)]):
             raise ValueError("Model prose must not state counts or multipliers; cite claims instead")
         return self

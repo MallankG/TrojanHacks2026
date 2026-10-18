@@ -31,10 +31,12 @@ flowchart LR
   AG -- "HTTP /api/chat, /api/tags" --> OL["Ollama :11434<br/>local LLM (e.g. qwen3.5)"]
 ```
 
-- **LLM path**: only `agents/tracelayer_agents/llm/client.py` calls a model, and only Ollama (`OLLAMA_HOST`).
-  Output is schema-validated JSON; if Ollama is down, slow or returns invalid output, a deterministic
-  template answers and the receipt says `fallback_used=true`. No cloud LLM is called. `LLM_PROVIDER=template`
-  runs with no LLM at all.
+- **LLM path**: only `agents/tracelayer_agents/llm/client.py` calls a model: local Ollama (`LLM_PROVIDER=ollama`,
+  development) or Groq's hosted free tier (`LLM_PROVIDER=groq`, deployments; default `openai/gpt-oss-20b`).
+  Output is schema-validated JSON; if the model is down, slow, rate-limited or returns invalid output, a
+  deterministic template answers and the receipt says `fallback_used=true`. With Groq, case evidence leaves the
+  deployment, so `groq` is listed in `APPROVED_DATA_DESTINATIONS`; all demo data is synthetic.
+  `LLM_PROVIDER=template` runs with no LLM at all.
 - **Agents**: `analysis` (ingest → features → detectors → aggregate → investigate flows), `case`
   (load case → retrieve policy → draft narrative → verify → human decision → record), `copilot`
   (case-scoped Q&A). Details: `agents/docs/ARCHITECTURE.md`, `agents/docs/CONTRACTS.md`.
@@ -102,36 +104,49 @@ npm run dev                          # http://localhost:3000
 `cd agents && pip install -e '.[dev]' && pytest -q`. To run the agents with no LLM, set
 `LLM_PROVIDER=template` in `backend/.env`.
 
-## Deploy: Vercel (frontend) + Render (backend + Ollama)
+## Deploy (free tiers): Vercel + Render or Hugging Face + Groq + Supabase
 
-Supabase stays the hosted database. Deploy the backend first, because the frontend needs its URL.
+Supabase stays the hosted database, Groq replaces Ollama, the frontend goes to Vercel. Deploy the backend first,
+because the frontend needs its URL. Pick one backend host:
 
-**1. Ollama on Render** (a Private Service, reachable only from the backend)
-- New → Private Service → *Deploy an existing image* → `ollama/ollama:latest`.
-- Add a persistent disk mounted at `/root/.ollama` (≥ 10 GB) so pulled models survive restarts.
-- The model must fit in RAM: `qwen3.5:9b` needs roughly 8 GB or more. On smaller instances use a small model
-  (e.g. `qwen3.5:0.8b`), or skip this service and set `LLM_PROVIDER=template` on the backend.
-- After the first deploy, open the service Shell and run `ollama pull <model>`.
-- Note its internal address, e.g. `http://tracelayer-ollama:11434`.
+| backend host | RAM | models served | trade-off |
+|---|---|---|---|
+| **Render free** (`render.yaml`) | 512 MB | rules, anomaly, graph, agents; trained IBM models report "unavailable" | simplest; sleeps after 15 min idle (~1 min cold start) |
+| **Hugging Face Space** (`deploy/huggingface/`) | 16 GB | everything, incl. XGBoost + temporal GNN | Docker build ~10 min; sleeps after 48 h idle |
 
-**2. Backend on Render** (Web Service, Python)
-- Root Directory: **leave empty (repo root)**. The build needs `agents/` beside `backend/` for `-e ../agents`.
-- Build Command: `cd backend && pip install -r requirements.txt`
-- Start Command: `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
-- Health Check Path: `/health`
-- Environment: `PYTHON_VERSION=3.11.15`; every key from `backend/.env.example` with real values;
-  `OLLAMA_HOST=<Ollama private URL from step 1>`, `OLLAMA_MODEL=<pulled model>`;
-  `CORS_ORIGINS=["https://<your-app>.vercel.app"]` (fill in once step 3 gives you the URL).
-- Instance: `torch`, `xgboost` and the model artifacts in `backend/ml/artifacts/` need ≥ 2 GB RAM. The free
-  512 MB tier runs out of memory.
+The full model stack needs ~1 GB, which no 512 MB free tier (Render, Koyeb) can hold; `requirements-slim.txt`
+leaves torch and xgboost out so the rest fits. Fly.io and Railway are no longer free.
 
-**3. Frontend on Vercel**
+**1. Groq key.** https://console.groq.com/keys → Create API key (free, no card). Free-tier limits for
+`openai/gpt-oss-20b`: 30 requests/min, 1,000/day; each case narrative is 1–2 calls. Over the limit, answers fall
+back to the deterministic template (labelled in the receipt).
+
+**2a. Backend on Render (free).**
+- Render → New → Blueprint → pick this repo. It reads `render.yaml` (free web service, repo root as build
+  context, `pip install -r requirements-slim.txt`, health check `/health`).
+- Fill the prompted secrets: `GROQ_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+  `CORS_ORIGINS=["https://<your-app>.vercel.app"]` (fill in after step 3; use the exact production URL, not `*`).
+- URL: `https://tracelayer-api.onrender.com` (or the name Render shows). Check `<url>/health`.
+
+**2b. Backend on Hugging Face (free, full models)** instead of 2a.
+- Create a GitHub fine-grained token with read-only *Contents* access to this repo.
+- huggingface.co → New Space → SDK **Docker**, hardware **CPU basic (free)**, visibility **Public** (the browser
+  must reach the API; the source stays private because the image clones it at build time).
+- Upload `deploy/huggingface/README.md` and `deploy/huggingface/Dockerfile` to the Space root.
+- Space → Settings → Variables and secrets → add secrets `GITHUB_TOKEN`, `GROQ_API_KEY`, `SUPABASE_URL`,
+  `SUPABASE_SERVICE_ROLE_KEY`, `SERVICE_API_KEY` (any long random string), `CORS_ORIGINS`.
+- URL: `https://<user>-<space>.hf.space`. New commits on `main`: Settings → Factory rebuild.
+
+**3. Frontend on Vercel (Hobby, free).**
 - New Project → import the repo → Root Directory: `frontend` (Next.js is auto-detected).
-- Environment variables: `NEXT_PUBLIC_API_BASE_URL=https://<backend>.onrender.com`,
+- Environment variables: `NEXT_PUBLIC_API_BASE_URL=<backend URL from step 2>`,
   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Never put the service-role key here.
-- Deploy, then put the Vercel URL into the backend's `CORS_ORIGINS` on Render and redeploy the backend.
+- Deploy, then set the backend's `CORS_ORIGINS` to the Vercel URL and redeploy/restart the backend.
 
-**4. Supabase**: add the Vercel URL under Authentication → URL Configuration (Site URL and redirect URLs).
+**4. Supabase.** Authentication → URL Configuration: Site URL and redirect URLs = the Vercel URL. Free projects
+pause after 7 days without activity; restore from the dashboard.
+
+Policy search uses keyword retrieval in deployments (vector embeddings need a local Ollama).
 
 ## ML layout (`backend/ml/`)
 
