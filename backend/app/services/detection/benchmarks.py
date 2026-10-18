@@ -93,31 +93,25 @@ def score(ledger, keep_ids, names=('xgb_temporal','gnn_temporal')):
             results[name]=Result(skipped_reason=f'{name} unavailable: {type(exc).__name__}')
     if all(n in results and results[n].skipped_reason is None for n in ('xgb_temporal','gnn_temporal')):
         try:
-            import numpy as np
-            name='reference_ensemble_gnn_temporal_xgb_temporal'
+            from ml.ibm.ensemble import EnsembleScorer
+            name='ensemble_gnn_temporal_xgb_temporal'
             card=json.loads((ART / f'ibm_{name}_results.json').read_text())
+            first,second=card['models']
+            scorer=EnsembleScorer(first,second,ART)
             manifest={'reference_sha256':hashlib.sha256((ART/f'ibm_{name}_ref.npz').read_bytes()).hexdigest(),
                 'calibration_sha256':hashlib.sha256((ART/f'ibm_{name}_results.json').read_bytes()).hexdigest(),
                 'component_versions':{n:results[n].card['model_version'] for n in card['models']},
-                'weights':{card['models'][0]:card['weight_'+card['models'][0]],card['models'][1]:1-card['weight_'+card['models'][0]]},
-                'threshold':card['val']['best_threshold'],'reference_mode':'fixed_validation'}
-            version='ibm-fixed-reference-'+hashlib.sha256(json.dumps(manifest,sort_keys=True).encode()).hexdigest()[:12]
-            with np.load(ART / f'ibm_{name}_ref.npz') as refs:
-                by_model={n:{f.transaction_id:f for f in results[n].findings} for n in results}
-                findings=[]
-                for txid in sorted(by_model['gnn_temporal'].keys() & by_model['xgb_temporal'].keys()):
-                    parts=[by_model[n][txid] for n in card['models']]
-                    quantiles=[]
-                    for f,key in zip(parts,('first','second')):
-                        ref=refs[key]
-                        quantiles.append(min(1.,float((np.searchsorted(ref,f.score,'left')+np.searchsorted(ref,f.score,'right')+1)/(2*len(ref)))))
-                    w=card['weight_'+card['models'][0]]
-                    value=w*quantiles[0]+(1-w)*quantiles[1]
-                    from dataclasses import replace
-                    findings.append(replace(parts[0],detector=name,source='supervised_model',score=value,strength=value,
-                        threshold=card['val']['best_threshold'],triggered=value>=card['val']['best_threshold'],
-                        version=version,details={**manifest,'reason':'Validation-selected fixed-reference ensemble',
-                        'reference_mode':'fixed_validation','weights':{card['models'][0]:w,card['models'][1]:1-w},'caveat':CAVEAT}))
+                'weights':{first:scorer.w,second:1-scorer.w},'threshold':scorer.threshold,
+                'reference_mode':'fixed_validation','calibration':scorer.calibration}
+            version='ibm-ensemble-'+hashlib.sha256(json.dumps(manifest,sort_keys=True).encode()).hexdigest()[:12]
+            by_model={n:{f.transaction_id:f for f in results[n].findings} for n in results}
+            ids=sorted(by_model[first].keys() & by_model[second].keys())
+            values=scorer.blend([by_model[first][t].score for t in ids],[by_model[second][t].score for t in ids])
+            from dataclasses import replace
+            findings=[replace(by_model[first][t],detector=name,source='supervised_model',score=float(v),strength=float(v),
+                threshold=scorer.threshold,triggered=bool(v>=scorer.threshold),version=version,
+                details={**manifest,'reason':'Validation-selected ensemble against fixed validation percentiles','caveat':CAVEAT})
+                for t,v in zip(ids,values)]
             results['ensemble']=Result(findings,{**manifest,'model_version':version,'model_name':name},scored=len(e))
         except (OSError,KeyError,ValueError):
             pass

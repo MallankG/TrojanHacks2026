@@ -3,11 +3,14 @@
 import { useEffect, useState } from "react";
 import { call, errorMessage, invalidateLive, liveApi, useLive } from "@/lib/live/api";
 import { useLiveProfile } from "@/lib/live/session";
+import { usePiiGuard } from "@/lib/privacy/use-pii-guard";
 import { Button } from "@/components/ui/button";
 import { Panel, CardHeader } from "@/components/ui/card";
 import { Callout } from "@/components/ui/callout";
 import { Field, Select, TextArea } from "@/components/ui/field";
 import { Pill } from "@/components/ui/pill";
+import { PiiWarning } from "@/components/ui/pii-warning";
+import { SensitiveText } from "@/components/ui/sensitive";
 
 export interface Draft {
   summary: string;
@@ -66,7 +69,7 @@ function useAgentRun(initialId?: string) {
 function RunReceipt({ run }: { run: AgentRun | null }) {
   const [auditMessage,setAuditMessage]=useState<string | null>(null);
   const [checking,setChecking]=useState(false);
-  useEffect(()=>setAuditMessage(null),[run?.id,run?.status]);
+  // Callers key this component by run id and status, so a new run or status starts with no audit message.
   if (!run) return null;
   const verify = async () => {
     setChecking(true);
@@ -80,22 +83,22 @@ function RunReceipt({ run }: { run: AgentRun | null }) {
     <Pill tone={run.status === "failed" ? "warn" : "ok"}>{run.status.replaceAll("_", " ")}</Pill>
     {run.error_message ? <Callout tone="bad">{run.error_message}</Callout> : null}
     {r?.draft ? <>
-      <p className="text-sm">{r.draft.summary}</p>
+      <p className="text-sm"><SensitiveText value={r.draft.summary} /></p>
       <p className="text-xs text-muted">{r.draft.fallback_used ? "Deterministic fallback · human review required" : "Model synthesis"} · {r.draft.provider} / {r.draft.model}</p>
       <ol className="flex list-decimal flex-col gap-3 pl-5 text-sm">{r.draft.observed_facts.map((c,i)=><li key={i}>
-        <p>{c.text}</p><details><summary className="cursor-pointer text-xs font-semibold">Claim {i+1} · {c.claim_type} · Evidence references</summary>
+        <p><SensitiveText value={c.text} /></p><details><summary className="cursor-pointer text-xs font-semibold">Claim {i+1} · {c.claim_type} · Evidence references</summary>
           <p className="break-all text-xs">Transactions: {c.transaction_ids.join(", ") || "None"}</p>
           <p className="break-all text-xs">Accounts: {c.account_ids.join(", ") || "None"}</p>
           <p className="break-all text-xs">Amounts: {c.amounts.join(", ") || "None"} · Dates: {c.dates.join(", ") || "None"}</p>
           <p className="break-all text-xs">Policy chunks: {c.citation_chunk_ids.join(", ") || "None"}</p>
         </details></li>)}</ol>
-      <p className="text-sm">Unknowns: {r.draft.uncertainties.join(" ")}</p>
-      <p className="text-sm">Follow up: {r.draft.follow_up_questions.join(" ")}</p>
+      <p className="text-sm">Unknowns: <SensitiveText value={r.draft.uncertainties.join(" ")} /></p>
+      <p className="text-sm">Follow up: <SensitiveText value={r.draft.follow_up_questions.join(" ")} /></p>
     </> : null}
     {r?.answer ? <>
-      <p className="whitespace-pre-wrap text-sm">{r.answer.answer}</p>
+      <p className="whitespace-pre-wrap text-sm"><SensitiveText value={r.answer.answer} /></p>
       <p className="text-xs text-muted">{r.answer.no_answer ? "No supported policy answer" : "Policy passages retrieved"} · {r.answer.provider} / {r.answer.model}{r.answer.fallback_used ? " · deterministic fallback" : ""}</p>
-      {r.answer.unknowns.map((u,i)=><p key={i} className="text-xs text-muted">{u}</p>)}
+      {r.answer.unknowns.map((u,i)=><p key={i} className="text-xs text-muted"><SensitiveText value={u} /></p>)}
       {r.sources?.map(s=><blockquote key={s.chunk_id} className="border-l-2 border-line pl-3 text-sm"><b>{s.doc_title}</b><p>{s.excerpt}</p><span className="break-all text-xs text-muted">{s.source_uri} · {s.chunk_id}</span></blockquote>)}
     </> : null}
     {r?.governance_status ? <Callout tone={r.halted ? "warn" : "ok"}>
@@ -185,16 +188,22 @@ export function LiveAgentCopilot() {
   const {run,setRun,error,setError}=useAgentRun();
   const [busy,setBusy]=useState(false);
   const chosen=cid || cases.data?.items.find(c=>c.status!=="closed")?.id || "";
-  const send=async()=>{
-    setBusy(true);setError(null);
-    try{setRun(await call<AgentRun>(`/agents/cases/${chosen}/copilot`,{method:"POST",body:{request_key:crypto.randomUUID(),question:question.trim()}}));}
+  // Questions reach the language model, so personal data is held back until edited or redacted.
+  const pii=usePiiGuard();
+  const running=!!run && ["queued","running"].includes(run.status);
+  const ask=async(text:string)=>{
+    setBusy(true);setError(null);pii.clear();
+    try{setRun(await call<AgentRun>(`/agents/cases/${chosen}/copilot`,{method:"POST",body:{request_key:crypto.randomUUID(),question:text}}));}
     catch(e){setError(errorMessage(e));}finally{setBusy(false);}
   };
+  const send=()=>{ const text=question.trim(); if(pii.check(text)) void ask(text); };
+  const redactedBlocked=!chosen || busy || running ? "The copilot is unavailable right now." : pii.held && pii.held.substance<3 ? "Nothing would be left to ask once redacted; edit the question." : null;
   return <Panel><CardHeader title="Investigation copilot" description="Ask about policy for an authorized case. Answers cite retrieved guidance; transaction facts are verified in the case draft." />
     <div className="flex max-w-[800px] flex-col gap-4">
       <Field label="Copilot case">{p=><Select {...p} value={chosen} onChange={e=>setCid(e.target.value)}><option value="">Choose an open case</option>{cases.data?.items.filter(c=>c.status!=="closed").map(c=><option value={c.id} key={c.id}>{c.title}</option>)}</Select>}</Field>
-      <Field label="Policy question">{p=><TextArea {...p} rows={3} value={question} onChange={e=>setQuestion(e.target.value)} placeholder="What should a reviewer document before escalating an alert?"/>}</Field>
-      <Button onClick={send} disabled={!chosen || question.trim().length<3 || busy || !!run && ["queued","running"].includes(run.status)}>Ask investigation copilot</Button>
+      <Field label="Policy question">{p=><TextArea {...p} rows={3} value={question} onChange={e=>{setQuestion(e.target.value);pii.clear();}} placeholder="What should a reviewer document before escalating an alert?"/>}</Field>
+      {pii.held ? <PiiWarning held={pii.held} sendBlocked={redactedBlocked} onSendRedacted={()=>{ if(pii.held && !redactedBlocked) void ask(pii.held.redacted); }} onEdit={pii.clear}/> : null}
+      <Button onClick={send} disabled={!chosen || question.trim().length<3 || busy || running}>Ask investigation copilot</Button>
       {error || cases.error ? <Callout tone="bad">{error || cases.error}</Callout> : null}<RunReceipt key={`${run?.id}:${run?.status}`} run={run}/>
     </div>
   </Panel>;

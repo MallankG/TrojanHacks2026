@@ -17,6 +17,7 @@ import torch
 from torch_geometric.explain.algorithm.utils import clear_masks, set_masks
 
 from .gnn import Data, IBMGNNScorer, SplitGraph, gnn_edge_features
+from .order import canonical
 from .xgb import load
 
 
@@ -89,7 +90,7 @@ def main(data, out, device="cpu", n_targets=200, seed=7, name="gnn"):
     sc = IBMGNNScorer(out, device=device, name=name)
     model, ck = sc.model, sc.ck
     tx, acc = load(data)
-    e = tx[tx["src"] != tx["dst"]].sort_values("ts", kind="stable").reset_index(drop=True)
+    e = canonical(tx[tx["src"] != tx["dst"]])
     ids = pd.Index(pd.unique(np.r_[acc["Account Number"].to_numpy(), e["src"].to_numpy(), e["dst"].to_numpy()]))
     ent = acc.drop_duplicates("Account Number").set_index("Account Number")["Entity Name"].str.replace(r" #.*", "", regex=True).reindex(ids)
     node_x = np.column_stack([(ent == t).to_numpy(float) for t in ck["entity_types"]]).astype(np.float32)

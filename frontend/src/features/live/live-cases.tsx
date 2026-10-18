@@ -15,6 +15,7 @@ import { CardHeader, Panel } from "@/components/ui/card";
 import { Field, Select, TextArea, TextInput } from "@/components/ui/field";
 import { EmptyState, Skeleton } from "@/components/ui/misc";
 import { Pill } from "@/components/ui/pill";
+import { SensitiveText } from "@/components/ui/sensitive";
 import { DataTable, Td, Th, Tr } from "@/components/ui/table";
 import { casesApi, sha256Hex } from "@/lib/live/api-cases";
 import { CaseAgents } from "./live-agents";
@@ -238,7 +239,7 @@ function EvidencePanel({ detail, role, onChanged }: { detail: CaseDetail; role: 
             {detail.evidence.map((e) => (
               <Tr key={e.id}>
                 <Td>{words(e.evidence_type)}</Td>
-                <Td className="max-w-[420px]">{e.explanation}</Td>
+                <Td className="max-w-[420px]"><SensitiveText value={e.explanation} /></Td>
                 <Td>{words(e.added_by_type)}</Td>
                 <Td className="whitespace-nowrap text-xs">{utc(e.created_at)}</Td>
               </Tr>
@@ -363,7 +364,7 @@ function DecisionPanel({ detail, role, onDecided }: { detail: CaseDetail; role: 
               <b>{words(d.decision)}</b>
               {d.disposition ? ` · ${words(d.disposition)}` : ""} by {d.decided_by_profile?.display_name ?? "unknown"} ({words(d.decided_by_profile?.role)})
               <span className="block text-xs text-muted">{utc(d.decided_at)}</span>
-              {d.notes ? <span className="block">{d.notes}</span> : null}
+              {d.notes ? <SensitiveText className="block" value={d.notes} /> : null}
             </li>
           ))}
         </ul>

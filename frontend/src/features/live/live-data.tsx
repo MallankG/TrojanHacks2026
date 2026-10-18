@@ -7,6 +7,7 @@ import { errorMessage, liveApi, useLive, type DqIssue } from "@/lib/live/api";
 import { BAND_TONE, SEVERITY_TONE, alertLabel, words } from "@/lib/live/format";
 import { LIVE_ROLES } from "@/lib/live/roles";
 import { useLiveProfile } from "@/lib/live/session";
+import { useMaskers } from "@/lib/privacy/store";
 import { ROUTES } from "@/lib/routes";
 import { useDemoState } from "@/lib/store/hooks";
 import { Button } from "@/components/ui/button";
@@ -88,6 +89,7 @@ export function LiveExceptions() {
 
 function RunIssues({ runId, canSteward, onSelectRow }: { runId: string; canSteward: boolean; onSelectRow: (id: string) => void }) {
   const issues = useLive(() => liveApi.runIssues(runId), `issues:${runId}`);
+  const mask = useMaskers();
   return (
     <LiveData query={issues} label="data-quality issues">
       {(page) =>
@@ -126,8 +128,8 @@ function RunIssues({ runId, canSteward, onSelectRow }: { runId: string; canStewa
                   </Td>
                   <Td className="font-mono text-xs">{issue.field_name ?? "None"}</Td>
                   <Td className="max-w-[360px]">
-                    {issue.message}
-                    {issue.observed_value ? <span className="block font-mono text-xs text-muted">Observed: {issue.observed_value}</span> : null}
+                    {mask.text(issue.message)}
+                    {issue.observed_value ? <span className="block font-mono text-xs text-muted">Observed: {mask.text(issue.observed_value)}</span> : null}
                   </Td>
                   <Td>
                     <Pill tone={issue.status === "open" ? "warn" : "ok"}>{words(issue.status)}</Pill>
@@ -181,6 +183,7 @@ function IssueActions({ issue, onChanged }: { issue: DqIssue; onChanged: () => v
 
 function SourceRow({ rowId }: { rowId: string }) {
   const row = useLive(() => liveApi.sourceRow(rowId), `row:${rowId}`);
+  const mask = useMaskers();
   return (
     <div className="flex flex-col gap-2 border-t border-line-soft pt-3">
       <h3 className="text-[13.5px] font-semibold">Source row and downstream impact</h3>
@@ -204,7 +207,7 @@ function SourceRow({ rowId }: { rowId: string }) {
                 ]}
               />
               <b className="mt-1 text-[13px]">Original values</b>
-              <CodeBlock>{JSON.stringify(d.source_row.raw_data, null, 2)}</CodeBlock>
+              <CodeBlock>{JSON.stringify(mask.record(d.source_row.raw_data), null, 2)}</CodeBlock>
             </div>
             <div className="flex flex-col gap-2">
               <b className="text-[13px]">Downstream</b>

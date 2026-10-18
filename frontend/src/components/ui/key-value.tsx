@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { piiFiltered } from "./pii-filter";
 
 interface KeyValueListProps {
   items: Array<[ReactNode, ReactNode]>;
@@ -13,7 +14,7 @@ export function KeyValueList({ items, className, mono }: KeyValueListProps) {
       {items.map(([key, value], index) => (
         <div key={index} className="contents">
           <dt className="text-muted">{key}</dt>
-          <dd className="break-words font-medium">{value}</dd>
+          <dd className="break-words font-medium">{piiFiltered(value)}</dd>
         </div>
       ))}
     </dl>

@@ -10,7 +10,7 @@ Spec: `docs/TraceLayer_PRD_v3_3_Implementation_Playbook.docx`.
 | `backend/` | FastAPI API (`app/`), ML models and engines (`ml/`) | `uvicorn` on :8000 |
 | `agents/` | LangGraph multi-agent workflows (`tracelayer_agents`); see [integration guide](agents/docs/INTEGRATION.md) | imported **in-process** by the backend (`-e ../agents`), not a separate server |
 | `supabase/` | Postgres schema, RLS, storage, pgvector migrations | hosted Supabase project |
-| `docs/` | PRD | — |
+| `docs/` | PRD; [`docs/PRIVACY.md`](docs/PRIVACY.md): how personal data is classified, masked and redacted | — |
 
 ## Architecture
 

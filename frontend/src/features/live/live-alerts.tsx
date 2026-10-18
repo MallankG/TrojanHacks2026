@@ -197,7 +197,7 @@ export function LiveAlertDetail({ alertId }: { alertId: string }) {
                       <ul className="flex flex-wrap gap-x-3 gap-y-1.5 text-[13px]">
                         {a.accounts.map(({ role: r, accounts: acc }) => (
                           <li key={acc.id}>
-                            <LiveAccountLink id={acc.id} label={acc.account_ref} /> <span className="text-xs text-muted">{words(r)}</span>
+                            <LiveAccountLink id={acc.id} accountRef={acc.account_ref} /> <span className="text-xs text-muted">{words(r)}</span>
                           </li>
                         ))}
                       </ul>

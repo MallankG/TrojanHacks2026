@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 
 export default function ErrorBoundary({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    console.error(error);
+    // Log only the error type and digest: messages and stacks can contain case data.
+    console.error("Screen error", error.name, error.digest ?? "");
   }, [error]);
 
   return (

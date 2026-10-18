@@ -1,5 +1,5 @@
 import type { RoleId } from "@/lib/types";
-import type { BackendRole } from "./session";
+import type { BackendRole, LiveProfile } from "./session";
 
 /**
  * The database roles are the source of truth. `uiRole` maps each one onto the UI's role vocabulary
@@ -24,3 +24,11 @@ export const LIVE_ROLES: Record<BackendRole, LiveRole> = {
   analyst: { label: "Fraud / BSA analyst", uiRole: "analyst", canUpload: true, canSteward: false, canInvestigate: true, canReview: false },
   data_steward: { label: "Data steward", uiRole: "steward", canUpload: true, canSteward: true, canInvestigate: false, canReview: false },
 };
+
+/**
+ * How to name the signed-in user. The email is not persisted (see session.ts), so after a reload a
+ * user without a display name is named by role rather than appearing as an anonymous "Signed in".
+ */
+export function profileName(profile: LiveProfile): string {
+  return profile.display_name ?? profile.email ?? LIVE_ROLES[profile.role].label;
+}

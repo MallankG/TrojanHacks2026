@@ -7,6 +7,7 @@ import { entityApi, type AccountProfile, type LiveAccount, type RobustZ } from "
 import { useLive } from "@/lib/live/api";
 import { BAND_LABEL, BAND_TONE, CASE_TONE, SEVERITY_TONE, alertLabel, caseLabel, money, utc, words } from "@/lib/live/format";
 import { useLiveProfile } from "@/lib/live/session";
+import { useMaskers } from "@/lib/privacy/store";
 import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
@@ -17,6 +18,7 @@ import { KeyValueList, StatBox } from "@/components/ui/key-value";
 import { EmptyState, Legend, Swatch } from "@/components/ui/misc";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
+import { MaskedRef, SensitiveRef } from "@/components/ui/sensitive";
 import { DataTable, Td, Th, Tr } from "@/components/ui/table";
 import { LiveData } from "./live-state";
 
@@ -28,11 +30,11 @@ import { LiveData } from "./live-state";
 const CHIP = "inline-flex min-h-9 items-center rounded-full border px-3 font-mono text-[13px] font-semibold";
 const CHIP_IDLE = "border-line-strong bg-white text-ink-2 hover:border-[#8a97ab]";
 
-/** A live account reference that opens its profile. */
-export function LiveAccountLink({ id, label, className }: { id: string; label: string; className?: string }) {
+/** A live account link: shows the (masked) `accountRef`, or a plain `label` such as "Open account profile". */
+export function LiveAccountLink({ id, accountRef, label, className }: { id: string; accountRef?: string; label?: string; className?: string }) {
   return (
     <Link href={ROUTES.entity(id)} className={cn("font-mono font-semibold text-brand-link underline underline-offset-2", className)}>
-      {label}
+      {accountRef ? <MaskedRef value={accountRef} /> : label}
     </Link>
   );
 }
@@ -65,7 +67,7 @@ export function LiveAccountSearch({ selectedId, autoFocus }: { selectedId?: stri
                 {page.items.map((a: LiveAccount) => (
                   <li key={a.id}>
                     <Link href={ROUTES.entity(a.id)} aria-current={a.id === selectedId ? "page" : undefined} className={cn(CHIP, a.id === selectedId ? "border-ink bg-ink text-white" : CHIP_IDLE)}>
-                      {a.account_ref}
+                      <MaskedRef value={a.account_ref} />
                       {a.is_internal ? "" : " · external"}
                     </Link>
                   </li>
@@ -134,6 +136,7 @@ function FlowSeries({ p }: { p: AccountProfile }) {
   const every = Math.max(1, Math.ceil(days.length / 6));
   const label = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
   const busiest = days.reduce((a, b) => (b.inflow + b.outflow > a.inflow + a.outflow ? b : a), days[0]);
+  const mask = useMaskers();
 
   return (
     <Panel>
@@ -144,7 +147,7 @@ function FlowSeries({ p }: { p: AccountProfile }) {
       <div
         className="relative flex h-[140px] items-end gap-[3px] border-b border-[#d5dce6]"
         role="img"
-        aria-label={`Daily inflow and outflow for ${p.account.account_ref} over ${days.length} days${busiest && busiest.inflow + busiest.outflow > 0 ? `, busiest on ${label(busiest.date)}` : ", no activity"}.`}
+        aria-label={`Daily inflow and outflow for ${mask.ref(p.account.account_ref)} over ${days.length} days${busiest && busiest.inflow + busiest.outflow > 0 ? `, busiest on ${label(busiest.date)}` : ", no activity"}.`}
       >
         {baselineLine > 0 ? <div aria-hidden="true" className="absolute inset-x-0 border-t-2 border-dashed border-[#8a97ab]" style={{ bottom: baselineLine }} /> : null}
         {days.map((day) => (
@@ -244,6 +247,7 @@ function ProfileBody({ p }: { p: AccountProfile }) {
   const dq = p.data_quality;
   const range = (start: string, end: string) => `${utc(start)} to ${utc(end)}`;
   const risk = a.risk_context && Object.keys(a.risk_context).length > 0 ? a.risk_context : null;
+  const { masked } = useMaskers();
   const openIssues = dq.transaction_issues.filter((i) => i.status === "open" || i.status === "acknowledged");
 
   return (
@@ -251,14 +255,14 @@ function ProfileBody({ p }: { p: AccountProfile }) {
       <Panel className="flex-row flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1.5">
           <div className="eyebrow">{a.is_internal ? "Internal account" : "External account"} · Live</div>
-          <h2 className="font-mono text-[22px] font-semibold">{a.account_ref}</h2>
+          <h2 className="font-mono text-[22px] font-semibold"><SensitiveRef value={a.account_ref} /></h2>
           <span className="text-[13.5px] text-muted">
             {a.account_type ? words(a.account_type) : "Account type not recorded"} · Institution {a.institution_ref ?? "not recorded"}
           </span>
           <div className="mt-1 flex flex-wrap gap-1.5">
             <Pill tone={a.status === "active" ? "ok" : "warn"}>Status: {words(a.status)}</Pill>
             <Pill tone="mute">{a.open_date ? `Opened ${a.open_date}` : "Open date not recorded"}</Pill>
-            <Pill tone="mute">{a.customer_ref ? `Customer ${a.customer_ref}` : "No customer reference"}</Pill>
+            <Pill tone="mute">{a.customer_ref ? <>Customer <MaskedRef value={a.customer_ref} /></> : "No customer reference"}</Pill>
             <Pill tone={a.customer_risk_rating === "high" ? "warn" : "mute"}>{a.customer_risk_rating ? `Risk rating ${a.customer_risk_rating}` : "No risk rating"}</Pill>
             {a.is_synthetic ? <Pill tone="mute">Synthetic</Pill> : null}
             <Pill tone="ok">Live</Pill>
@@ -416,7 +420,7 @@ function ProfileBody({ p }: { p: AccountProfile }) {
                 {p.counterparties.map((c) => (
                   <Tr key={c.account_id}>
                     <Td>
-                      <LiveAccountLink id={c.account_id} label={c.account?.account_ref ?? c.account_id.slice(0, 8)} />
+                      <LiveAccountLink id={c.account_id} accountRef={c.account?.account_ref ?? c.account_id.slice(0, 8)} />
                     </Td>
                     <Td>{c.inflow_count && c.outflow_count ? "Both" : c.inflow_count ? "Sender" : "Receiver"}</Td>
                     <Td className="whitespace-nowrap text-xs">{utc(c.first_seen_at)}</Td>
@@ -441,7 +445,7 @@ function ProfileBody({ p }: { p: AccountProfile }) {
               ["Expected activity", p.not_available.expected_activity ? <span className="text-muted">Not available. {p.not_available.expected_activity}</span> : "Recorded"],
               ["Observed activity", `${bvo.observed.transactions} transactions in ${w.observed.days} d: ${money(bvo.observed.inflow_amount)} in, ${money(bvo.observed.outflow_amount)} out`],
               ["Geography", a.jurisdiction ? `Jurisdiction ${a.jurisdiction}` : <span className="text-muted">Not available. {p.not_available.geography}</span>],
-              ["Risk context", risk ? <code className="font-mono text-xs">{JSON.stringify(risk)}</code> : <span className="text-muted">Not available. No synthetic KYC or screening context recorded.</span>],
+              ["Risk context", risk ? <code className="font-mono text-xs">{masked ? `Recorded: ${Object.keys(risk).join(", ")} (values masked)` : JSON.stringify(risk)}</code> : <span className="text-muted">Not available. No synthetic KYC or screening context recorded.</span>],
             ]}
           />
           <p className="text-xs text-muted">No expected-versus-observed mismatch is claimed without an expected-activity profile.</p>

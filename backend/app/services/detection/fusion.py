@@ -98,7 +98,7 @@ def build_alert(rules: list[Finding], anomalies: list[Finding], supervised: list
         for f in ctx_anomalies:
             components.append(_component(f, policy["anomaly_weight"], contributions["anomaly"] if f is top else 0.0))
     if supervised:
-        candidates=[f for f in supervised if f.detector.startswith('reference_ensemble')] or [f for f in supervised if f.detector=='xgb_temporal']
+        candidates=[f for f in supervised if f.detector.startswith('ensemble_')] or [f for f in supervised if f.detector=='xgb_temporal']
         top = max(candidates, key=lambda f: f.score) if candidates else None
         contributions["supervised"] = policy["supervised_weight"] * top.score if top else 0.0
         for f in supervised:

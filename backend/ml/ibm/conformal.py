@@ -11,6 +11,8 @@ from pathlib import Path
 
 import numpy as np
 
+from .order import ORDER_VERSION, npz_order
+
 
 def mondrian(y_cal, s_cal, y_test, s_test, alpha=0.1):
     p_cal, p_test = np.c_[1 - s_cal, s_cal], np.c_[1 - s_test, s_test]
@@ -34,6 +36,8 @@ if __name__ == "__main__":
     ap.add_argument("--alpha", type=float, default=0.1)
     a = ap.parse_args()
     z = np.load(Path(a.out) / f"ibm_{a.model}_scores.npz")
+    if npz_order(z) not in (None, ORDER_VERSION):  # positional rows are irrelevant here, but refuse unknown files
+        raise ValueError(f"unknown edge order {npz_order(z)!r} in ibm_{a.model}_scores.npz")
     r = mondrian(z["y_val"], z["s_val"], z["y_test"], z["s_test"], a.alpha)
     (Path(a.out) / f"ibm_{a.model}_conformal.json").write_text(json.dumps(r, indent=2))
     print(f"conformal[{a.model}] " + "  ".join(f"{k} {v:.4f}" if isinstance(v, float) else f"{k} {v}" for k, v in r.items()))
