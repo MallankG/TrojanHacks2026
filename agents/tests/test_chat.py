@@ -598,3 +598,29 @@ async def test_clamp_plan_naive_timestamps_and_zero_hops() -> None:
     assert calls[0]["args"]["hops"] == 1
     assert calls[1]["args"]["start"] == scope.window_start.isoformat()
     assert narrowed == ["window_limited"]
+
+
+async def test_chat_calls_from_another_actor_are_denied(template_llm: None) -> None:
+    chat_id = await _open_chat()
+    owner = api.get_chat(chat_id).chat.actor_id
+    assert api.get_chat(chat_id, actor_id=owner).status == "ok"
+    assert api.get_chat(chat_id, actor_id="someone-else").status == "denied"
+    turn = await api.send_message(chat_id, chip="explain_alert", actor_id="someone-else")
+    assert turn.status == "denied"
+    assert api.pin_evidence(chat_id, ["ACC-3001"], actor_id="someone-else").status == "denied"
+
+
+def test_no_access_policy_fails_closed() -> None:
+    from dataclasses import replace
+    from tracelayer_agents.chat.session import Actor, may_access
+    services, _ = api._ensure()
+    assert not may_access(replace(services, access=None), Actor("a", "analyst", None), "case_x")
+
+
+def test_model_chat_prose_may_not_state_counts() -> None:
+    from pydantic import ValidationError
+    from tracelayer_agents.schemas import ChatSynthesis
+    payload = '{"summary": "Funds passed through 14 accounts.", "hypotheses": [], "next_steps": []}'
+    with pytest.raises(ValidationError):
+        ChatSynthesis.model_validate_json(payload, context={"source": "ollama"})
+    ChatSynthesis.model_validate_json(payload)  # the deterministic template may quote computed counts

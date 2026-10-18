@@ -46,11 +46,10 @@ class Actor:
 
 
 def may_access(services: Services, actor: Actor, case_id: str) -> bool:
-    """`AccessPolicy.can_access`, failing closed: no policy configured allows (single-tenant
-    demo), an exception denies."""
+    """`AccessPolicy.can_access`, failing closed: no policy configured or an exception denies."""
     policy = services.access
     if policy is None:
-        return True
+        return False  # fail closed: the demo facade always supplies MockAccessPolicy
     try:
         return bool(policy.can_access(actor.actor_id, actor.actor_role, case_id, actor.tenant_id))
     except Exception:
@@ -217,7 +216,7 @@ class ChatStore:
 
     def create(self, scope: CaseScope, actor_id: str, actor_role: ActorRole,
                tenant_id: str | None = None) -> ChatEntry:
-        chat_id = f"chat_{uuid.uuid4().hex[:12]}"
+        chat_id = f"chat_{uuid.uuid4().hex}"  # 128 bits: never guessable
         session = ChatSession(
             chat_id=chat_id, case_id=scope.case_id, alert_id=scope.alert.alert_id,
             actor_id=actor_id, actor_role=actor_role, tenant_id=tenant_id,

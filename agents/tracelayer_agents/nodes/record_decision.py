@@ -45,8 +45,18 @@ async def record_decision(state: Mapping[str, Any], ctx: NodeContext) -> RecordD
         if before is None:
             raise KeyError(f"unknown case_id {case_id!r}")
         events: list[AuditEvent] = []
-        edited, edit_errors = None, []
-        # the decision first: if it fails, no edit is saved without a decision
+        edited, edit_errors, parent_hash = None, [], None
+        # Side-effect-free first: build and verify the reviewer's edit.
+        if draft is not None and edited_text and edited_text != draft.summary:
+            parent_hash = sha256_json(draft)
+            edited = draft.model_copy(update={
+                "summary": edited_text, "version": draft.version + 1,
+                "parent_draft_hash": parent_hash, "edited_by": decision.actor_id,
+            })
+            edit_errors = verify_evidence(edited, state["evidence_bundle"],
+                                          state.get("retrieved_sources") or [], alert)
+        current = edited or draft
+        # Then the decision and its audit event together, so a decision is never left unaudited.
         after = before.model_copy(update={
             "status": status, "disposition": decision.action, "updated_at": datetime.now(UTC),
         })
@@ -56,33 +66,6 @@ async def record_decision(state: Mapping[str, Any], ctx: NodeContext) -> RecordD
             receipt = apply_decision(case_id, decision)
         else:
             cases.update_case(after)
-        current = draft
-        if draft is not None and edited_text and edited_text != draft.summary:
-            parent_hash = sha256_json(draft)
-            edited = draft.model_copy(update={
-                "summary": edited_text, "version": draft.version + 1,
-                "parent_draft_hash": parent_hash, "edited_by": decision.actor_id,
-            })
-            edit_errors = verify_evidence(edited, state["evidence_bundle"],
-                                          state.get("retrieved_sources") or [], alert)
-            cases.save_draft(case_id, edited)
-            events.append(audit.record(
-                repo, action="case.narrative_edited", object_type="case", object_id=case_id,
-                actor_id=decision.actor_id, actor_role=decision.actor_role,
-                before_hash=parent_hash, after_hash=sha256_json(edited),
-                prompt_version=draft.prompt_version,
-                metadata={
-                    "trace_id": state.get("trace_id"),
-                    "parent_draft_hash": parent_hash,
-                    "draft_hash": sha256_json(edited),
-                    "diff_hash": sha256_json(summary_diff(draft.summary, edited_text)),
-                    "draft_version": edited.version,
-                    "edited_chars": len(edited_text),
-                    "verifier_error_count": len(edit_errors),
-                    "verifier_codes": ",".join(sorted({e.code for e in edit_errors})),
-                },
-            ))
-            current = edited
         events.append(audit.record(
             repo, action="case.decision", object_type="case", object_id=case_id,
             actor_id=decision.actor_id, actor_role=decision.actor_role, reason=decision.reason,
@@ -102,6 +85,25 @@ async def record_decision(state: Mapping[str, Any], ctx: NodeContext) -> RecordD
                 "draft_version": current.version if current is not None else None,
             },
         ))
+        # Last, the edited draft; if saving it fails, the recorded decision still stands.
+        if edited is not None:
+            cases.save_draft(case_id, edited)
+            events.append(audit.record(
+                repo, action="case.narrative_edited", object_type="case", object_id=case_id,
+                actor_id=decision.actor_id, actor_role=decision.actor_role,
+                before_hash=parent_hash, after_hash=sha256_json(edited),
+                prompt_version=draft.prompt_version,
+                metadata={
+                    "trace_id": state.get("trace_id"),
+                    "parent_draft_hash": parent_hash,
+                    "draft_hash": sha256_json(edited),
+                    "diff_hash": sha256_json(summary_diff(draft.summary, edited_text)),
+                    "draft_version": edited.version,
+                    "edited_chars": len(edited_text),
+                    "verifier_error_count": len(edit_errors),
+                    "verifier_codes": ",".join(sorted({e.code for e in edit_errors})),
+                },
+            ))
         return events, edited, edit_errors
 
     events, edited, edit_errors = await asyncio.to_thread(persist)

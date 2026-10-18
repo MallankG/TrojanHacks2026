@@ -57,10 +57,10 @@ def _path_row(path: list[SubgraphEdge], forward: bool) -> dict:
 
 
 def _walk(edges: list[SubgraphEdge], args: TraceInput, scope: CaseScope,
-          forward: bool) -> list[list[SubgraphEdge]]:
+          forward: bool) -> tuple[list[list[SubgraphEdge]], bool]:
     """Maximal time-respecting paths of up to `hops` edges (forward: each hop later; backward:
     each hop earlier), no account visited twice. Paths are in walk order (backward paths are
-    returned oldest edge first)."""
+    returned oldest edge first). The flag is True when MAX_WALK_STATES cut the walk short."""
     out_of: dict[str, list[SubgraphEdge]] = defaultdict(list)
     for e in edges:
         out_of[e.origin_account_id if forward else e.destination_account_id].append(e)
@@ -89,12 +89,14 @@ def _walk(edges: list[SubgraphEdge], args: TraceInput, scope: CaseScope,
             paths.append(path if forward else list(reversed(path)))
             continue
         stack.extend([*path, e] for e in reversed(ext))
-    return paths
+    return paths, bool(stack)
 
 
 def _trace(args: TraceInput, scope: CaseScope, ctx: NodeContext, forward: bool) -> ToolOutput:
     edges = scoped_neighbourhood(scope)
-    paths, truncated = cap(_walk(edges, args, scope, forward))
+    walked, cut_short = _walk(edges, args, scope, forward)
+    paths, truncated = cap(walked)
+    truncated = truncated or cut_short  # an unexplored branch makes the trace incomplete
     rows, computed = [], []
     for n, path in enumerate(paths, 1):
         row = _path_row(path, forward)

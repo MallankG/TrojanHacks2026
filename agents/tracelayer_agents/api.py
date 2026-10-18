@@ -364,6 +364,14 @@ def _deny(services: Services, actor: Actor, case_id: str, reason: str,
         logger.exception("audit of a denied chat request failed")
 
 
+def _allowed(services: Services, entry: ChatEntry, actor_id: str | None) -> bool:
+    """The caller (when the backend passes its authenticated actor_id) must be the chat's actor, and the
+    access policy must still allow the case. A chat_id alone is not a credential."""
+    if actor_id is not None and actor_id != entry.session.actor_id:
+        return False
+    return may_access(services, _entry_actor(entry), entry.session.case_id)
+
+
 def _entry_actor(entry: ChatEntry) -> Actor:
     s = entry.session
     return Actor(s.actor_id, s.actor_role, s.tenant_id)
@@ -407,7 +415,7 @@ async def start_chat(case_id: str, actor_id: str, actor_role: ActorRole | str,
 
 
 async def send_message(
-    chat_id: str, text: str | None = None, chip: str | None = None
+    chat_id: str, text: str | None = None, chip: str | None = None, *, actor_id: str | None = None
 ) -> ChatTurnResult:
     """Ask one question (`text`) or press one prompt chip (`chip`) in a chat; exactly one."""
     services, config = _ensure()
@@ -426,7 +434,7 @@ async def send_message(
                               error=_short(f"unknown chat_id {chat_id!r}"))
     try:
         actor = _entry_actor(entry)
-        if not may_access(services, actor, entry.session.case_id):
+        if not _allowed(services, entry, actor_id):
             _deny(services, actor, entry.session.case_id, "access_denied", chat_id=chat_id,
                   request="send_message")
             return ChatTurnResult(status="denied", chat_id=chat_id, error=DENIED)
@@ -445,14 +453,14 @@ async def send_message(
     return result
 
 
-def _set_pins(chat_id: str, ids: list[str], pin: bool) -> PinResult:
+def _set_pins(chat_id: str, ids: list[str], pin: bool, actor_id: str | None = None) -> PinResult:
     services, _ = _ensure()
     try:
         entry = _chats.get(chat_id)
     except KeyError:
         return PinResult(status="error", chat_id=chat_id,
                          error=_short(f"unknown chat_id {chat_id!r}"))
-    if not may_access(services, _entry_actor(entry), entry.session.case_id):
+    if not _allowed(services, entry, actor_id):
         _deny(services, _entry_actor(entry), entry.session.case_id, "access_denied",
               chat_id=chat_id, request="pin_evidence" if pin else "unpin_evidence")
         return PinResult(status="denied", chat_id=chat_id, error=DENIED)
@@ -467,8 +475,9 @@ def _set_pins(chat_id: str, ids: list[str], pin: bool) -> PinResult:
                 return PinResult(
                     status="rejected", chat_id=chat_id, pinned_evidence_ids=current,
                     rejected_ids=rejected,
-                    error="ids must be transactions, accounts or derived facts of this chat's case"
-                          if pin else "ids are not pinned" if rejected else "no ids given",
+                    error="no ids given" if not ids
+                          else "ids must be transactions, accounts or derived facts of this chat's case"
+                          if pin else "ids are not pinned",
                 )
             updated = (list(dict.fromkeys([*current, *ids])) if pin
                        else [i for i in current if i not in ids])
@@ -486,14 +495,14 @@ def _set_pins(chat_id: str, ids: list[str], pin: bool) -> PinResult:
     return PinResult(chat_id=chat_id, pinned_evidence_ids=updated)
 
 
-def pin_evidence(chat_id: str, ids: list[str]) -> PinResult:
+def pin_evidence(chat_id: str, ids: list[str], *, actor_id: str | None = None) -> PinResult:
     """Pin transactions, accounts or derived facts of this chat's case; chips then start from
     them. All-or-nothing: any id outside the case rejects the call."""
-    return _set_pins(chat_id, ids, pin=True)
+    return _set_pins(chat_id, ids, pin=True, actor_id=actor_id)
 
 
-def unpin_evidence(chat_id: str, ids: list[str]) -> PinResult:
-    return _set_pins(chat_id, ids, pin=False)
+def unpin_evidence(chat_id: str, ids: list[str], *, actor_id: str | None = None) -> PinResult:
+    return _set_pins(chat_id, ids, pin=False, actor_id=actor_id)
 
 
 def update_chat_context(
@@ -501,6 +510,8 @@ def update_chat_context(
     selected_tx_ids: list[str] | None = None,
     edge_ids: list[str] | None = None,
     confirm: bool = False,
+    *,
+    actor_id: str | None = None,
 ) -> ContextChangeResult:
     """Change which transactions (graph edges; edge ids are transaction ids) the chat focuses on.
     The new selection replaces the old one; chips start from it. Without `confirm`: a preview of
@@ -515,7 +526,7 @@ def update_chat_context(
                                    error=_short(f"unknown chat_id {chat_id!r}"))
     try:
         session, actor = entry.session, _entry_actor(entry)
-        if not may_access(services, actor, session.case_id):
+        if not _allowed(services, entry, actor_id):
             _deny(services, actor, session.case_id, "access_denied", chat_id=chat_id,
                   request="update_chat_context")
             return ContextChangeResult(status="denied", chat_id=chat_id, error=DENIED)
@@ -565,7 +576,7 @@ def update_chat_context(
                                context=after.model_copy(deep=True), audit_event_id=event.event_id)
 
 
-def get_chat(chat_id: str) -> ChatResult:
+def get_chat(chat_id: str, *, actor_id: str | None = None) -> ChatResult:
     """The chat session: its case context (alert, evidence, pins) and every turn so far."""
     services, _ = _ensure()
     try:
@@ -573,7 +584,7 @@ def get_chat(chat_id: str) -> ChatResult:
     except KeyError:
         return ChatResult(status="error", error=_short(f"unknown chat_id {chat_id!r}"))
     try:
-        if not may_access(services, _entry_actor(entry), entry.session.case_id):
+        if not _allowed(services, entry, actor_id):
             _deny(services, _entry_actor(entry), entry.session.case_id, "access_denied",
                   chat_id=chat_id, request="get_chat")
             return ChatResult(status="denied", error=DENIED)
@@ -583,7 +594,7 @@ def get_chat(chat_id: str) -> ChatResult:
 
 
 def record_feedback(
-    chat_id: str, turn_id: str, helpful: bool, note: str | None = None
+    chat_id: str, turn_id: str, helpful: bool, note: str | None = None, *, actor_id: str | None = None
 ) -> FeedbackResult:
     """Reviewer feedback on one turn. The note is audited as a hash and length only."""
     services, _ = _ensure()
@@ -600,7 +611,7 @@ def record_feedback(
                               **result)
     try:
         actor = _entry_actor(entry)
-        if not may_access(services, actor, entry.session.case_id):
+        if not _allowed(services, entry, actor_id):
             _deny(services, actor, entry.session.case_id, "access_denied", chat_id=chat_id,
                   request="record_feedback")
             return FeedbackResult(status="denied", error=DENIED, **result)

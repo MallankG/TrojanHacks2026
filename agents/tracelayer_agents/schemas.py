@@ -58,6 +58,16 @@ SPELLED_NUMBER_RE = re.compile(
     r"ninety|hundreds?|thousands?|millions?|billions?|dozens?|twice|double|triple|half|halves)\b",
     re.IGNORECASE,
 )
+# A standalone number (a count like "14 accounts"). Digits inside ids (TX-9), amounts ($1,200.50,
+# 300 USD) and dates (2026-01-03) don't match: the verifier grounds those and flags invented ones.
+BARE_NUMBER_RE = re.compile(
+    r"(?<![\w$€£¥.,:/-])\d+(?:\.\d+)?(?![\w.,:/%-]|\s*(?:USD|EUR|GBP|JPY|CAD|AUD|CHF|CNY|INR)\b)"
+)
+
+
+def _model_states_numbers(texts: list[str]) -> bool:
+    """True when model prose states a count or multiplier the verifier could not ground."""
+    return any(SPELLED_NUMBER_RE.search(t) or BARE_NUMBER_RE.search(t) for t in texts)
 
 
 def _sha256_hex(value: str) -> str:
@@ -493,8 +503,8 @@ class NarrativeSynthesis(Contract):
         if (info.context or {}).get("source") == "ollama":
             prose = [self.summary, *self.uncertainties, *self.follow_up_questions,
                      *(h.text for h in [*self.hypotheses, *self.contradictions])]
-            if any(SPELLED_NUMBER_RE.search(text) for text in prose):
-                raise ValueError("Model prose must not state counts or multipliers in words; "
+            if _model_states_numbers(prose):
+                raise ValueError("Model prose must not state counts or multipliers; "
                                  "reference fact claims by number instead")
         return self
 
@@ -1086,6 +1096,14 @@ class ChatSynthesis(Contract):
     summary: NonBlankStr
     hypotheses: list[ChatHypothesis] = Field(default_factory=list, max_length=CHAT_MAX_HYPOTHESES)
     next_steps: list[str] = Field(default_factory=list, max_length=CHAT_MAX_NEXT_STEPS)
+
+    @model_validator(mode="after")
+    def synthesis_cannot_state_counts(self, info: ValidationInfo):
+        # Same rule as NarrativeSynthesis: only model output (parsed with source=ollama) is checked.
+        if (info.context or {}).get("source") == "ollama" and _model_states_numbers(
+                [self.summary, *self.next_steps, *(h.text for h in self.hypotheses)]):
+            raise ValueError("Model prose must not state counts or multipliers; cite claims instead")
+        return self
 
 
 class ChatContext(Contract):

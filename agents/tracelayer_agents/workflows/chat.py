@@ -84,6 +84,7 @@ def _compiled(services: Services, config: AgentConfig | None) -> CompiledStateGr
     """Compile once per (services, config); the entry keeps both alive so ids are not reused."""
     key = (id(services), id(config))
     if key not in _COMPILED:
+        _COMPILED.clear()  # one live configuration at a time; don't keep replaced Services alive
         _COMPILED[key] = (services, config, build_chat_workflow(services, config))
     return _COMPILED[key][2]
 
