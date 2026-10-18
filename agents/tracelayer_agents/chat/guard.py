@@ -27,7 +27,7 @@ FOREIGN_ID_RE = re.compile(
 )
 OTHER_TENANT_RE = re.compile(
     r"\b(?:other|another|different|all)\s+(?:tenants?|banks?|institutions?|clients?'?\s+cases?|"
-    r"customers?'?\s+cases?)\b|\btenant[_\s-]?(?:id\s*)?[=:]?\s*\w+",
+    r"customers?'?\s+cases?)\b|\btenant[_\s-]?id\s*[=:]?\s*\w+|\btenant\s*[=:]\s*\w+",
     re.IGNORECASE,
 )
 HOPS_RE = re.compile(r"\b(\d{1,3})\s*[- ]?\s*hops?\b", re.IGNORECASE)

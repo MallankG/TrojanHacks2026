@@ -362,7 +362,7 @@ def _synthesis(
     hypothesis: str = "The outgoing transfers may be a fan-out; they may also have a legitimate "
     "explanation.",
     refs: list[int] | None = None,
-    summary: str = "One account sent funds to several others in a short window.",
+    summary: str = "An account sent funds to several others in a short window.",
 ) -> dict:
     """A `NarrativeSynthesis` as the (mock) model returns it."""
     return {
@@ -525,7 +525,7 @@ async def test_llm_synthesis_merged_draft_verifies(
 async def test_llm_synthesis_with_invented_amount_is_caught(
     monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    reply = _synthesis(summary="Roughly $12,345.67 left the hub account in one day.")
+    reply = _synthesis(summary="Roughly $12,345.67 left the hub account within a day.")
     update, bundle, chunks = await _draft_with("fan_out", _reply(reply), monkeypatch)
     draft = update["draft_narrative"]
     assert update["llm_meta"].provider == "ollama"
@@ -609,3 +609,12 @@ async def test_copilot_sar_filed_is_flagged_not_dropped(monkeypatch: pytest.Monk
     assert flagged == {(None, "PROHIBITED_LANGUAGE"), (0, "PROHIBITED_LANGUAGE")}
     assert len(result.answer.claims) == 2  # flagged, not dropped
     assert "SAR filed" in result.answer.answer
+
+
+async def test_llm_synthesis_with_spelled_out_count_falls_back(
+    monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The verifier cannot ground "twelve accounts", so model prose may not state counts in words.
+    reply = _synthesis(summary="The hub sent funds to twelve accounts, double the prior week.")
+    update, _, _ = await _draft_with("fan_out", _reply(reply), monkeypatch)
+    assert update["llm_meta"].provider == "template" and update["draft_narrative"].fallback_used

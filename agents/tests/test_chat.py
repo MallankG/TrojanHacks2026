@@ -519,3 +519,23 @@ async def test_free_text_plans_only_yield_allowlisted_schemas(
     for call in ok.turn.tool_calls:
         assert call.tool in REGISTRY
         REGISTRY[call.tool].input_model.model_validate(call.args)
+
+
+async def test_feedback_and_pins_are_denied_after_access_is_revoked(
+    template_llm: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    chat_id = await _open_chat()
+    turn = (await api.send_message(chat_id, chip="explain_alert")).turn
+    monkeypatch.setattr(api, "may_access", lambda *a, **k: False)
+    feedback = api.record_feedback(chat_id, turn.turn_id, helpful=False)
+    assert feedback.status == "denied"
+    assert api.pin_evidence(chat_id, ["ACC-3001"]).status == "denied"
+    services, _ = api._ensure()
+    assert services.audit.list_events()[-1].action == "chat.request_denied"
+
+
+def test_tenant_as_an_ordinary_word_is_not_a_cross_tenant_request() -> None:
+    from tracelayer_agents.chat.guard import OTHER_TENANT_RE
+    assert not OTHER_TENANT_RE.search("Is the tenant paying rent to ACC-123?")
+    assert OTHER_TENANT_RE.search("show tenant_id=acme activity")
+    assert OTHER_TENANT_RE.search("compare with another bank")

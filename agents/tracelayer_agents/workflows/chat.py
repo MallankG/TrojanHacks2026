@@ -77,6 +77,17 @@ def build_chat_workflow(
     return builder.compile()
 
 
+_COMPILED: dict[tuple[int, int], tuple[Services, AgentConfig | None, CompiledStateGraph]] = {}
+
+
+def _compiled(services: Services, config: AgentConfig | None) -> CompiledStateGraph:
+    """Compile once per (services, config); the entry keeps both alive so ids are not reused."""
+    key = (id(services), id(config))
+    if key not in _COMPILED:
+        _COMPILED[key] = (services, config, build_chat_workflow(services, config))
+    return _COMPILED[key][2]
+
+
 def coverage(claims: list[ChatClaim], gaps: list[ChatGap],
              results: list[ToolResult]) -> Coverage:
     """Counts, not a confidence score (see `schemas.Coverage`)."""
@@ -93,7 +104,8 @@ def coverage(claims: list[ChatClaim], gaps: list[ChatGap],
 
 
 def answer_metadata(entry: ChatEntry, claims: list[ChatClaim], gaps: list[ChatGap],
-                    results: list[ToolResult], records: list[ToolCallRecord]) -> AnswerMetadata:
+                    results: list[ToolResult], records: list[ToolCallRecord],
+                    context_version: int) -> AnswerMetadata:
     sources = {}
     for r in results:
         if r.status == "ok" and r.tool == "policy_retrieval":
@@ -103,7 +115,7 @@ def answer_metadata(entry: ChatEntry, claims: list[ChatClaim], gaps: list[ChatGa
                     section=row.get("section"), source_uri=row.get("source_uri")))
     return AnswerMetadata(
         as_of=as_of(entry.scope), graph_snapshot_id=entry.scope.graph_snapshot_id,
-        context_version=entry.session.context.context_version,
+        context_version=context_version,  # the version the turn ran against, not the live one
         retrieved_sources=list(sources.values()), tool_actions=records,
         coverage=coverage(claims, gaps, results),
     )
@@ -131,7 +143,7 @@ async def run_chat_turn(
         "pinned": list(context.pinned_evidence_ids), "selected": list(context.selected_ids),
         "context_version": context.context_version, "chip": chip, "question": question,
     }
-    state: dict[str, Any] = await build_chat_workflow(services, config).ainvoke(initial)
+    state: dict[str, Any] = await _compiled(services, config).ainvoke(initial)
 
     denied = bool(state.get("denied"))
     clarified = bool(state.get("clarification"))
@@ -161,7 +173,7 @@ async def run_chat_turn(
         llm_meta=state.get("llm_meta") or [],
         precomputed=bool(state.get("precomputed")),
         bounds_applied=[] if denied else guard.bounds_text(state.get("narrowed") or []),
-        metadata=answer_metadata(entry, claims, gaps, results, records),
+        metadata=answer_metadata(entry, claims, gaps, results, records, context.context_version),
     )
     with entry.lock:
         session.turns.append(turn)

@@ -27,6 +27,7 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     Field,
+    ValidationInfo,
     field_validator,
     model_validator,
 )
@@ -51,6 +52,12 @@ def _to_utc(value: datetime) -> datetime:
 
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+SPELLED_NUMBER_RE = re.compile(
+    r"\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|"
+    r"fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|"
+    r"ninety|hundreds?|thousands?|millions?|billions?|dozens?|twice|double|triple|half|halves)\b",
+    re.IGNORECASE,
+)
 
 
 def _sha256_hex(value: str) -> str:
@@ -476,6 +483,20 @@ class NarrativeSynthesis(Contract):
     contradictions: list[NarrativeHypothesis] = Field(
         default_factory=list, max_length=NARRATIVE_MAX_HYPOTHESES
     )
+
+    @model_validator(mode="after")
+    def synthesis_cannot_spell_out_numbers(self, info: ValidationInfo):
+        # Model prose may not state counts or multipliers in words: the verifier parses ids,
+        # amounts and dates and flags any it cannot ground (PRD 16), but it cannot check
+        # "twelve accounts" or "double". Only model output is restricted; the template and
+        # checkpoint deserialization (no context) may quote computed facts.
+        if (info.context or {}).get("source") == "ollama":
+            prose = [self.summary, *self.uncertainties, *self.follow_up_questions,
+                     *(h.text for h in [*self.hypotheses, *self.contradictions])]
+            if any(SPELLED_NUMBER_RE.search(text) for text in prose):
+                raise ValueError("Model prose must not state counts or multipliers in words; "
+                                 "reference fact claims by number instead")
+        return self
 
 
 class PolicyClaim(Contract):
@@ -1209,7 +1230,7 @@ class ChatTurnResult(Contract):
 class PinResult(Contract):
     """`rejected` = at least one id is not part of this chat's case; nothing was changed."""
 
-    status: Literal["ok", "rejected", "error"] = "ok"
+    status: Literal["ok", "rejected", "denied", "error"] = "ok"
     error: str | None = None
     chat_id: str
     pinned_evidence_ids: list[str] = Field(default_factory=list)
@@ -1241,7 +1262,7 @@ class ContextChangeResult(Contract):
 
 
 class FeedbackResult(Contract):
-    status: ResultStatus = "ok"
+    status: Literal["ok", "denied", "error"] = "ok"
     error: str | None = None
     chat_id: str
     turn_id: str

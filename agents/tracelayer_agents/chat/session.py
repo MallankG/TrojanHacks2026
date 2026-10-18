@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import threading
 import uuid
-from collections import Counter
+from collections import Counter, OrderedDict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
@@ -196,11 +196,15 @@ class ChatEntry:
     lock: threading.Lock = field(default_factory=threading.Lock)
 
 
+MAX_CHATS = 500  # ponytail: in-memory LRU per process; persist sessions if chats must outlive it
+
+
 class ChatStore:
     """In-memory chat sessions by chat_id."""
 
-    def __init__(self) -> None:
-        self._entries: dict[str, ChatEntry] = {}
+    def __init__(self, max_entries: int = MAX_CHATS) -> None:
+        self._entries: OrderedDict[str, ChatEntry] = OrderedDict()
+        self._max = max_entries
 
     def create(self, scope: CaseScope, actor_id: str, actor_role: ActorRole,
                tenant_id: str | None = None) -> ChatEntry:
@@ -213,6 +217,8 @@ class ChatStore:
         )
         entry = ChatEntry(session=session, scope=scope)
         self._entries[chat_id] = entry
+        while len(self._entries) > self._max:  # oldest chat (and its case scope) is dropped
+            self._entries.popitem(last=False)
         return entry
 
     def get(self, chat_id: str) -> ChatEntry:

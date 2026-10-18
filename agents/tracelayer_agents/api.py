@@ -454,26 +454,26 @@ def _set_pins(chat_id: str, ids: list[str], pin: bool) -> PinResult:
     if not may_access(services, _entry_actor(entry), entry.session.case_id):
         _deny(services, _entry_actor(entry), entry.session.case_id, "access_denied",
               chat_id=chat_id, request="pin_evidence" if pin else "unpin_evidence")
-        return PinResult(status="error", chat_id=chat_id, error=DENIED)
+        return PinResult(status="denied", chat_id=chat_id, error=DENIED)
     try:
         ids = list(dict.fromkeys(i for i in ids or [] if isinstance(i, str)))
         session = entry.session
-        current = list(session.context.pinned_evidence_ids)
-        allowed = entry.scope.pinnable_ids if pin else set(current)
-        rejected = [i for i in ids if i not in allowed]
-        if rejected or not ids:
-            return PinResult(
-                status="rejected", chat_id=chat_id, pinned_evidence_ids=current,
-                rejected_ids=rejected,
-                error="ids must be transactions, accounts or derived facts of this chat's case"
-                      if pin else "ids are not pinned" if rejected else "no ids given",
-            )
-        updated = (list(dict.fromkeys([*current, *ids])) if pin
-                   else [i for i in current if i not in ids])
-        if len(updated) > MAX_PINS:
-            return PinResult(status="rejected", chat_id=chat_id, pinned_evidence_ids=current,
-                             error=f"at most {MAX_PINS} pinned ids")
-        with entry.lock:
+        with entry.lock:  # read-modify-write: concurrent pin/unpin calls must not lose updates
+            current = list(session.context.pinned_evidence_ids)
+            allowed = entry.scope.pinnable_ids if pin else set(current)
+            rejected = [i for i in ids if i not in allowed]
+            if rejected or not ids:
+                return PinResult(
+                    status="rejected", chat_id=chat_id, pinned_evidence_ids=current,
+                    rejected_ids=rejected,
+                    error="ids must be transactions, accounts or derived facts of this chat's case"
+                          if pin else "ids are not pinned" if rejected else "no ids given",
+                )
+            updated = (list(dict.fromkeys([*current, *ids])) if pin
+                       else [i for i in current if i not in ids])
+            if len(updated) > MAX_PINS:
+                return PinResult(status="rejected", chat_id=chat_id, pinned_evidence_ids=current,
+                                 error=f"at most {MAX_PINS} pinned ids")
             session.context = rebuild_context(entry.scope, session.context, pinned=updated)
         audit.record(
             services.audit, action="chat.pin" if pin else "chat.unpin", object_type="case",
@@ -593,6 +593,11 @@ def record_feedback(
                               error=f"note must be at most {MAX_FEEDBACK_NOTE_CHARS} characters")
     try:
         entry = _chats.get(chat_id)
+        actor = _entry_actor(entry)
+        if not may_access(services, actor, entry.session.case_id):
+            _deny(services, actor, entry.session.case_id, "access_denied", chat_id=chat_id,
+                  request="record_feedback")
+            return FeedbackResult(status="denied", error=DENIED, **result)
         turn = next((t for t in entry.session.turns if t.turn_id == turn_id), None)
         if turn is None:
             return FeedbackResult(status="error", error=_short(f"unknown turn_id {turn_id!r}"),

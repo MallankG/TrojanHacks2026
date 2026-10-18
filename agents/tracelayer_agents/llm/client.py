@@ -206,7 +206,7 @@ class LLMClient:
                 if content is None:
                     return None
                 try:
-                    return output_model.model_validate_json(content)
+                    return output_model.model_validate_json(content, context={"source": "ollama"})
                 except ValidationError as exc:
                     run.errors.append(f"invalid_output_attempt_{attempt}")
                     feedback = json.dumps(
