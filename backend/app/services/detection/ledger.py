@@ -29,6 +29,8 @@ class Txn:
     def from_row(cls, row: dict) -> "Txn":
         amount = Decimal(str(row["amount"]))
         usd = row.get("amount_usd")
+        if usd is None and row.get("currency") != "USD":
+            raise ValueError("Non-USD transaction has no USD conversion")
         return cls(
             id=str(row["id"]), ref=row.get("transaction_ref"), at=parse_ts(row["occurred_at"]),
             usd=Decimal(str(usd)) if usd is not None else amount, amount=amount, currency=row.get("currency") or "USD",
@@ -46,6 +48,7 @@ class Txn:
 @dataclass
 class Ledger:
     txns: list[Txn]
+    excluded_no_usd: int = 0
     outflows: dict[str, list[Txn]] = field(default_factory=dict)
     inflows: dict[str, list[Txn]] = field(default_factory=dict)
     events: dict[str, list[Txn]] = field(default_factory=dict)

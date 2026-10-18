@@ -13,7 +13,7 @@ from app.services import alerts as alert_service
 from . import anomaly, config, supervised
 from .detectors import Finding, run_rules
 from .fusion import fuse
-from .ledger import Ledger, Txn
+from .ledger import Ledger, Txn, parse_ts
 
 TXN_FIELDS = "id, transaction_ref, occurred_at, amount, currency, amount_usd, channel, origin_account_id, destination_account_id"
 PAGE = 1000
@@ -30,11 +30,11 @@ def load_ledger(tenant_id: str, window_days: int, max_transactions: int) -> Ledg
         rows += batch
         if len(batch) < PAGE:
             break
-    txns = [Txn.from_row(r) for r in rows]
-    if txns:
-        cutoff = max(t.at for t in txns) - timedelta(days=window_days)
-        txns = [t for t in txns if t.at >= cutoff]
-    return Ledger(txns)
+    if rows:
+        cutoff = max(parse_ts(r["occurred_at"]) for r in rows) - timedelta(days=window_days)
+        rows = [r for r in rows if parse_ts(r["occurred_at"]) >= cutoff]
+    eligible = [r for r in rows if r.get("amount_usd") is not None or r.get("currency") == "USD"]
+    return Ledger([Txn.from_row(r) for r in eligible], excluded_no_usd=len(rows) - len(eligible))
 
 
 def _start_run(user: CurrentUser, name: str, kind: str, version: str, dataset: str, cfg: dict) -> dict:
@@ -97,10 +97,15 @@ def run_detection(user: CurrentUser, window_days: int | None = None, max_transac
 
         current = runs["ranker"] = _start_run(user, "alert-fusion", "ranker", config.POLICY_VERSION, dataset, config.snapshot())["id"]
         fused = fuse(rules, anomalies, sup.findings)
+        caveat = (f"Data-quality caveat: {ledger.excluded_no_usd} non-USD transaction(s) were excluded from USD scoring "
+                  "because their USD conversion is missing.") if ledger.excluded_no_usd else None
+        if caveat:
+            for alert in fused:
+                alert["limitations"] = f"{alert.get('limitations') or ''} {caveat}".strip()
         batch = AlertBatch.model_validate({"model_run_id": current, "alerts": fused})
         alert_service.validate_batch(user, batch)
         created = alert_service.publish(user, batch) if batch.alerts else []
-        _finish_run(user, current, "completed", {"alerts": len(created)})
+        _finish_run(user, current, "completed", {"alerts": len(created), "excluded_no_usd": ledger.excluded_no_usd, "data_quality_caveat": caveat})
         current = None
     except Exception as exc:
         if current:
@@ -113,6 +118,7 @@ def run_detection(user: CurrentUser, window_days: int | None = None, max_transac
     summary = {
         "model_runs": runs, "ranker_run_id": runs["ranker"], "transactions_considered": len(ledger.txns),
         "rule_signals": len(rules), "anomaly_signals": len(anomalies),
+        "excluded_no_usd": ledger.excluded_no_usd, "data_quality_caveat": caveat,
         "supervised": {"signals": len(sup.findings), "skipped_reason": sup.skipped_reason},
         "alerts": len(created), "alerts_by_typology": by_typology, "window_days": window,
     }

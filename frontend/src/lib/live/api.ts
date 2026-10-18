@@ -88,7 +88,7 @@ export interface Alert {
   has_dq_caveat: boolean;
   dq_caveat_notes: string | null;
   limitations: string | null;
-  explanation: string | null;
+  explanation: string | { summary?: string; reasons?: string[]; score_breakdown?: Record<string, number>; [key: string]: unknown } | null;
   model_run_id: string;
   status: "new" | "under_review" | "in_case" | "closed_no_action" | "dismissed";
   created_at: string;

@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 interface DetectionSummary {
   ranker_run_id: string;
   transactions_considered: number;
+  excluded_no_usd?: number;
+  data_quality_caveat?: string | null;
   rule_signals: number;
   anomaly_signals: number;
   supervised: { signals: number; skipped_reason: string | null };
@@ -32,7 +34,7 @@ export function RunDetectionButton() {
     try {
       const s = await call<DetectionSummary>("/scoring/run", { method: "POST", body: {}, timeoutMs: 180_000 });
       const typologies = Object.entries(s.alerts_by_typology).map(([t, n]) => `${words(t)} ${n}`).join(", ");
-      const text = `${s.alerts} alert(s) from ${s.transactions_considered.toLocaleString("en-US")} transactions${typologies ? `: ${typologies}` : ""}.`;
+      const text = `${s.alerts} alert(s) from ${s.transactions_considered.toLocaleString("en-US")} transactions${typologies ? `: ${typologies}` : ""}.${s.data_quality_caveat ? ` ${s.data_quality_caveat}` : ""}`;
       setResult(text);
       toast(`Detection finished. ${text}`);
       for (const key of ["alerts", "alert:", "dashboard", "registry", "pipelines", "detectors"]) invalidateLive(key);

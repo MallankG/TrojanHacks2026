@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Literal
 
-from app.core.db import fetch_all, fetch_by_ids, get_db
+from app.core.db import PAGE_SIZE, fetch_by_ids, get_db
 
 TXN_FIELDS = (
     "id, transaction_ref, occurred_at, amount, currency, amount_usd, channel, origin_account_id, "
@@ -99,6 +99,8 @@ def _edges_touching(
     deadline: float | None = None,
 ) -> list[dict]:
     """Transactions with an endpoint in account_ids. side="outgoing" means the account sent them."""
+    if cap <= 0:
+        return []
     db = get_db()
     edges: dict[str, dict] = {}
     ids = sorted(account_ids)
@@ -118,10 +120,19 @@ def _edges_touching(
                 q = q.or_(f"origin_account_id.in.({j}),destination_account_id.in.({j})")
             return _filters(_window(q, start, end), channels, min_amount).order("occurred_at").order("id")
 
-        for row in fetch_all(build):
-            edges[row["id"]] = row
-            if len(edges) >= cap:
+        offset = 0
+        while len(edges) < cap:
+            if deadline is not None and time.monotonic() > deadline:
                 return list(edges.values())
+            size = min(PAGE_SIZE, cap - len(edges))
+            rows = build().range(offset, offset + size - 1).execute().data or []
+            for row in rows:
+                edges[row["id"]] = row
+            if len(rows) < size:
+                break
+            offset += size
+        if len(edges) >= cap:
+            return list(edges.values())
     return list(edges.values())
 
 

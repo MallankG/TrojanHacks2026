@@ -1,5 +1,7 @@
 "use client";
 
+import { AlertExplanation } from "./alert-explanation";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -187,7 +189,7 @@ export function LiveAlertDetail({ alertId }: { alertId: string }) {
                       ["Status", words(a.status)],
                     ]}
                   />
-                  {a.explanation ? <p className="text-[13.5px]">{a.explanation}</p> : null}
+                  <AlertExplanation explanation={a.explanation} />
                   {a.limitations ? <p className="text-xs text-muted">Limitations: {a.limitations}</p> : null}
                   {a.accounts.length > 0 ? (
                     <div className="flex flex-col gap-1.5">
