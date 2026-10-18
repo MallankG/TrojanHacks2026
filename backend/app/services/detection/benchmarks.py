@@ -14,7 +14,7 @@ import time
 from .detectors import Finding, _roles
 
 ART = Path(__file__).resolve().parents[3] / 'ml/artifacts/ibm'
-LOCK = RLock()  # GNN sampling uses the torch RNG; keep inference deterministic across requests.
+LOCK = RLock()  # GNN inference only: its sampling uses the torch RNG. XGBoost runs unlocked.
 CAVEAT = ('IBM HI-Small research model applied to a different feed: entity types and training-account history '
           'are unavailable; unknown static features are zero. Only history in the selected scope is visible. '
           'Dates, currencies and payment rails may differ from training. Scores are review context, not '
@@ -41,6 +41,12 @@ def _scorer(name):
     return scorer
 
 
+@lru_cache(maxsize=16)
+def _sha256(path):
+    """Artifacts are immutable while the process runs; hash each once."""
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def _frame(ledger):
     import pandas as pd
     rails = {'ach':'ACH','wire':'Wire','cash':'Cash','check':'Cheque','card':'Credit Card','crypto':'Bitcoin'}
@@ -64,13 +70,16 @@ def score(ledger, keep_ids, names=('xgb_temporal','gnn_temporal')):
         try:
             if name == 'gnn_temporal' and len(e)>500:
                 raise ValueError('GNN interactive scoring cap is 500 edges; no sampled prefix was scored')
-            with LOCK:
-                scorer = _scorer(name)
-                scored = scorer.score(e) if name=='xgb_temporal' else scorer.score(e,accounts).reindex(e.index)
+            scorer = _scorer(name)
+            if name == 'xgb_temporal':
+                scored = scorer.score(e)
+            else:
+                with LOCK:
+                    scored = scorer.score(e,accounts).reindex(e.index)
             column = 'risk_score' if name=='xgb_temporal' else 'gnn_score'
             suffix = '.json' if name=='xgb_temporal' else '.pt'
             artifact = ART / f'ibm_{name}{suffix}'
-            checksum = hashlib.sha256(artifact.read_bytes()).hexdigest()
+            checksum = _sha256(artifact)
             version = f'ibm-{name}-{checksum[:12]}'
             card = {'model_name':name,'model_version':version,'feature_version':'ibm-strict-temporal-v1',
                 'artifact_sha256':checksum,'threshold':float(scorer.threshold),
@@ -98,8 +107,8 @@ def score(ledger, keep_ids, names=('xgb_temporal','gnn_temporal')):
             card=json.loads((ART / f'ibm_{name}_results.json').read_text())
             first,second=card['models']
             scorer=EnsembleScorer(first,second,ART)
-            manifest={'reference_sha256':hashlib.sha256((ART/f'ibm_{name}_ref.npz').read_bytes()).hexdigest(),
-                'calibration_sha256':hashlib.sha256((ART/f'ibm_{name}_results.json').read_bytes()).hexdigest(),
+            manifest={'reference_sha256':_sha256(ART/f'ibm_{name}_ref.npz'),
+                'calibration_sha256':_sha256(ART/f'ibm_{name}_results.json'),
                 'component_versions':{n:results[n].card['model_version'] for n in card['models']},
                 'weights':{first:scorer.w,second:1-scorer.w},'threshold':scorer.threshold,
                 'reference_mode':'fixed_validation','calibration':scorer.calibration}

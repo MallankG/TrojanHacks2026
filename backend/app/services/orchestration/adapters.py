@@ -12,7 +12,7 @@ from app.core.db import fetch_by_ids, get_db, get_one, insert_many, with_actor
 from app.schemas import AlertBatch
 from ml.graph import GraphLimits, NetworkXGraphAdapter
 from app.services import alerts, cases
-from app.services.detection import anomaly, config, supervised, benchmarks
+from app.services.detection import anomaly, config, benchmarks
 from app.services.detection.detectors import run_rules
 from app.services.detection.fusion import fuse
 from app.services.detection.ledger import Ledger, Txn
@@ -290,7 +290,7 @@ class Policy:
 
     def search(self, query, filters, top_k):
         from app.services.policy_retrieval import search
-        args=C.PolicyLookup(query=query,filters=filters,top_k=top_k)
+        args=C.PolicyLookup(query=query,filters=filters,top_k=min(top_k,8))
         rows = search(self.ctx.tid, args.query, args.top_k)['results']
         return [C.RetrievedChunk(chunk_id=r['chunk_id'], doc_title=r['title'], section=r['section'],
             source_uri=r['source_url'], excerpt=r['content'], score=r['rrf_score']) for r in rows]

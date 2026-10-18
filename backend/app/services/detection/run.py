@@ -10,7 +10,7 @@ from app.core.security import CurrentUser
 from app.schemas import AlertBatch
 from app.services import alerts as alert_service
 
-from . import anomaly, config, supervised, benchmarks
+from . import anomaly, config, benchmarks
 from .detectors import Finding, run_rules
 from .fusion import fuse
 from .ledger import Ledger, Txn, parse_ts

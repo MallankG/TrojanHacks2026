@@ -17,16 +17,19 @@ def redact(text):
     return EMAIL.sub('[redacted email]',text)
 
 
+_FORMATTER = logging.Formatter()
+
+
 def install():
     previous=logging.getLogRecordFactory()
     def factory(*args,**kwargs):
         record=previous(*args,**kwargs)
         record.msg=redact(record.getMessage())
         record.args=()
-        if record.exc_info:
-            record.msg += ' ['+record.exc_info[0].__name__+']'
-            record.exc_info=None
-            record.exc_text=None
+        if record.exc_info and record.exc_info[0] is not None:
+            # Keep the traceback for diagnosis, redacted like the message.
+            record.exc_text=redact(_FORMATTER.formatException(record.exc_info))
+        record.exc_info=None
         return record
     logging.setLogRecordFactory(factory)
     logging.getLogger('httpx').setLevel(logging.WARNING)
