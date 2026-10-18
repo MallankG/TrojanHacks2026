@@ -1,0 +1,637 @@
+{
+  "model_version": "tracelayer-risk-1.0.0",
+  "feature_version": "fs-1.0",
+  "created_at": "2026-10-17T22:37:09.538805+00:00",
+  "seed": 7,
+  "dataset": {
+    "path": "ml/data/transactions.parquet",
+    "sha256": "a9514c222dced09ee1849ca89582e1a1d52a3addd24a8768ed9c62b5de35146e",
+    "n_transactions": 282454,
+    "n_accounts": 7560,
+    "synthetic": true
+  },
+  "split": {
+    "train": {
+      "days": [
+        0,
+        60
+      ],
+      "start": "2026-01-01 00:00:00+00:00",
+      "end": "2026-03-02 00:00:00+00:00",
+      "n": 185133,
+      "positives": 2444
+    },
+    "val": {
+      "days": [
+        60,
+        75
+      ],
+      "start": "2026-03-02 00:00:00+00:00",
+      "end": "2026-03-17 00:00:00+00:00",
+      "n": 53338,
+      "positives": 811
+    },
+    "test": {
+      "days": [
+        75,
+        90
+      ],
+      "start": "2026-03-17 00:00:00+00:00",
+      "end": "2026-04-01 00:00:00+00:00",
+      "n": 43983,
+      "positives": 560
+    }
+  },
+  "selected_model": "ensemble_xgb_gnn",
+  "thresholds": {
+    "rules": {
+      "operating": 1.0,
+      "review_recall90": 0.0
+    },
+    "isolation_forest": {
+      "operating": 0.47312380948151445,
+      "review_recall90": 0.39509242581450266
+    },
+    "xgboost": {
+      "operating": 0.604527473449707,
+      "review_recall90": 0.9873500466346741
+    },
+    "gnn": {
+      "operating": 0.8445591330528259,
+      "review_recall90": 0.9985296726226807
+    },
+    "ensemble_xgb_gnn": {
+      "operating": 0.735700935125351,
+      "review_recall90": 0.9910025894641876
+    }
+  },
+  "feature_columns": [
+    "log_amount",
+    "round_100",
+    "near_band",
+    "hour",
+    "dow",
+    "ch_card",
+    "ch_p2p",
+    "ch_ach",
+    "ch_wire",
+    "ch_cash",
+    "o_age_days",
+    "o_type_individual",
+    "o_type_merchant",
+    "o_type_employer",
+    "o_type_landlord",
+    "o_type_supplier",
+    "o_in_cnt_1h",
+    "o_in_sum_1h",
+    "o_out_cnt_1h",
+    "o_out_sum_1h",
+    "o_near_cnt_1h",
+    "o_in_cnt_24h",
+    "o_in_sum_24h",
+    "o_out_cnt_24h",
+    "o_out_sum_24h",
+    "o_near_cnt_24h",
+    "o_in_cnt_7d",
+    "o_in_sum_7d",
+    "o_out_cnt_7d",
+    "o_out_sum_7d",
+    "o_near_cnt_7d",
+    "o_in_cnt_30d",
+    "o_in_sum_30d",
+    "o_out_cnt_30d",
+    "o_out_sum_30d",
+    "o_near_cnt_30d",
+    "o_n_events_to_date",
+    "o_secs_since_last",
+    "o_in_cp_to_date",
+    "o_out_cp_to_date",
+    "o_flow_ratio_24h",
+    "o_net_flow_24h",
+    "o_flow_ratio_7d",
+    "o_net_flow_7d",
+    "o_out_mean_30d",
+    "o_in_mean_30d",
+    "d_age_days",
+    "d_type_individual",
+    "d_type_merchant",
+    "d_type_employer",
+    "d_type_landlord",
+    "d_type_supplier",
+    "d_in_cnt_1h",
+    "d_in_sum_1h",
+    "d_out_cnt_1h",
+    "d_out_sum_1h",
+    "d_near_cnt_1h",
+    "d_in_cnt_24h",
+    "d_in_sum_24h",
+    "d_out_cnt_24h",
+    "d_out_sum_24h",
+    "d_near_cnt_24h",
+    "d_in_cnt_7d",
+    "d_in_sum_7d",
+    "d_out_cnt_7d",
+    "d_out_sum_7d",
+    "d_near_cnt_7d",
+    "d_in_cnt_30d",
+    "d_in_sum_30d",
+    "d_out_cnt_30d",
+    "d_out_sum_30d",
+    "d_near_cnt_30d",
+    "d_n_events_to_date",
+    "d_secs_since_last",
+    "d_in_cp_to_date",
+    "d_out_cp_to_date",
+    "d_flow_ratio_24h",
+    "d_net_flow_24h",
+    "d_flow_ratio_7d",
+    "d_net_flow_7d",
+    "d_out_mean_30d",
+    "d_in_mean_30d",
+    "amt_over_o_in_24h",
+    "amt_over_o_out_mean_30d",
+    "pair_prior_cnt",
+    "pair_reciprocal_cnt"
+  ],
+  "rules": [
+    "rapid_pass_through",
+    "funnel_many_to_one",
+    "dispersal_one_to_many",
+    "structuring_band",
+    "dormant_reactivated",
+    "new_account_high_value",
+    "reciprocal_flow"
+  ],
+  "gnn": {
+    "config": {
+      "tab_dim": 86,
+      "hidden": 64,
+      "heads": 4,
+      "layers": 2,
+      "dropout": 0.1
+    },
+    "context_days": 14.0,
+    "bucket_hours": 6.0,
+    "history": [
+      {
+        "epoch": 1,
+        "train_loss": 0.16801135060287098,
+        "val_pr_auc": 0.9508643949598411
+      },
+      {
+        "epoch": 2,
+        "train_loss": 0.02312841518292332,
+        "val_pr_auc": 0.9739604091919588
+      },
+      {
+        "epoch": 3,
+        "train_loss": 0.017029375173071206,
+        "val_pr_auc": 0.9921934354675305
+      },
+      {
+        "epoch": 4,
+        "train_loss": 0.01157480594501349,
+        "val_pr_auc": 0.9938264432431279
+      },
+      {
+        "epoch": 5,
+        "train_loss": 0.01099812584022308,
+        "val_pr_auc": 0.9955999879351805
+      },
+      {
+        "epoch": 6,
+        "train_loss": 0.01015348060511691,
+        "val_pr_auc": 0.9964661742241919
+      },
+      {
+        "epoch": 7,
+        "train_loss": 0.009923143106161974,
+        "val_pr_auc": 0.9961870643264275
+      },
+      {
+        "epoch": 8,
+        "train_loss": 0.009226651683383321,
+        "val_pr_auc": 0.9951936184582205
+      },
+      {
+        "epoch": 9,
+        "train_loss": 0.008142426095979505,
+        "val_pr_auc": 0.9971032543833637
+      },
+      {
+        "epoch": 10,
+        "train_loss": 0.006746166400168069,
+        "val_pr_auc": 0.9964189926422757
+      },
+      {
+        "epoch": 11,
+        "train_loss": 0.008424975661664145,
+        "val_pr_auc": 0.9973125428589995
+      },
+      {
+        "epoch": 12,
+        "train_loss": 0.007856367807465466,
+        "val_pr_auc": 0.9967743977920772
+      },
+      {
+        "epoch": 13,
+        "train_loss": 0.008092440720842291,
+        "val_pr_auc": 0.9968636727222903
+      },
+      {
+        "epoch": 14,
+        "train_loss": 0.006537183458059755,
+        "val_pr_auc": 0.997411645202479
+      },
+      {
+        "epoch": 15,
+        "train_loss": 0.005627640085821958,
+        "val_pr_auc": 0.9967568677992908
+      },
+      {
+        "epoch": 16,
+        "train_loss": 0.005340961159832039,
+        "val_pr_auc": 0.9972695941956695
+      },
+      {
+        "epoch": 17,
+        "train_loss": 0.006232641056267939,
+        "val_pr_auc": 0.9971209738370471
+      },
+      {
+        "epoch": 18,
+        "train_loss": 0.005212318213390505,
+        "val_pr_auc": 0.9971217928229742
+      },
+      {
+        "epoch": 19,
+        "train_loss": 0.0046812930135150185,
+        "val_pr_auc": 0.9980983958648729
+      },
+      {
+        "epoch": 20,
+        "train_loss": 0.007376792705523456,
+        "val_pr_auc": 0.9966821834945474
+      },
+      {
+        "epoch": 21,
+        "train_loss": 0.006516429752944783,
+        "val_pr_auc": 0.9967131458505666
+      },
+      {
+        "epoch": 22,
+        "train_loss": 0.00465658174454316,
+        "val_pr_auc": 0.9972837496059163
+      },
+      {
+        "epoch": 23,
+        "train_loss": 0.005146945819388874,
+        "val_pr_auc": 0.996922447102923
+      },
+      {
+        "epoch": 24,
+        "train_loss": 0.003965573540551959,
+        "val_pr_auc": 0.997318434116469
+      }
+    ]
+  },
+  "xgboost": {
+    "rounds": 520,
+    "scale_pos_weight": 8.645808232895291,
+    "top_features_by_gain": {
+      "d_type_individual": 1849.41943359375,
+      "o_type_merchant": 985.572265625,
+      "o_type_individual": 962.4698486328125,
+      "o_type_employer": 638.5716552734375,
+      "log_amount": 601.9857177734375,
+      "ch_wire": 435.6076354980469,
+      "o_in_sum_7d": 414.5784606933594,
+      "d_in_cnt_30d": 341.6722412109375,
+      "amt_over_o_out_mean_30d": 331.5595703125,
+      "d_in_sum_24h": 328.3080139160156,
+      "o_out_cnt_1h": 298.89239501953125,
+      "o_out_sum_1h": 296.9306640625,
+      "d_in_cp_to_date": 179.53262329101562,
+      "ch_card": 174.38157653808594,
+      "d_net_flow_24h": 170.52899169921875
+    }
+  },
+  "metrics": {
+    "rules": {
+      "val": {
+        "pr_auc": 0.27083390684202924,
+        "roc_auc": 0.7418340099978411,
+        "threshold": 1.0,
+        "precision": 0.5102564102564102,
+        "recall": 0.4907521578298397,
+        "f1": 0.5003142677561282,
+        "false_alerts_per_1000_tx": 7.161873336083093,
+        "confusion_matrix": {
+          "tn": 52145,
+          "fp": 382,
+          "fn": 413,
+          "tp": 398
+        },
+        "precision@100": 0.37,
+        "recall@100": 0.04562268803945746,
+        "precision@500": 0.284,
+        "recall@500": 0.17509247842170161,
+        "precision@1000": 0.401,
+        "recall@1000": 0.49445129469790383,
+        "recall_by_typology": {
+          "cycle": 0.7857142857142857,
+          "dormant_reactivation": 0.16483516483516483,
+          "fan_in": 0.4979919678714859,
+          "fan_out": 0.2647058823529412,
+          "layering": 0.5897435897435898,
+          "pass_through": 0.3944954128440367,
+          "structuring": 0.7857142857142857
+        }
+      },
+      "test": {
+        "pr_auc": 0.4974527103108857,
+        "roc_auc": 0.760507762509006,
+        "threshold": 1.0,
+        "precision": 0.9419354838709677,
+        "recall": 0.5214285714285715,
+        "f1": 0.671264367816092,
+        "false_alerts_per_1000_tx": 0.40924902803355845,
+        "confusion_matrix": {
+          "tn": 43405,
+          "fp": 18,
+          "fn": 268,
+          "tp": 292
+        },
+        "precision@100": 0.97,
+        "recall@100": 0.1732142857142857,
+        "precision@500": 0.602,
+        "recall@500": 0.5375,
+        "precision@1000": 0.308,
+        "recall@1000": 0.55,
+        "recall_by_typology": {
+          "cycle": 0.7307692307692307,
+          "dormant_reactivation": 0.14705882352941177,
+          "fan_in": 0.5,
+          "fan_out": 0.5533333333333333,
+          "layering": 0.49382716049382713,
+          "pass_through": 0.35,
+          "structuring": 0.8823529411764706
+        }
+      }
+    },
+    "isolation_forest": {
+      "val": {
+        "pr_auc": 0.06829619030879741,
+        "roc_auc": 0.8535019404147904,
+        "threshold": 0.47312380948151445,
+        "precision": 0.09843400447427293,
+        "recall": 0.32552404438964244,
+        "f1": 0.15115946178070427,
+        "false_alerts_per_1000_tx": 45.33353331583487,
+        "confusion_matrix": {
+          "tn": 50109,
+          "fp": 2418,
+          "fn": 547,
+          "tp": 264
+        },
+        "precision@100": 0.08,
+        "recall@100": 0.009864364981504316,
+        "precision@500": 0.078,
+        "recall@500": 0.04808877928483354,
+        "precision@1000": 0.072,
+        "recall@1000": 0.08877928483353884,
+        "recall_by_typology": {
+          "cycle": 0.23809523809523808,
+          "dormant_reactivation": 0.15384615384615385,
+          "fan_in": 0.11244979919678715,
+          "fan_out": 0.5686274509803921,
+          "layering": 0.41025641025641024,
+          "pass_through": 0.11926605504587157,
+          "structuring": 0.7785714285714286
+        }
+      },
+      "test": {
+        "pr_auc": 0.06802120658644552,
+        "roc_auc": 0.8819688627817385,
+        "threshold": 0.47312380948151445,
+        "precision": 0.09346787041954328,
+        "recall": 0.3142857142857143,
+        "f1": 0.1440851412198117,
+        "false_alerts_per_1000_tx": 38.81044949184912,
+        "confusion_matrix": {
+          "tn": 41716,
+          "fp": 1707,
+          "fn": 384,
+          "tp": 176
+        },
+        "precision@100": 0.05,
+        "recall@100": 0.008928571428571428,
+        "precision@500": 0.052,
+        "recall@500": 0.04642857142857143,
+        "precision@1000": 0.057,
+        "recall@1000": 0.10178571428571428,
+        "recall_by_typology": {
+          "cycle": 0.46153846153846156,
+          "dormant_reactivation": 0.058823529411764705,
+          "fan_in": 0.06329113924050633,
+          "fan_out": 0.3333333333333333,
+          "layering": 0.5679012345679012,
+          "pass_through": 0.18333333333333332,
+          "structuring": 0.8823529411764706
+        }
+      }
+    },
+    "xgboost": {
+      "val": {
+        "pr_auc": 0.9982772103842392,
+        "roc_auc": 0.9999722531283718,
+        "threshold": 0.604527473449707,
+        "precision": 0.9755799755799756,
+        "recall": 0.9852034525277436,
+        "f1": 0.9803680981595092,
+        "false_alerts_per_1000_tx": 0.37496719037084253,
+        "confusion_matrix": {
+          "tn": 52507,
+          "fp": 20,
+          "fn": 12,
+          "tp": 799
+        },
+        "precision@100": 1.0,
+        "recall@100": 0.12330456226880394,
+        "precision@500": 1.0,
+        "recall@500": 0.6165228113440198,
+        "precision@1000": 0.811,
+        "recall@1000": 1.0,
+        "recall_by_typology": {
+          "cycle": 0.9761904761904762,
+          "dormant_reactivation": 1.0,
+          "fan_in": 0.9718875502008032,
+          "fan_out": 0.9803921568627451,
+          "layering": 0.9871794871794872,
+          "pass_through": 1.0,
+          "structuring": 0.9928571428571429
+        }
+      },
+      "test": {
+        "pr_auc": 0.9958765366939911,
+        "roc_auc": 0.9999260184694747,
+        "threshold": 0.604527473449707,
+        "precision": 0.9629629629629629,
+        "recall": 0.975,
+        "f1": 0.968944099378882,
+        "false_alerts_per_1000_tx": 0.4774571993724848,
+        "confusion_matrix": {
+          "tn": 43402,
+          "fp": 21,
+          "fn": 14,
+          "tp": 546
+        },
+        "precision@100": 1.0,
+        "recall@100": 0.17857142857142858,
+        "precision@500": 1.0,
+        "recall@500": 0.8928571428571429,
+        "precision@1000": 0.559,
+        "recall@1000": 0.9982142857142857,
+        "recall_by_typology": {
+          "cycle": 1.0,
+          "dormant_reactivation": 1.0,
+          "fan_in": 0.9556962025316456,
+          "fan_out": 0.9733333333333334,
+          "layering": 0.9753086419753086,
+          "pass_through": 0.9833333333333333,
+          "structuring": 1.0
+        }
+      }
+    },
+    "gnn": {
+      "val": {
+        "pr_auc": 0.9980983958648729,
+        "roc_auc": 0.9999687554262797,
+        "threshold": 0.8445591330528259,
+        "precision": 0.9826086956521739,
+        "recall": 0.9753390875462392,
+        "f1": 0.9789603960396039,
+        "false_alerts_per_1000_tx": 0.2624770332595898,
+        "confusion_matrix": {
+          "tn": 52513,
+          "fp": 14,
+          "fn": 20,
+          "tp": 791
+        },
+        "precision@100": 1.0,
+        "recall@100": 0.12330456226880394,
+        "precision@500": 1.0,
+        "recall@500": 0.6165228113440198,
+        "precision@1000": 0.81,
+        "recall@1000": 0.998766954377312,
+        "recall_by_typology": {
+          "cycle": 0.9761904761904762,
+          "dormant_reactivation": 1.0,
+          "fan_in": 0.963855421686747,
+          "fan_out": 0.9803921568627451,
+          "layering": 0.9615384615384616,
+          "pass_through": 0.981651376146789,
+          "structuring": 0.9785714285714285
+        }
+      },
+      "test": {
+        "pr_auc": 0.9946870135194938,
+        "roc_auc": 0.9998966561499667,
+        "threshold": 0.8445591330528259,
+        "precision": 0.9783393501805054,
+        "recall": 0.9678571428571429,
+        "f1": 0.9730700179533214,
+        "false_alerts_per_1000_tx": 0.2728326853557056,
+        "confusion_matrix": {
+          "tn": 43411,
+          "fp": 12,
+          "fn": 18,
+          "tp": 542
+        },
+        "precision@100": 1.0,
+        "recall@100": 0.17857142857142858,
+        "precision@500": 1.0,
+        "recall@500": 0.8928571428571429,
+        "precision@1000": 0.559,
+        "recall@1000": 0.9982142857142857,
+        "recall_by_typology": {
+          "cycle": 0.9615384615384616,
+          "dormant_reactivation": 1.0,
+          "fan_in": 0.9683544303797469,
+          "fan_out": 0.9533333333333334,
+          "layering": 0.9753086419753086,
+          "pass_through": 0.9833333333333333,
+          "structuring": 0.9607843137254902
+        }
+      }
+    },
+    "ensemble_xgb_gnn": {
+      "val": {
+        "pr_auc": 0.9985098303493208,
+        "roc_auc": 0.9999753048147606,
+        "threshold": 0.735700935125351,
+        "precision": 0.9851485148514851,
+        "recall": 0.9815043156596794,
+        "f1": 0.9833230389129092,
+        "false_alerts_per_1000_tx": 0.22498031422250553,
+        "confusion_matrix": {
+          "tn": 52515,
+          "fp": 12,
+          "fn": 15,
+          "tp": 796
+        },
+        "precision@100": 1.0,
+        "recall@100": 0.12330456226880394,
+        "precision@500": 1.0,
+        "recall@500": 0.6165228113440198,
+        "precision@1000": 0.81,
+        "recall@1000": 0.998766954377312,
+        "recall_by_typology": {
+          "cycle": 0.9761904761904762,
+          "dormant_reactivation": 1.0,
+          "fan_in": 0.963855421686747,
+          "fan_out": 0.9803921568627451,
+          "layering": 0.9743589743589743,
+          "pass_through": 1.0,
+          "structuring": 0.9928571428571429
+        }
+      },
+      "test": {
+        "pr_auc": 0.9960292267020379,
+        "roc_auc": 0.999921453739131,
+        "threshold": 0.735700935125351,
+        "precision": 0.9801084990958409,
+        "recall": 0.9678571428571429,
+        "f1": 0.9739442946990117,
+        "false_alerts_per_1000_tx": 0.25009662824273016,
+        "confusion_matrix": {
+          "tn": 43412,
+          "fp": 11,
+          "fn": 18,
+          "tp": 542
+        },
+        "precision@100": 1.0,
+        "recall@100": 0.17857142857142858,
+        "precision@500": 1.0,
+        "recall@500": 0.8928571428571429,
+        "precision@1000": 0.559,
+        "recall@1000": 0.9982142857142857,
+        "recall_by_typology": {
+          "cycle": 0.9615384615384616,
+          "dormant_reactivation": 1.0,
+          "fan_in": 0.9620253164556962,
+          "fan_out": 0.9533333333333334,
+          "layering": 0.9753086419753086,
+          "pass_through": 0.9833333333333333,
+          "structuring": 0.9803921568627451
+        }
+      }
+    }
+  },
+  "limitations": [
+    "Synthetic AMLSim-style data generated by ml/generate_data.py; metrics are a demonstration, not real-world validation.",
+    "Labels mark injected typology patterns, not criminal findings. Scores are review-priority signals.",
+    "GNN context is a 14-day trailing graph refreshed per 6h bucket; activity inside the current bucket is only seen via tabular features.",
+    "Not retrained on train+val; thresholds were chosen on validation (max F1) and never tuned on test."
+  ]
+}

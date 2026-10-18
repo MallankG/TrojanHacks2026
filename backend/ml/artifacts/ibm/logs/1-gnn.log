@@ -1,0 +1,28 @@
+/content/ml/ibm/gnn.py:167: UserWarning: The given NumPy array is not writable, and PyTorch does not support non-writable tensors. This means writing to this tensor will result in undefined behavior. You may want to copy the array to protect its data or make it writable before converting it to a tensor. This type of warning will be suppressed for the rest of this program. (Triggered internally at /pytorch/torch/csrc/utils/tensor_numpy.cpp:213.)
+  yt = torch.as_tensor(y, device=dev, dtype=torch.float32)
+edges 4,487,133 | train 2,590,591 (2421) val 658,773 (651) test 1,237,769 (2094) | cuda
+features ready in 32s: node (518573, 6), edge (4487133, 16)
+epoch  1 loss 0.0611 val AUPRC 15.51 (73s)
+epoch  2 loss 0.0404 val AUPRC 27.17 (72s)
+epoch  3 loss 0.0372 val AUPRC 29.33 (72s)
+epoch  4 loss 0.0356 val AUPRC 36.19 (72s)
+epoch  5 loss 0.0341 val AUPRC 36.76 (72s)
+epoch  6 loss 0.0328 val AUPRC 40.18 (72s)
+epoch  7 loss 0.0319 val AUPRC 42.11 (71s)
+epoch  8 loss 0.0308 val AUPRC 44.27 (72s)
+epoch  9 loss 0.0305 val AUPRC 42.48 (71s)
+epoch 10 loss 0.0300 val AUPRC 45.33 (71s)
+epoch 11 loss 0.0293 val AUPRC 44.99 (71s)
+epoch 12 loss 0.0291 val AUPRC 47.37 (71s)
+epoch 13 loss 0.0288 val AUPRC 45.97 (71s)
+epoch 14 loss 0.0282 val AUPRC 43.00 (71s)
+epoch 15 loss 0.0283 val AUPRC 47.45 (71s)
+epoch 16 loss 0.0275 val AUPRC 46.01 (71s)
+epoch 17 loss 0.0269 val AUPRC 43.81 (71s)
+epoch 18 loss 0.0267 val AUPRC 44.40 (71s)
+epoch 19 loss 0.0266 val AUPRC 45.60 (71s)
+epoch 20 loss 0.0262 val AUPRC 44.11 (71s)
+
+TEST auroc 98.74  auprc 61.60  best_f1 61.75  best_precision 74.33  best_recall 52.82  best_threshold 0.97
+paper IMPROVED: AUPRC 64.85  Best F1 68.42  -> AUPRC gap -3.25
+test @ val threshold: {'threshold': 0.9046505093574524, 'precision': 58.305882352941175, 'recall': 59.16905444126075, 'f1': 58.734297226831, 'tp': 1239, 'fp': 886, 'fn': 855}

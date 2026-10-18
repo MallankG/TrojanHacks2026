@@ -1,0 +1,1 @@
+rules: val AUPRC 0.19 | test AUPRC 0.30 AUROC 70.91 best F1 0.87 | F1@val-thr 0.87 alerts/1k 170.73
