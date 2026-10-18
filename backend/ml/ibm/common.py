@@ -22,6 +22,7 @@ import scipy.sparse as sp
 from scipy.sparse.linalg import svds
 
 from ..tracelayer.features import _account_state, _distinct_cp_to_date, _pair_counts
+from .order import canonical
 from .xgb import build, edge_features, load, metrics, split
 
 HUB_DEGREE = 1000  # ponytail: hubs dropped from 3-cycle counting to keep A@A sparse; raise if RAM allows
@@ -32,7 +33,7 @@ def load_edges(data):
     """Time-sorted non-self-loop edges, labels, split indices, leakage-safe 39-feature matrix, train-period node features."""
     tx, acc = load(data)
     tx = tx.sort_values("ts", kind="stable").reset_index(drop=True)
-    e = tx[tx["src"] != tx["dst"]].reset_index(drop=True)
+    e = canonical(tx[tx["src"] != tx["dst"]])  # same edge ids as gnn.py / serving (ml/ibm/order.py)
     tr, va, te, cut = split(e["ts"])
     _, _, _, names, node_tr = build(tx[tx["ts"] <= cut[0]], acc)  # node aggregates from train period only
     nv = node_tr.reindex(pd.Index(pd.unique(np.r_[e["src"], e["dst"]]))).fillna(0)

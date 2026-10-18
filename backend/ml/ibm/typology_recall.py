@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from .explain import parse_patterns
+from .order import canonical
 from .xgb import load, split
 
 
@@ -24,7 +25,7 @@ def threshold_of(res):
 def main(data, out):
     o = Path(out)
     tx, _ = load(data)
-    e = tx[tx["src"] != tx["dst"]].sort_values("ts", kind="stable").reset_index(drop=True)
+    e = canonical(tx[tx["src"] != tx["dst"]])
     _, _, te, _ = split(e["ts"])
     pat = parse_patterns(Path(data) / "HI-Small_Patterns.txt")
     key = lambda df: df["ts"].dt.floor("min").astype(str) + "|" + df["src"] + "|" + df["dst"] + "|" + df["amt_paid"].round(2).astype(str)

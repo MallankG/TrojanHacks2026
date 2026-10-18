@@ -26,14 +26,18 @@ ART = Path(__file__).parent.parent / "artifacts" / "ibm"
 
 
 def pct(ref_sorted, s):
-    """Fraction of reference (val) scores <= s, plus a raw-score tie-break.
+    """Fraction of reference (val) scores <= s; inputs cast to the ref dtype (no off-by-one on float64 ties)."""
+    return np.searchsorted(ref_sorted, np.asarray(s, dtype=ref_sorted.dtype), side="right") / len(ref_sorted)
 
-    Scores beyond the val extremes would otherwise all map to exactly 0 or 1 and tie right where the
-    operating threshold sits. Adding 0.5/len(ref) * s keeps the order of raw scores, and never reorders rows
-    across distinct percentiles (they are >= 1/len(ref) apart). Inputs are cast to the ref dtype so
-    float64 callers don't get off-by-one ranks on boundary ties."""
-    s = np.asarray(s, dtype=ref_sorted.dtype)
-    return np.searchsorted(ref_sorted, s, side="right") / len(ref_sorted) + (0.5 / len(ref_sorted)) * s.astype(np.float64)
+
+TIE_EPS = 1e-9  # far below the smallest blended-percentile step, min(w, 1-w)/len(ref), for scores in [0, 1]
+
+
+def blend_scores(ref_a, ref_b, w, s_a, s_b):
+    """Blend pure percentiles, then add ONE raw-score tie-break, so it only orders exact blend ties (e.g. rows
+    beyond both models' val extremes) and can never override a real percentile difference."""
+    s_a, s_b = np.asarray(s_a, dtype=np.float64), np.asarray(s_b, dtype=np.float64)
+    return w * pct(ref_a, s_a) + (1 - w) * pct(ref_b, s_b) + TIE_EPS * (w * s_a + (1 - w) * s_b)
 
 
 class EnsembleScorer:
@@ -43,9 +47,10 @@ class EnsembleScorer:
         ref = np.load(d / f"ibm_ensemble_{a}_{b}_ref.npz")
         self.ref_a, self.ref_b, self.w = ref["ref_a"], ref["ref_b"], res[f"weight_{a}"]
         self.threshold = res["val"]["best_threshold"]
+        self.calibration = res.get("calibration", "batch-cap GNN scores; rebuild after gnn_temporal per-target re-eval")
 
     def blend(self, s_a, s_b):
-        return self.w * pct(self.ref_a, s_a) + (1 - self.w) * pct(self.ref_b, s_b)
+        return blend_scores(self.ref_a, self.ref_b, self.w, s_a, s_b)
 
 
 if __name__ == "__main__":
@@ -56,14 +61,14 @@ if __name__ == "__main__":
     z = [np.load(Path(a.out) / f"ibm_{m}_scores.npz") for m in a.models]
     assert all((x["y_val"] == z[0]["y_val"]).all() and (x["y_test"] == z[0]["y_test"]).all() for x in z), "row order mismatch"
     ref = [np.sort(x["s_val"]) for x in z]
-    val = [pct(r, x["s_val"]) for r, x in zip(ref, z)]
-    test = [pct(r, x["s_test"]) for r, x in zip(ref, z)]
+    blend = lambda w, part: blend_scores(ref[0], ref[1], w, z[0][part], z[1][part])
     grid = np.round(np.arange(0, 1.01, 0.1), 2)
-    ap_val = {float(w): float(average_precision_score(z[0]["y_val"], w * val[0] + (1 - w) * val[1])) for w in grid}
+    ap_val = {float(w): float(average_precision_score(z[0]["y_val"], blend(w, "s_val"))) for w in grid}
     w = max(ap_val, key=ap_val.get)
     y = np.r_[z[0]["y_val"], z[0]["y_test"]]
-    s = np.r_[w * val[0] + (1 - w) * val[1], w * test[0] + (1 - w) * test[1]]
-    va, te = np.arange(len(val[0])), np.arange(len(val[0]), len(y))
+    n_val = len(z[0]["y_val"])
+    s = np.r_[blend(w, "s_val"), blend(w, "s_test")]
+    va, te = np.arange(n_val), np.arange(n_val, len(y))
     name = f"ensemble_{a.models[0]}_{a.models[1]}"
     np.savez_compressed(Path(a.out) / f"ibm_{name}_ref.npz", ref_a=ref[0], ref_b=ref[1])
     evaluate_and_save(name, y, s, va, te, a.out, {"models": a.models, f"weight_{a.models[0]}": w, "val_auprc_by_weight": ap_val,
