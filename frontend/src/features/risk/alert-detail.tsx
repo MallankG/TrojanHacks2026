@@ -17,6 +17,9 @@ import { KeyValueList, StatBox } from "@/components/ui/key-value";
 import { Meter } from "@/components/ui/misc";
 import { Pill } from "@/components/ui/pill";
 import { DataTable, Td, Th } from "@/components/ui/table";
+import { useFlag } from "@/components/shell/feature-gate";
+import { AlertChangeLog } from "./alert-changes";
+import { SignalBalance } from "./signal-balance";
 
 function PointList({ points }: { points: CitedPoint[] }) {
   return (
@@ -40,6 +43,9 @@ export function AlertDetail({ alertId }: { alertId: AlertId }) {
   const alert = alerts.find((a) => a.id === alertId) ?? alerts[0];
   const isMain = alert.id === "AL-1027";
   const rescored = fixed && isMain;
+  const counterOn = useFlag("counterEvidence");
+  const diffOn = useFlag("alertDiff");
+  const passportOn = useFlag("passport");
 
   const components = [
     { name: "XGBoost", version: "xgb-aml v1.4.2 · threshold 0.62", value: alert.xgb.toFixed(2), meter: alert.xgb, note: alert.xgb >= 0.62 ? "Above threshold" : "Below threshold" },
@@ -77,6 +83,11 @@ export function AlertDetail({ alertId }: { alertId: AlertId }) {
             <Link href={ROUTES.copilot} className={buttonClasses("ghost", "sm")}>
               Ask copilot
             </Link>
+            {passportOn ? (
+              <Link href={ROUTES.riskPassport(alert.id)} className={buttonClasses("ghost", "sm")}>
+                Evidence passport
+              </Link>
+            ) : null}
             {alert.caseId ? (
               <Link href={ROUTES.case(alert.caseId)} className={buttonClasses("primary", "sm")}>
                 Open {alert.caseId}
@@ -171,16 +182,22 @@ export function AlertDetail({ alertId }: { alertId: AlertId }) {
         </div>
       </Panel>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] gap-4">
-        <Panel>
-          <h2 className="text-base font-semibold">Why this alert</h2>
-          <PointList points={whyFlagged(alert, fixed)} />
-        </Panel>
-        <Panel>
-          <h2 className="text-base font-semibold">Why it might be benign</h2>
-          <PointList points={whyBenign(alert)} />
-        </Panel>
-      </div>
+      {counterOn ? (
+        <SignalBalance alert={alert} fixed={fixed} />
+      ) : (
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] gap-4">
+          <Panel>
+            <h2 className="text-base font-semibold">Why this alert</h2>
+            <PointList points={whyFlagged(alert, fixed)} />
+          </Panel>
+          <Panel>
+            <h2 className="text-base font-semibold">Why it might be benign</h2>
+            <PointList points={whyBenign(alert)} />
+          </Panel>
+        </div>
+      )}
+
+      {diffOn ? <AlertChangeLog alertId={alert.id} /> : null}
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] gap-4">
         <Card className="overflow-hidden">

@@ -1,5 +1,6 @@
 import { SEED_EVENTS, SEED_EXPORTS, type FeatureFlagKey } from "@/lib/seed/governance";
 import type {
+  AlertId,
   AuditEvent,
   Batch,
   CaseId,
@@ -34,6 +35,8 @@ export interface GraphView {
   pinSaved: boolean;
   view: "graph" | "table";
   compare: boolean;
+  /** Replaces the explorer with the time machine or the storyboard. */
+  lens: "none" | "timeMachine" | "storyboard";
 }
 
 export interface CopilotState {
@@ -81,6 +84,54 @@ export interface PolicyState {
   flags: Record<FeatureFlagKey, boolean>;
 }
 
+/** Everything a score depends on. Alert diffs recompute both sides from these, never from cached scores. */
+export interface ScoringInputs {
+  driftFixed: boolean;
+  weights: Record<WeightKey, string>;
+  policyVersion: string;
+  bandMin: string;
+  bandMax: string;
+}
+
+export type RecomputeKind = "Data" | "Policy" | "Threshold";
+
+export interface AlertRecompute {
+  id: string;
+  at: string;
+  by: string;
+  kind: RecomputeKind;
+  reason: string;
+  before: ScoringInputs;
+  after: ScoringInputs;
+}
+
+export interface PassportRecord {
+  id: string;
+  alertId: AlertId;
+  at: string;
+  by: string;
+  packageHash: string;
+  /** The issued document, kept so it can be downloaded and re-verified later. */
+  document: unknown;
+}
+
+export interface ReplayRecord {
+  id: string;
+  pin: string;
+  at: string;
+  by: string;
+  reproduced: number;
+  nonDeterministic: number;
+  unavailable: number;
+}
+
+export interface SandboxProposal {
+  id: string;
+  at: string;
+  by: string;
+  summary: string;
+}
+
 export type ConfirmAction = "escalate" | "close" | "more" | "approve" | "return";
 
 export type ModalState =
@@ -126,12 +177,16 @@ export interface DemoState {
   events: AuditEvent[];
   seq: number;
   exports: ExportRecord[];
+  recomputes: AlertRecompute[];
+  passports: PassportRecord[];
+  replays: ReplayRecord[];
+  sandboxProposals: SandboxProposal[];
   visited: Partial<Record<ScreenKey, boolean>>;
   modal: ModalState | null;
   toast: { id: number; message: string } | null;
 }
 
-export const STATE_VERSION = 5;
+export const STATE_VERSION = 6;
 
 export const DEFAULT_WEIGHTS: Record<WeightKey, string> = { xgb: "35", typology: "25", graph: "20", anomaly: "10", age: "10" };
 
@@ -155,6 +210,7 @@ export function createInitialState(): DemoState {
       pinSaved: false,
       view: "graph",
       compare: false,
+      lens: "none",
     },
     riskQueue: { text: "", band: "all", status: "all", grouped: true },
     copilot: { messages: [], focus: "TX-88201", contextCase: "CASE-0412", nextId: 1 },
@@ -181,13 +237,29 @@ export function createInitialState(): DemoState {
       bandMax: "9999",
       weights: { ...DEFAULT_WEIGHTS },
       aiDrafting: true,
-      flags: { propagation: false, passport: true, snapshotDiff: true, gnn: false, sandbox: false },
+      flags: {
+        propagation: false,
+        passport: true,
+        snapshotDiff: true,
+        timeMachine: true,
+        counterEvidence: true,
+        alertDiff: true,
+        replay: true,
+        sandbox: true,
+        impactRadar: true,
+        storyboard: true,
+        gnn: false,
+      },
     },
     erDecisions: {},
     screeningDecision: "",
     events: SEED_EVENTS,
     seq: 0,
     exports: SEED_EXPORTS,
+    recomputes: [],
+    passports: [],
+    replays: [],
+    sandboxProposals: [],
     visited: {},
     modal: null,
     toast: null,
