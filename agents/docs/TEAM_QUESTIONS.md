@@ -48,6 +48,30 @@ the PRD don't already answer. Until we hear back, agents run against the mocks i
    in the case audit trail (`chat.*` events, hashes and refs only). Do you want a `chat_sessions` /
    `chat_turns` table (we'd add a `ChatRepository` Protocol), or is the audit trail enough?
 
+13. **uuid vs string ids.** Your id columns are uuid. Ours (`TX-…`, `ACC-…`, alert, chunk ids)
+    are strings, and we map them with uuid5, one namespace per kind (`adapters/persistence.py`).
+    `case_evidence.alert_id/account_id/policy_chunk_id` and `narrative_citations.policy_chunk_id`
+    are FKs. Will ingestion assign uuids with the same uuid5 mapping, or should we look up your
+    uuids by `source_row_ref` / natural key before writing?
+14. **Citation original id.** `CitationIn` has no text field for our chunk id. Could you add
+    `source_ref text`, or should `quoted_text` carry it?
+15. **Policy claims.** `claim_kind` has no `policy`. We store policy claims as `fact` with
+    `cited_chunk_ids` set (the original type goes in `referenced_values.claim_type`). OK, or should
+    we add `policy` to the enum?
+16. **Decision mapping.** Ours is `escalate | dismiss | request_more_data`. We map these to
+    `escalate`+`escalate_for_sar_consideration`, `reject`+`no_further_action`, and
+    `edit`+`needs_more_information`. Is that right? `edit` seems the closest fit for "request more
+    data", but it's not a great one.
+17. **Edited summary.** Our `Decision.edited_summary` has no field in `DecisionIn`. We append it
+    to `notes` for now. Should it be a new `case_narratives` version instead
+    (`parent_narrative_id`, `author_type='user'`)?
+18. **Audit hash chain.** `audit_events` has no `prev_hash`/`hash`/`actor_role`/`model_versions`
+    columns. We put them in `metadata`. Is that acceptable, or will you add columns (see the hash
+    chain question above)?
+19. **Agent-run status.** We set `awaiting_review` after the draft and `completed` after the
+    human decision, with `failed` on any node error. Does that match how the frontend reads
+    `agent_runs.status`?
+
 ## ML
 
 1. **Module paths.** Where will `GraphRiskScorer`, `BehaviorScorer`, `RankFusion` and `FlowInvestigator`

@@ -702,7 +702,60 @@ actor = the chat's user): `chat.started`, `chat.turn` (question hash, chip, inte
 prompt versions/provider/model, verification status, kept/dropped claim counts, bundle hash),
 `chat.pin`, `chat.unpin`, `chat.feedback`. References only, never raw rows or question text.
 
-## 6. Limitations
+## 6. Persisting agent output
+
+`tracelayer_agents.adapters.persistence` maps facade results onto your request bodies in
+`backend/app/schemas.py` and the `audit_events` table. Its functions are pure (no DB, no HTTP), and
+each one returns a JSON-ready dict. The tests validate every dict against your Pydantic models.
+Call them in this order:
+
+| # | facade result | mapping | your endpoint / table |
+|---|---|---|---|
+| 1 | `start_case` → `CaseDraftResult` | `agent_run_create(result)` | `POST /cases/{case_id}/agent-runs` → `agent_runs` |
+| 2 | `CaseDraftResult.trace`, `.case_status` | `agent_run_update(trace, case_status)` | `PATCH /agent-runs/{run_id}` (`append_agent_steps`) |
+| 3 | the alert's `EvidenceBundle` (`CaseRepository.get_evidence`) | `case_evidence_rows(bundle)` | `POST /cases/{case_id}/evidence`, one call per row → `case_evidence` |
+| 4 | `CaseDraftResult.draft` | `narrative_create(result, agent_run_uuid)` | `POST /cases/{case_id}/narratives` → `case_narratives`, `narrative_claims`, `narrative_citations` |
+| 5 | `CaseDraftResult.verifier_errors`, `.flagged_claims` | `narrative_verification(result)` | `PUT /narratives/{narrative_id}/verification` |
+| 6 | `resume_case` → `Decision` + `CaseDecisionResult` | `case_decision_row(decision, result, narrative_uuid)` | `POST /cases/{case_id}/decisions` → `case_decisions` |
+| 7 | `CaseDecisionResult.trace`, `.case_status` | `agent_run_update(...)` (status `completed`) | `PATCH /agent-runs/{run_id}` |
+| 8 | every `AuditEvent` (`AuditRepository.list_events`) | `audit_event_row(event, tenant_id)` | `audit_events` |
+
+**IDs.** Your id columns are uuid; ours are strings such as `TX-…`, `ACC-…` and chunk ids, and
+they stay that way. `to_uuid(kind, id)` gives a deterministic uuid5 with one namespace per kind
+(`transaction`, `account`, `alert`, `case`, `chunk`, `agent_run`, `narrative`, `evidence`,
+`actor`, `audit_event`). The original id is also kept in a text or jsonb field: `config` in
+`agent_runs`, `referenced_values` in `narrative_claims`, `payload` and `source_ref` in
+`case_evidence`, and `metadata` in `audit_events`. `audit_events.object_id` is text, so our id
+goes there unchanged.
+
+**Claim mapping.** Claim `i` is `draft.observed_facts[i]`, so `claim_index` matches our
+`flagged_claims` and `VerifierError.claim_index`.
+- `claim_kind`: fact → `fact`, hypothesis → `hypothesis`, policy → `fact` (with cited chunks).
+  Each uncertainty becomes an extra `unknown` claim at the end.
+- Per-claim verification: a flagged claim is `unsupported` (the error codes go in
+  `verifier_notes`). Otherwise a fact or policy claim is `supported`, and a hypothesis or
+  unknown is `not_applicable`.
+- Narrative status: no errors → `passed`; any error or `needs_revision` → `flagged`; error
+  result → `failed`.
+
+**Decision mapping** (`review_decision` + `disposition`):
+- escalate → `escalate` + `escalate_for_sar_consideration`
+- dismiss → `reject` + `no_further_action`
+- request_more_data → `edit` + `needs_more_information`
+
+`edited_summary` is appended to `notes`.
+
+**Where your schema cannot hold our original id** (`UNHOLDABLE_ORIGINAL_IDS`):
+- `CitationIn.policy_chunk_id`: there is no text field, and it is an FK to `policy_chunks`.
+- `NarrativeCreate.agent_run_id` / `parent_narrative_id` and `DecisionIn.narrative_id`: there is
+  no text field.
+- `EvidenceIn.alert_id` / `account_id` / `policy_chunk_id`: the originals go in `payload`, but
+  the uuid columns are FKs, so a uuid5 only resolves if your ingestion uses the same mapping.
+- Route params `case_id` / `run_id` / `narrative_id`.
+
+See TEAM_QUESTIONS.md, Backend 13–19.
+
+## 7. Limitations
 
 - **In-memory until the backend provides repositories.** With the default mocks, alerts, evidence,
   cases, drafts and audit events live in process memory and are lost on restart. Pass real

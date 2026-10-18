@@ -210,6 +210,7 @@ agents/                     # flat layout (no src/); import name `tracelayer_age
             aggregate.py investigate_flows.py retrieve_policy.py draft_narrative.py
             verify.py human_decision.py copilot_answer.py chat.py
     interfaces/  services.py
+    adapters/    persistence.py (pure mappings → backend schemas / tables)
     mocks/       services.py  fixtures/ (fan_out.csv, pass_through.csv, cycle.csv, bad_batch.csv,
                  policy_chunks.json)
     llm/         client.py  prompts/narrative_v2.md (v1 kept)  prompts/policy_qa_v1.md
