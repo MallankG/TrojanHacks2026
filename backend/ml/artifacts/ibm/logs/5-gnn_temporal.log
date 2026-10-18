@@ -1,0 +1,27 @@
+edges 4,487,133 | train 2,590,591 (2421) val 658,773 (651) test 1,237,769 (2094) | cuda
+features ready in 38s: node (518573, 6), edge (4487133, 16)
+epoch  1 loss 0.0667 val AUPRC 29.45 (56s)
+epoch  2 loss 0.0511 val AUPRC 30.98 (55s)
+epoch  3 loss 0.0494 val AUPRC 40.24 (56s)
+epoch  4 loss 0.0486 val AUPRC 41.02 (56s)
+epoch  5 loss 0.0476 val AUPRC 38.68 (56s)
+epoch  6 loss 0.0467 val AUPRC 38.69 (56s)
+epoch  7 loss 0.0466 val AUPRC 47.92 (56s)
+epoch  8 loss 0.0458 val AUPRC 46.11 (56s)
+epoch  9 loss 0.0462 val AUPRC 44.78 (56s)
+epoch 10 loss 0.0456 val AUPRC 45.54 (55s)
+epoch 11 loss 0.0457 val AUPRC 45.66 (55s)
+epoch 12 loss 0.0453 val AUPRC 48.60 (55s)
+epoch 13 loss 0.0445 val AUPRC 49.39 (55s)
+epoch 14 loss 0.0445 val AUPRC 48.26 (55s)
+epoch 15 loss 0.0447 val AUPRC 49.67 (55s)
+epoch 16 loss 0.0437 val AUPRC 46.79 (55s)
+epoch 17 loss 0.0438 val AUPRC 49.49 (55s)
+epoch 18 loss 0.0437 val AUPRC 48.94 (55s)
+epoch 19 loss 0.0436 val AUPRC 49.27 (55s)
+epoch 20 loss 0.0435 val AUPRC 45.46 (55s)
+epoch 21 loss 0.0430 val AUPRC 48.90 (55s)
+
+TEST auroc 98.92  auprc 61.33  best_f1 61.81  best_precision 73.65  best_recall 53.25  best_threshold 0.97
+paper IMPROVED: AUPRC 64.85  Best F1 68.42  -> AUPRC gap -3.52
+test @ val threshold: {'threshold': 0.954647421836853, 'precision': 67.3480976717774, 'recall': 56.638013371537724, 'f1': 61.53047989623865, 'tp': 1186, 'fp': 575, 'fn': 908}

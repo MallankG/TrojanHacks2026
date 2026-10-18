@@ -15,6 +15,8 @@ export function GovernanceHeader() {
           { href: ROUTES.governance("models"), label: "Model registry" },
           { href: ROUTES.governance("drift"), label: "Drift and health" },
           { href: ROUTES.governance("pipelines"), label: "Pipelines and agents" },
+          { href: ROUTES.governance("replay"), label: "Investigation replay" },
+          { href: ROUTES.governance("sandbox"), label: "What-if sandbox" },
           { href: ROUTES.governance("audit"), label: "Access and audit" },
           { href: ROUTES.governance("exports"), label: "Evidence exports" },
           { href: ROUTES.governance("settings"), label: "Policy and settings" },

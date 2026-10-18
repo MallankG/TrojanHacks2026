@@ -131,6 +131,16 @@ def evidence_bundle(case_id: UUID, user: CurrentUser = Depends(ANY_CALLER)) -> d
     return case_service.evidence_bundle(user.tenant_id, str(case_id))
 
 
+@router.get("/{case_id}/evidence-passport")
+def evidence_passport(case_id: UUID, user: CurrentUser = Depends(ANY_CALLER)) -> dict:
+    """Tamper-evident case package: hashed sections plus a package hash. Verify with POST /evidence-passports/verify."""
+    _case_or_404(user, case_id, "id")
+    sealed = case_service.evidence_passport(user, str(case_id))
+    audit.record(user, "case.evidence_passport_issued", "case", str(case_id),
+                 {"package_hash": sealed["manifest"]["package_hash"]})
+    return sealed
+
+
 @router.post("/{case_id}/decisions", status_code=201)
 def record_decision(case_id: UUID, body: DecisionIn, user: CurrentUser = Depends(CAN_INVESTIGATE)) -> dict:
     """Human review step. The database enforces that only reviewers/admins accept, reject, escalate or dispose."""

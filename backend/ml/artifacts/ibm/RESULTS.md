@@ -4,7 +4,29 @@ Dataset: IBM Transactions for AML, HI-Small (5,078,345 tx; 0.10% illicit). Self-
 Temporal split at the paper's cutoffs (2022-09-06 18:24 / 2022-09-08 03:28): train 2,590,591 · val 658,773 · test 1,237,769.
 All thresholds and model selection on validation only. Trained on Colab GPU.
 
-## Test metrics
+## Post-review rerun (code at 4112bca: leakage and temporal fixes from the PR #4 review)
+
+The fixes: counterparty counts no longer stale by one, same-second rows no longer counted as "earlier", the dormant rule needs a prior event, cycle_3 is retired (train-graph lookahead), and the GNN has a strictly temporal mode. **These rows supersede the matching pre-fix rows below.**
+
+| model | test AUPRC | AUROC | best F1 (F1 @ val thr) | val AUPRC | alerts/1k @ val thr | vs paper |
+|---|---|---|---|---|---|---|
+| **XGBoost, point-in-time features** | **44.92** | 98.75 | 45.37 (43.82) | 44.87 | 0.53 | **+6.46** over paper XGBoost 38.46, leak-free |
+| Typology rules, train-calibrated (cycle_3 retired) | 0.93 | 72.85 | 7.27 (7.09) | 0.88 | 1.50 | rules baseline; dormant rule now real (train precision 0.28 → 2.39) |
+| Typology rules, hand-set | 0.25 | 65.28 | 0.65 (0.38) | 0.15 | 4.31 | ablation |
+| Isolation Forest, behaviour features (unsupervised) | 0.68 | 85.53 | 1.88 (0.81) | 0.98 | 45.0 | secondary ranking signal only |
+| Isolation Forest, raw features | 0.15 | 45.86 | 0.37 (0.30) | 0.12 | 25.1 | ablation: below random |
+| **GATv2, strictly temporal** (`--temporal`, same-minute edges excluded) | **61.33** | 98.92 | 61.81 (**61.53**) | 49.67 | 0.46 | −3.52 vs paper 64.85; same AUPRC as the within-window v1 (61.60) with a better operating point (575 vs 886 FP) |
+| **Ensemble 0.8·GNN-temporal + 0.2·XGB-temporal** (rank blend, weight on val) | **62.41** | 98.99 | 61.60 (54.18) | **53.20** | 0.11 | best test AUPRC, −2.44 vs paper; **selected by val** |
+
+**Bottom line:** under the PRD's strict temporal protocol, where no edge sees anything at or after its own timestamp, the GNN reaches 61.3 AUPRC and the ensemble 62.4. The paper's within-window GATv2-IMPROVED reports 64.85. Removing within-window visibility cost nothing measurable here (61.33 vs 61.60). Leak-free XGBoost (44.92) beats the paper's XGBoost (38.46). Seed runs (s1, s2) are in progress for mean ± sd.
+
+Conformal (α = 0.1, Mondrian, post-fix): GNN-temporal coverage 0.897 (illicit 0.942), avg set 0.97 · XGB-temporal 0.881 / 0.95 · ensemble **0.908** / 0.97. The paper's ≈ 0.90 / ≈ 1 is reproduced, with the caveats noted further down.
+
+Recall by typology, post-fix (% at val threshold): GNN-temporal FAN-OUT 85.5 · GATHER-SCATTER 87.8 · SCATTER-GATHER 79.1 · CYCLE 70.2 · FAN-IN 69.2 · RANDOM 64.5 · STACK 62.4 · BIPARTITE 50.0 · UNLISTED 3.8. XGB-temporal: 43–61% across typologies. Fan-in loses the most under the strict protocol (about 94 → 69 vs the within-window v1), because its later in-edges are hidden. That is the correct behaviour.
+
+**Served models** (all in this folder): `ibm_gnn_temporal.pt` via `IBMGNNScorer(name="gnn_temporal")` and `ibm_xgb_temporal.json` + `ibm_node_features_train.parquet` via `IBMScorer`. The ensemble weights are in `ibm_ensemble_gnn_temporal_xgb_temporal_results.json`.
+
+## Test metrics (pre-fix)
 
 | model | AUPRC | AUROC | Best F1 | source |
 |---|---|---|---|---|

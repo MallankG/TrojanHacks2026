@@ -14,6 +14,7 @@ export function RiskHeader() {
         tabs={[
           { href: ROUTES.riskAlert("AL-1027"), label: "Alert review", matchPrefix: "/risk/AL-" },
           { href: ROUTES.riskCompare, label: "Compare detectors" },
+          { href: ROUTES.riskChanges, label: "Alert changes" },
         ]}
       />
     </>

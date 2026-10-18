@@ -4,15 +4,25 @@ import { demoTimestamp, simulatedHash } from "@/lib/format";
 import { routeIntent } from "@/lib/domain/copilot";
 import { bundleBlockers, isCaseVerified, MIN_RATIONALE, verifyClaimEdit } from "@/lib/domain/case";
 import { bandError } from "@/lib/domain/governance";
-import { parseWeights } from "@/lib/domain/priority";
+import { parseWeights, scoringInputs } from "@/lib/domain/priority";
 import { LIVE_ROLES } from "@/lib/live/roles";
 import { getSession, liveSignOut } from "@/lib/live/session";
 import { clearLiveCache } from "@/lib/live/api";
 import { resolveRole } from "./role";
 import { ROLES, deniedMessage } from "@/lib/seed/roles";
 import type { FeatureFlagKey } from "@/lib/seed/governance";
-import type { AnswerKey, AuditType, Batch, CaseId, CaseStatus, DispositionChoice, NodeKey, Rail, RoleId } from "@/lib/types";
-import { createInitialState, type ConfirmAction, type DemoState, type GraphView, type ModalState, type RiskQueueFilters, type ScreenKey, type WeightKey } from "./state";
+import type { AlertId, AnswerKey, AuditType, Batch, CaseId, CaseStatus, DispositionChoice, NodeKey, Rail, RoleId } from "@/lib/types";
+import {
+  createInitialState,
+  type ConfirmAction,
+  type DemoState,
+  type GraphView,
+  type ModalState,
+  type RecomputeKind,
+  type RiskQueueFilters,
+  type ScreenKey,
+  type WeightKey,
+} from "./state";
 import { getState, setState } from "./store";
 
 type EventSpec = { type: AuditType; action: string; object?: string; system?: boolean };
@@ -34,6 +44,13 @@ function withEvents(state: DemoState, specs: EventSpec[]): DemoState {
     };
   });
   return { ...state, seq, events: [...created.reverse(), ...state.events] };
+}
+
+/** Records the scoring inputs before and after a change so the alert diff can recompute both sides. */
+function withRecompute(prev: DemoState, next: DemoState, kind: RecomputeKind, reason: string): DemoState {
+  const n = next.recomputes.length + 1;
+  const record = { id: `RC-${String(n).padStart(3, "0")}`, at: demoTimestamp(next.seq), by: ROLES[next.role].name, kind, reason, before: scoringInputs(prev), after: scoringInputs(next) };
+  return { ...next, recomputes: [record, ...next.recomputes] };
 }
 
 let toastId = 0;
@@ -118,7 +135,9 @@ export function applyMappingFix(reason: string): string | null {
   if (!guard(role().canFixData)) return null;
   if (reason.trim().length < 10) return "Write a reason of at least 10 characters. It is saved with the mapping version.";
   setState((s) =>
-    withEvents(
+    withRecompute(
+      s,
+      withEvents(
       { ...s, modal: null, data: { ...s.data, driftFixed: true } },
       [
         { type: "Data", action: `Mapping fix v4.1 approved: bene_acct_no to target_account. Reason: ${reason.trim()}`, object: "ach_2026_10_06_b" },
@@ -126,6 +145,9 @@ export function applyMappingFix(reason: string): string | null {
         { type: "Model", action: "Re-score SR-2292: 3 alerts updated; AL-1027 now review first", object: "SR-2292", system: true },
         { type: "Graph", action: "Snapshot GS-0412-b created (graph v184)", object: "CASE-0412", system: true },
       ],
+      ),
+      "Data",
+      `Mapping fix v4.1 reloaded ach_2026_10_06_b. Reason: ${reason.trim()}`,
     ),
   );
   toast("Batch reloaded. 3 alerts re-scored. AL-1027 path is now complete.");
@@ -135,7 +157,9 @@ export function applyMappingFix(reason: string): string | null {
 export function rollbackMapping(): void {
   if (!guard(role().canFixData)) return;
   setState((s) =>
-    withEvents(
+    withRecompute(
+      s,
+      withEvents(
       {
         ...s,
         data: { ...s.data, driftFixed: false },
@@ -148,6 +172,9 @@ export function rollbackMapping(): void {
         },
       },
       [{ type: "Data", action: "Mapping rolled back to v4.0; ach_2026_10_06_b quarantined again; downstream marked stale", object: "ach_2026_10_06_b" }],
+      ),
+      "Data",
+      "Mapping rolled back to v4.0; the held hop is quarantined again",
     ),
   );
   toast("Rolled back to mapping v4.0. Downstream outputs marked stale.");
@@ -578,7 +605,14 @@ export function saveBand(min: string, max: string): boolean {
   if (bandError(min, max)) return false;
   const bandMin = min.trim();
   const bandMax = max.trim();
-  setState((s) => withEvents({ ...s, policy: { ...s.policy, bandMin, bandMax } }, [{ type: "Policy", action: `Structuring-like review band set to $${bandMin} to $${bandMax} (new rule version)`, object: "typology-rules" }]));
+  setState((s) =>
+    withRecompute(
+      s,
+      withEvents({ ...s, policy: { ...s.policy, bandMin, bandMax } }, [{ type: "Policy", action: `Structuring-like review band set to $${bandMin} to $${bandMax} (new rule version)`, object: "typology-rules" }]),
+      "Threshold",
+      `Structuring-like review band changed from $${s.policy.bandMin}-$${s.policy.bandMax} to $${bandMin}-$${bandMax}`,
+    ),
+  );
   toast("Band saved as a new rule version. Alerts will re-evaluate.");
   return true;
 }
@@ -594,9 +628,14 @@ export function saveWeights(weights: Record<WeightKey, string>): boolean {
   if (!parseWeights(weights)) return false;
   const next = nextPolicyVersion(getState().policy.version);
   setState((s) =>
-    withEvents({ ...s, policy: { ...s.policy, weights: { ...weights }, version: next } }, [
-      { type: "Policy", action: `Priority policy weights saved as ${next}: ${Object.values(weights).join("/")}`, object: "priority-policy" },
-    ]),
+    withRecompute(
+      s,
+      withEvents({ ...s, policy: { ...s.policy, weights: { ...weights }, version: next } }, [
+        { type: "Policy", action: `Priority policy weights saved as ${next}: ${Object.values(weights).join("/")}`, object: "priority-policy" },
+      ]),
+      "Policy",
+      `Priority weights saved as ${next} (was ${s.policy.version})`,
+    ),
   );
   toast(`Priority policy saved as ${next}. The queue re-ranked.`);
   return true;
@@ -628,4 +667,45 @@ export function toggleFlag(flag: FeatureFlagKey): void {
     const on = !s.policy.flags[flag];
     return withEvents({ ...s, policy: { ...s.policy, flags: { ...s.policy.flags, [flag]: on } } }, [{ type: "Policy", action: `Feature flag ${flag} turned ${on ? "on" : "off"}`, object: "feature-flags" }]);
   });
+}
+
+// ---------- section 20.1 stretch features ----------
+
+export function setGraphLens(lens: GraphView["lens"]): void {
+  updateGraph({ lens });
+}
+
+export function recordPassport(alertId: AlertId, packageHash: string, document: unknown): void {
+  setState((s) => {
+    const n = s.passports.filter((p) => p.alertId === alertId).length + 1;
+    const id = `EP-${alertId.slice(3)}-${String(n).padStart(2, "0")}`;
+    const next = withEvents(s, [{ type: "Export", action: `Evidence passport ${id} issued for ${alertId} (sha256 ${packageHash.slice(0, 12)}…)`, object: alertId }]);
+    return { ...next, passports: [{ id, alertId, at: demoTimestamp(next.seq), by: ROLES[s.role].name, packageHash, document }, ...next.passports] };
+  });
+  toast("Evidence passport issued. Section hashes and package hash recorded.");
+}
+
+export function recordPassportCheck(alertId: AlertId, valid: boolean, detail: string): void {
+  setState((s) => withEvents(s, [{ type: "Export", action: `Evidence passport verified: ${valid ? "intact" : `mismatch (${detail})`}`, object: alertId }]));
+}
+
+export function recordReplay(pin: string, reproduced: number, nonDeterministic: number, unavailable: number): void {
+  setState((s) => {
+    const id = `RP-${String(s.replays.length + 1).padStart(3, "0")}`;
+    const next = withEvents(s, [
+      { type: "Model", action: `Investigation replay ${id} against ${pin}: ${reproduced} reproduced, ${nonDeterministic} non-deterministic, ${unavailable} unavailable`, object: "CASE-0412" },
+    ]);
+    return { ...next, replays: [{ id, pin, at: demoTimestamp(next.seq), by: ROLES[s.role].name, reproduced, nonDeterministic, unavailable }, ...next.replays] };
+  });
+}
+
+/** Records a sandbox result as a proposal. Production policy is never changed from the sandbox. */
+export function saveSandboxProposal(summary: string): void {
+  if (!guard(role().canEditPolicy, "Only a BSA officer can record sandbox proposals.")) return;
+  setState((s) => {
+    const id = `SB-${String(s.sandboxProposals.length + 1).padStart(3, "0")}`;
+    const next = withEvents(s, [{ type: "Policy", action: `Sandbox proposal ${id} recorded, not applied to production: ${summary}`, object: "priority-policy" }]);
+    return { ...next, sandboxProposals: [{ id, at: demoTimestamp(next.seq), by: ROLES[s.role].name, summary }, ...next.sandboxProposals] };
+  });
+  toast("Proposal recorded. Production policy is unchanged.");
 }
