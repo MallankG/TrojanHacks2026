@@ -100,7 +100,8 @@ def chat_guard(state: Mapping[str, Any], ctx: NodeContext) -> ChatGuardOutput:
     how an unbounded question will be narrowed. Chips are bounded by construction."""
     if state.get("chip"):
         return ChatGuardOutput()
-    denied, narrowed, hops = guard.assess(state.get("question"), state["scope"])
+    denied, narrowed, hops = guard.assess(
+        state.get("question"), state["scope"], state.get("chat_id"))
     if denied:
         return ChatGuardOutput(denied=denied, intent="denied",
                                clarification=guard.denial_message(denied))

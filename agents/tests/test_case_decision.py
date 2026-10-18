@@ -240,3 +240,20 @@ def test_record_human_actor() -> None:
     assert (event.actor_id, event.actor_role) == ("user_1", "analyst")
     assert event.before_hash == "a" * 64 and event.prompt_version == "narrative_v2"
     assert verify_chain(repo.list_events()).ok
+
+
+async def test_failed_decision_saves_no_edit(template_llm: None,
+                                            monkeypatch: pytest.MonkeyPatch) -> None:
+    services = get_services()
+    draft = await _paused_case(services)
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(services.cases, "apply_decision", fail, raising=False)
+    monkeypatch.setattr(services.cases, "update_case", fail)
+    with pytest.raises(Exception, match="db down"):  # noqa: B017 (wrapped by the node runner)
+        await resume_case(draft.case_id, _decision(edited_summary="An analyst edit."),
+                          services=services)
+    assert len(services.cases.list_drafts(draft.case_id)) == 1
+    assert not [e for e in services.audit.list_events() if e.action == "case.narrative_edited"]

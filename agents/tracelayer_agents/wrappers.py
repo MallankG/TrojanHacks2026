@@ -84,7 +84,8 @@ class TracedNode(Generic[M]):
         return run
 
     async def _run(self, state: Mapping[str, Any], ctx: NodeContext) -> dict[str, Any]:
-        input_hash = sha256_json({k: v for k, v in state.items() if k not in _UNHASHED_KEYS})
+        input_hash = sha256_json({k: getattr(v, "state_digest", v) for k, v in state.items()
+                                  if k not in _UNHASHED_KEYS})
         started_at = datetime.now(UTC)
         t0 = time.perf_counter()
 

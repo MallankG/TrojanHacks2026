@@ -109,8 +109,13 @@ async def draft_narrative(state: Mapping[str, Any], ctx: NodeContext) -> DraftNa
         )
         if served is not None:
             draft, meta = served
+            # the stored synthesis' contradictions are the non-factual contradictory items
+            contradictions = [(i.text, i.evidence_ids) for i in
+                              (draft.sections.contradictory_evidence if draft.sections else [])
+                              if not i.factual]
             draft = draft.model_copy(update={"sections": narrative_sections(
-                draft, bundle, state.get("alert"), [c.model_dump(mode="json") for c in chunks])})
+                draft, bundle, state.get("alert"), [c.model_dump(mode="json") for c in chunks],
+                contradictions)})
             return DraftNarrativeOutput(
                 draft_narrative=draft, draft_attempts=attempts, llm_meta=meta, precomputed=True
             )

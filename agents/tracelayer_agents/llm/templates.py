@@ -388,22 +388,24 @@ def narrative_sections(
     model_items: list[NarrativeSectionItem] = []
     if alert is not None:
         run = [f"model_run:{alert.model_run_id}"] if alert.model_run_id else []
+        # only ids the bundle holds can verify; an alert tx missing from it would be SECTION_UNCITED
+        alert_tx = [i for i in alert.tx_ids if i in set(tx_ids)] or tx_ids
         model_items.append(_item(
             f"The alert's composite score is {round(alert.composite_score, 4)} (tier {alert.tier}"
             + (f", rank {alert.rank}" if alert.rank else "")
             + "). Scores rank activity for review; they are not findings of wrongdoing.",
-            True, [*alert.tx_ids, *run]))
+            True, [*alert_tx, *run]))
         for name, score in sorted(alert.component_scores.items()):
             version = alert.model_versions.get(name)
             model_items.append(_item(
                 f"Detector {name}" + (f" (version {version})" if version else "")
                 + f" contributed a component score of {round(score, 4)}.",
-                True, [*alert.tx_ids, *run]))
+                True, [*alert_tx, *run]))
         tags = [t for t in alert.typology_tags if _quotable(t)]
         if tags:
             model_items.append(_item(
                 f"Typology rules tagged this alert: {', '.join(tags)}. A typology tag is a rule "
-                "match, not a conclusion.", True, list(alert.tx_ids)))
+                "match, not a conclusion.", True, list(alert_tx)))
 
     contra: list[NarrativeSectionItem] = []
     by_id = {t.transaction_id: t for t in bundle.transactions}

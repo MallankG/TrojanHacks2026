@@ -8,7 +8,7 @@ from collections import defaultdict, deque
 import networkx as nx
 from pydantic import Field, model_validator
 
-from tracelayer_agents.chat.session import SCOPE_HOPS, CaseScope
+from tracelayer_agents.chat.session import CaseScope
 from tracelayer_agents.schemas import SubgraphEdge, ToolRefs
 from tracelayer_agents.tools.base import (
     MAX_HOPS,
@@ -21,7 +21,6 @@ from tracelayer_agents.tools.base import (
     require_accounts,
     require_txs,
     scoped_neighbourhood,
-    seeds_for_account,
     uniq,
 )
 from tracelayer_agents.wrappers import NodeContext
@@ -94,10 +93,7 @@ def _walk(edges: list[SubgraphEdge], args: TraceInput, scope: CaseScope,
 
 
 def _trace(args: TraceInput, scope: CaseScope, ctx: NodeContext, forward: bool) -> ToolOutput:
-    seeds = [args.tx_id] if args.tx_id else seeds_for_account(scope, args.account_id or "")
-    edges = scoped_neighbourhood(scope, ctx, seeds, args.hops)
-    if args.tx_id and args.tx_id not in {e.transaction_id for e in edges}:
-        edges.append(scope.edges[args.tx_id])
+    edges = scoped_neighbourhood(scope)
     paths, truncated = cap(_walk(edges, args, scope, forward))
     rows, computed = [], []
     for n, path in enumerate(paths, 1):
@@ -154,7 +150,7 @@ def _time_respecting(graph: nx.MultiDiGraph, loop: list[str]) -> list[SubgraphEd
 
 
 def cycle_search(args: CycleSearchInput, scope: CaseScope, ctx: NodeContext) -> ToolOutput:
-    edges = scoped_neighbourhood(scope, ctx, scope.evidence_tx_ids, SCOPE_HOPS)
+    edges = scoped_neighbourhood(scope)
     graph = nx.MultiDiGraph()
     for e in edges:
         graph.add_edge(e.origin_account_id, e.destination_account_id, key=e.transaction_id, e=e)
@@ -206,7 +202,7 @@ def related_entities(
 ) -> ToolOutput:
     """Accounts within `hops` of the start (ignoring direction), each with the edges of one
     shortest connecting path and the direct transactions it shares with the start."""
-    edges = scoped_neighbourhood(scope, ctx, seeds_for_account(scope, args.account_id), args.hops)
+    edges = scoped_neighbourhood(scope)
     adjacent: dict[str, list[SubgraphEdge]] = defaultdict(list)
     for e in edges:
         adjacent[e.origin_account_id].append(e)

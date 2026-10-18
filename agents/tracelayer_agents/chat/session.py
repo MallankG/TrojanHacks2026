@@ -97,6 +97,15 @@ class CaseScope:
         """Ids a reviewer may pin: scope transactions and accounts, and derived-fact ids."""
         return self.tx_ids | self.account_ids | {f.fact_id for f in self.derived_facts}
 
+    @property
+    def state_digest(self) -> dict[str, str]:
+        """What a node's input hash records for the scope: the scope is a pure function of these,
+        and frozensets would serialize in hash-seed order (not replayable)."""
+        return {"case_id": self.case_id, "bundle_hash": self.bundle.bundle_hash,
+                "graph_snapshot_id": self.graph_snapshot_id,
+                "window_start": self.window_start.isoformat(),
+                "window_end": self.window_end.isoformat()}
+
     def in_window(self, ts: datetime) -> bool:
         return self.window_start <= ts <= self.window_end
 
@@ -223,6 +232,8 @@ class ChatStore:
 
     def get(self, chat_id: str) -> ChatEntry:
         try:
-            return self._entries[chat_id]
+            entry = self._entries[chat_id]
+            self._entries.move_to_end(chat_id)  # LRU: a used chat is the newest
+            return entry
         except KeyError:
             raise KeyError(f"unknown chat_id {chat_id!r}") from None

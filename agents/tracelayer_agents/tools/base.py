@@ -103,24 +103,11 @@ def cap(items: list[T], limit: int | None = None) -> tuple[list[T], bool]:
     return items[:limit], len(items) > limit
 
 
-def scoped_neighbourhood(
-    scope: CaseScope, ctx: NodeContext, seed_tx_ids: list[str], hops: int
-) -> list[SubgraphEdge]:
-    """`GraphService.subgraph` around the seeds, keeping only edges inside the case scope and
-    window, in time order."""
-    if not seed_tx_ids:
-        return []
-    sub = ctx.services.graph.subgraph(sorted(seed_tx_ids)[:MAX_ROWS], hops)
-    edges = [e for e in sub.edges
-             if e.transaction_id in scope.edges and scope.in_window(e.timestamp)]
+def scoped_neighbourhood(scope: CaseScope) -> list[SubgraphEdge]:
+    """Every scope edge inside the window, in time order. `scope.edges` already holds the evidence
+    plus its bounded neighbourhood, so nothing is re-fetched or cut; walks bound hops themselves."""
+    edges = [e for e in scope.edges.values() if scope.in_window(e.timestamp)]
     return sorted(edges, key=lambda e: (e.timestamp, e.transaction_id))
-
-
-def seeds_for_account(scope: CaseScope, account_id: str) -> list[str]:
-    return sorted(
-        e.transaction_id for e in scope.edges.values()
-        if account_id in (e.origin_account_id, e.destination_account_id)
-    )
 
 
 def sum_amounts(edges: list[SubgraphEdge]) -> tuple[Decimal, str] | None:

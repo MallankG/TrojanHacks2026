@@ -14,20 +14,19 @@ hops runs with 3 instead of failing validation.
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from tracelayer_agents.chat.session import CaseScope
+from tracelayer_agents.nodes.verify import ID_RE
 from tracelayer_agents.tools.base import MAX_HOPS
 
 HOP_TOOLS = frozenset({"trace_forward", "trace_backward", "related_entities"})
 # Ids the agents use: TX-…, ACC-…, case_…, alrt_…, chat_…
-FOREIGN_ID_RE = re.compile(
-    r"\b(?:TX|ACC)-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*\b|\b(?:case|alrt|chat)_[0-9a-f]{6,}\b"
-)
+FOREIGN_ID_RE = re.compile(ID_RE.pattern + r"|\b(?:case|alrt|chat)_[0-9a-f]{6,}\b")
 OTHER_TENANT_RE = re.compile(
     r"\b(?:other|another|different|all)\s+(?:tenants?|banks?|institutions?|clients?'?\s+cases?|"
-    r"customers?'?\s+cases?)\b|\btenant[_\s-]?id\s*[=:]?\s*\w+|\btenant\s*[=:]\s*\w+",
+    r"customers?'?\s+cases?)\b|\btenant[_\s-]?id\s*[=:]\s*\w+|\btenant\s*[=:]\s*\w+",
     re.IGNORECASE,
 )
 HOPS_RE = re.compile(r"\b(\d{1,3})\s*[- ]?\s*hops?\b", re.IGNORECASE)
@@ -62,11 +61,13 @@ def denial_message(reasons: list[str]) -> str:
             "case's transactions or accounts, or use a chip.")
 
 
-def assess(question: str | None, scope: CaseScope) -> tuple[list[str], list[str], int | None]:
-    """(deny reason codes, narrowing codes, requested hops) for a free-text question."""
+def assess(question: str | None, scope: CaseScope,
+           chat_id: str | None = None) -> tuple[list[str], list[str], int | None]:
+    """(deny reason codes, narrowing codes, requested hops) for a free-text question. The chat's
+    own `chat_id` is in scope."""
     text = question or ""
     denied: list[str] = []
-    in_scope = scope.tx_ids | scope.account_ids | {scope.case_id, scope.alert.alert_id}
+    in_scope = scope.tx_ids | scope.account_ids | {scope.case_id, scope.alert.alert_id, chat_id}
     if any(m.group(0) not in in_scope for m in FOREIGN_ID_RE.finditer(text)):
         denied.append("out_of_scope_ids")
     if OTHER_TENANT_RE.search(text):
@@ -100,10 +101,12 @@ def clamp_plan(
         args = dict(call.get("args") or {})
         hops = args.get("hops")
         if requested_hops is not None and call.get("tool") in HOP_TOOLS:
-            args["hops"] = requested_hops  # what the question asked for, already capped
+            args["hops"] = max(1, requested_hops)  # what the question asked for, already capped
         elif isinstance(hops, int) and not isinstance(hops, bool) and hops > MAX_HOPS:
             args["hops"] = MAX_HOPS
             narrowed.append("hops_capped")
+        elif isinstance(hops, int) and not isinstance(hops, bool) and hops < 1:
+            args["hops"] = 1
         max_len = args.get("max_len")
         if isinstance(max_len, int) and not isinstance(max_len, bool) and max_len > MAX_HOPS + 1:
             args["max_len"] = MAX_HOPS + 1
@@ -116,7 +119,10 @@ def clamp_plan(
                     ts = datetime.fromisoformat(value.replace("Z", "+00:00"))
                 except ValueError:
                     continue
-                if ts.tzinfo is not None and later(ts, bound) != ts:
+                if ts.tzinfo is None:  # naive = UTC, so it can be compared and clamped
+                    ts = ts.replace(tzinfo=UTC)
+                    args[key] = ts.isoformat()
+                if later(ts, bound) != ts:
                     args[key] = bound.isoformat()
                     narrowed.append("window_limited")
         out.append({**call, "args": args})

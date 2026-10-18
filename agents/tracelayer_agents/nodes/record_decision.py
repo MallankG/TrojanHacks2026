@@ -46,6 +46,16 @@ async def record_decision(state: Mapping[str, Any], ctx: NodeContext) -> RecordD
             raise KeyError(f"unknown case_id {case_id!r}")
         events: list[AuditEvent] = []
         edited, edit_errors = None, []
+        # the decision first: if it fails, no edit is saved without a decision
+        after = before.model_copy(update={
+            "status": status, "disposition": decision.action, "updated_at": datetime.now(UTC),
+        })
+        apply_decision = getattr(cases, "apply_decision", None)
+        receipt = None
+        if apply_decision:
+            receipt = apply_decision(case_id, decision)
+        else:
+            cases.update_case(after)
         current = draft
         if draft is not None and edited_text and edited_text != draft.summary:
             parent_hash = sha256_json(draft)
@@ -73,15 +83,6 @@ async def record_decision(state: Mapping[str, Any], ctx: NodeContext) -> RecordD
                 },
             ))
             current = edited
-        after = before.model_copy(update={
-            "status": status, "disposition": decision.action, "updated_at": datetime.now(UTC),
-        })
-        apply_decision = getattr(cases, "apply_decision", None)
-        receipt = None
-        if apply_decision:
-            receipt = apply_decision(case_id, decision)
-        else:
-            cases.update_case(after)
         events.append(audit.record(
             repo, action="case.decision", object_type="case", object_id=case_id,
             actor_id=decision.actor_id, actor_role=decision.actor_role, reason=decision.reason,

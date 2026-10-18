@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from tracelayer_agents.chat.session import SCOPE_HOPS, CaseScope
+from tracelayer_agents.chat.session import CaseScope
 from tracelayer_agents.schemas import ComputedValue, ToolRefs, UtcDatetime
 from tracelayer_agents.tools.base import (
     MAX_ROWS,
@@ -68,7 +68,7 @@ def time_window_aggregate(
     start: datetime = args.start or scope.window_start
     end: datetime = args.end or scope.window_end
     edges = [
-        e for e in scoped_neighbourhood(scope, ctx, scope.evidence_tx_ids, SCOPE_HOPS)
+        e for e in scoped_neighbourhood(scope)
         if start <= e.timestamp <= end
     ]
     focus = set(args.account_ids)

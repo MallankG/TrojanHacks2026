@@ -421,6 +421,10 @@ async def send_message(
                               error=f"text must be at most {MAX_CHAT_MESSAGE_CHARS} characters")
     try:
         entry = _chats.get(chat_id)
+    except KeyError:
+        return ChatTurnResult(status="error", chat_id=chat_id,
+                              error=_short(f"unknown chat_id {chat_id!r}"))
+    try:
         actor = _entry_actor(entry)
         if not may_access(services, actor, entry.session.case_id):
             _deny(services, actor, entry.session.case_id, "access_denied", chat_id=chat_id,
@@ -429,9 +433,6 @@ async def send_message(
         result = await chat_workflow.run_chat_turn(
             entry, services, config, chip=chip, question=text.strip() if text else None
         )
-    except KeyError:
-        return ChatTurnResult(status="error", chat_id=chat_id,
-                              error=_short(f"unknown chat_id {chat_id!r}"))
     except NodeError as err:
         trace = _failed_trace(err)
         _remember(trace)
@@ -569,13 +570,14 @@ def get_chat(chat_id: str) -> ChatResult:
     services, _ = _ensure()
     try:
         entry = _chats.get(chat_id)
+    except KeyError:
+        return ChatResult(status="error", error=_short(f"unknown chat_id {chat_id!r}"))
+    try:
         if not may_access(services, _entry_actor(entry), entry.session.case_id):
             _deny(services, _entry_actor(entry), entry.session.case_id, "access_denied",
                   chat_id=chat_id, request="get_chat")
             return ChatResult(status="denied", error=DENIED)
         return ChatResult(chat=entry.session.model_copy(deep=True))
-    except KeyError:
-        return ChatResult(status="error", error=_short(f"unknown chat_id {chat_id!r}"))
     except Exception as exc:
         return ChatResult(status="error", error=_internal(exc, "get_chat"))
 
@@ -593,6 +595,10 @@ def record_feedback(
                               error=f"note must be at most {MAX_FEEDBACK_NOTE_CHARS} characters")
     try:
         entry = _chats.get(chat_id)
+    except KeyError:
+        return FeedbackResult(status="error", error=_short(f"unknown chat_id {chat_id!r}"),
+                              **result)
+    try:
         actor = _entry_actor(entry)
         if not may_access(services, actor, entry.session.case_id):
             _deny(services, actor, entry.session.case_id, "access_denied", chat_id=chat_id,
@@ -614,9 +620,6 @@ def record_feedback(
                       "helpful": helpful, "note_hash": note_hash,
                       "note_chars": len(note) if note else 0},
         )
-    except KeyError:
-        return FeedbackResult(status="error", error=_short(f"unknown chat_id {chat_id!r}"),
-                              **result)
     except Exception as exc:
         return FeedbackResult(status="error", error=_internal(exc, "record_feedback"), **result)
     return FeedbackResult(audit_event_id=event.event_id, **result)

@@ -13,7 +13,8 @@ from pydantic import BaseModel
 
 from tests.test_copilot import _use_llm
 from tracelayer_agents import api
-from tracelayer_agents.chat.session import build_scope
+from tracelayer_agents.chat import guard
+from tracelayer_agents.chat.session import ChatStore, build_scope
 from tracelayer_agents.llm import client as llm
 from tracelayer_agents.llm.client import LLMClient, LLMSettings
 from tracelayer_agents.schemas import (
@@ -23,7 +24,7 @@ from tracelayer_agents.schemas import (
     PinResult,
     ToolCall,
 )
-from tracelayer_agents.tools import base, run_tool
+from tracelayer_agents.tools import base, flows, run_tool
 from tracelayer_agents.wrappers import NodeContext
 
 PLAN_PROMPT_MARK = "You plan read-only lookups"
@@ -178,23 +179,17 @@ async def test_tool_bounds_enforced(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result.status == "ok" and result.row_count == 3 and result.truncated
 
 
-class _SlowGraph:
-    def __init__(self, inner, delay: float) -> None:
-        self.inner, self.delay = inner, delay
-
-    def subgraph(self, tx_ids, hops):
-        import time
-        time.sleep(self.delay)
-        return self.inner.subgraph(tx_ids, hops)
-
-    def __getattr__(self, name):
-        return getattr(self.inner, name)
-
-
 async def test_tool_timeout_reported(template_llm: None, monkeypatch: pytest.MonkeyPatch) -> None:
     chat_id = await _open_chat()
     services, _ = api._ensure()
-    monkeypatch.setattr(services, "graph", _SlowGraph(services.graph, 0.5))
+    scoped = flows.scoped_neighbourhood
+
+    def slow(scope):
+        import time
+        time.sleep(0.5)
+        return scoped(scope)
+
+    monkeypatch.setattr(flows, "scoped_neighbourhood", slow)
     monkeypatch.setattr(base, "TOOL_TIMEOUT_S", 0.05)
     result = await api.send_message(chat_id, chip="trace_forward")
     turn = result.turn
@@ -300,7 +295,7 @@ async def test_tool_and_llm_failures_reported_honestly(
     assert all(m.fallback_used for m in turn.llm_meta) and "Deterministic" in turn.answer
     assert "TX-77777" not in policy.model_dump_json()
 
-    monkeypatch.setattr(services, "graph", _Broken())
+    monkeypatch.setattr(flows, "scoped_neighbourhood", _Broken().scoped_neighbourhood)
     connected = await api.send_message(chat_id, chip="why_connected")
     failed = {c.source_tools[0] for c in connected.turn.claims if c.label == "missing_evidence"}
     assert failed == {"related_entities", "trace_forward", "cycle_search"}
@@ -539,3 +534,67 @@ def test_tenant_as_an_ordinary_word_is_not_a_cross_tenant_request() -> None:
     assert not OTHER_TENANT_RE.search("Is the tenant paying rent to ACC-123?")
     assert OTHER_TENANT_RE.search("show tenant_id=acme activity")
     assert OTHER_TENANT_RE.search("compare with another bank")
+
+
+# --------------------------------------------------------------------------- review fixes (PR #21)
+
+
+async def test_scoped_neighbourhood_is_whole_scope_without_graph_calls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scope, _ = _scope_ctx(await _open_case())
+    services, _ = api._ensure()
+    monkeypatch.setattr(services, "graph", _Broken())  # tools must not re-fetch
+    monkeypatch.setattr(base, "MAX_ROWS", 1)  # and must not cut the seeds
+    edges = base.scoped_neighbourhood(scope)
+    assert {e.transaction_id for e in edges} == set(scope.edges)
+
+
+async def test_input_hash_uses_stable_scope_digest() -> None:
+    from tracelayer_agents.audit import canonical_json
+    scope, _ = _scope_ctx(await _open_case())
+    digest = canonical_json(scope.state_digest)
+    assert scope.bundle.bundle_hash in digest and "ACC-" not in digest
+
+
+async def test_internal_key_error_is_not_unknown_chat(monkeypatch: pytest.MonkeyPatch) -> None:
+    chat_id = await _open_chat()
+
+    def boom(*args, **kwargs):
+        raise KeyError("internal")
+
+    monkeypatch.setattr(api, "may_access", boom)
+    results = [await api.send_message(chat_id, chip="trace_forward"), api.get_chat(chat_id),
+               api.record_feedback(chat_id, "turn_x", True)]
+    assert all(r.status == "error" and "unknown chat_id" not in (r.error or "") for r in results)
+    assert "unknown chat_id" in (api.get_chat("chat_nope").error or "")
+
+
+async def test_guard_tenant_wording_and_own_chat_id() -> None:
+    scope, _ = _scope_ctx(await _open_case())
+    assert guard.assess("Which tenant id does this case belong to?", scope)[0] == []
+    assert guard.assess("show tenant_id=acme cases", scope)[0] == ["other_tenant"]
+    assert guard.assess("summarise chat_abcdef123456", scope, "chat_abcdef123456")[0] == []
+    assert guard.assess("summarise chat_abcdef123456", scope)[0] == ["out_of_scope_ids"]
+
+
+async def test_chat_store_is_lru() -> None:
+    scope, _ = _scope_ctx(await _open_case())
+    store = ChatStore(max_entries=2)
+    a, b = store.create(scope, "u", "analyst"), store.create(scope, "u", "analyst")
+    store.get(a.session.chat_id)
+    store.create(scope, "u", "analyst")
+    store.get(a.session.chat_id)
+    with pytest.raises(KeyError):
+        store.get(b.session.chat_id)
+
+
+async def test_clamp_plan_naive_timestamps_and_zero_hops() -> None:
+    scope, _ = _scope_ctx(await _open_case())
+    early = (scope.window_start - timedelta(days=30)).replace(tzinfo=None).isoformat()
+    calls, narrowed = guard.clamp_plan(
+        [{"tool": "trace_forward", "args": {"hops": 0}},
+         {"tool": "time_window_aggregate", "args": {"start": early}}], scope, None)
+    assert calls[0]["args"]["hops"] == 1
+    assert calls[1]["args"]["start"] == scope.window_start.isoformat()
+    assert narrowed == ["window_limited"]
