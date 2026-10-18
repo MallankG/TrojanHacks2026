@@ -201,14 +201,17 @@ export const liveApi = {
   runs: (limit = 50) => call<Page<IngestionRun>>(`/ingestion/runs${query({ limit })}`),
   /** Every issue of a run, paged 500 at a time up to `cap`; `total` is the true count even when capped. */
   runIssues: async (runId: string, cap = 5000): Promise<Page<DqIssue>> => {
-    const items: DqIssue[] = [];
-    let total: number | null = null;
-    while (items.length < cap) {
-      const page = await call<Page<DqIssue>>(`/ingestion/runs/${runId}/issues${query({ limit: 500, offset: items.length })}`);
-      items.push(...page.items);
-      total = page.total;
-      if (page.items.length < 500 || (total !== null && items.length >= total)) break;
-    }
+    const size = 500;
+    const pageAt = (offset: number) => call<Page<DqIssue>>(`/ingestion/runs/${runId}/issues${query({ limit: size, offset })}`);
+    const first = await pageAt(0);
+    const total = first.total ?? first.items.length;
+    // The first page reports the total, so the rest load in parallel. The backend orders by a unique key.
+    const offsets: number[] = [];
+    for (let offset = size; offset < Math.min(total, cap); offset += size) offsets.push(offset);
+    const rest = await Promise.all(offsets.map(pageAt));
+    const byId = new Map<string, DqIssue>();
+    for (const issue of [first, ...rest].flatMap((p) => p.items)) byId.set(issue.id, issue);
+    const items = [...byId.values()];
     return { items, total, limit: items.length, offset: 0 };
   },
   upload: (form: FormData) => call<UploadResult>("/ingestion/upload", { method: "POST", body: form, timeoutMs: 120_000 }),
@@ -244,13 +247,33 @@ export interface Loadable<T> {
 
 const invalidators = new Set<(prefix: string) => void>();
 
-/** Refetches every mounted live query whose key starts with `prefix` (e.g. after an upload or a decision). */
+/** Last good result per (user, key), so remounted screens render immediately while they revalidate. */
+const lastResults = new Map<string, unknown>();
+const MAX_CACHED = 40;
+/** Requests in flight per (user, key), so two components asking for the same data share one fetch. */
+const inflight = new Map<string, Promise<unknown>>();
+
+function remember(key: string, data: unknown): void {
+  lastResults.delete(key);
+  lastResults.set(key, data);
+  // Oldest first: drop entries beyond the cap so large payloads do not pile up for the tab's lifetime.
+  while (lastResults.size > MAX_CACHED) lastResults.delete(lastResults.keys().next().value as string);
+}
+
+/** Refetches every mounted live query whose key starts with `prefix`, and drops cached copies of the rest. */
 export function invalidateLive(prefix: string): void {
+  const matches = (key: string) => key.slice(key.indexOf("|") + 1).startsWith(prefix);
+  // A request started before the change may return pre-change data, so it is not shared either.
+  for (const key of [...lastResults.keys()]) if (matches(key)) lastResults.delete(key);
+  for (const key of [...inflight.keys()]) if (matches(key)) inflight.delete(key);
   invalidators.forEach((fn) => fn(prefix));
 }
 
-/** Last good result per (user, key), so remounted screens render immediately while they revalidate. */
-const lastResults = new Map<string, unknown>();
+/** Forgets every cached live result (on sign-out). */
+export function clearLiveCache(): void {
+  lastResults.clear();
+  inflight.clear();
+}
 
 /**
  * Loads data for a live screen; `key` changes refetch. Errors are shown, never thrown.
@@ -278,9 +301,14 @@ export function useLive<T>(load: () => Promise<T>, baseKey: string): Loadable<T>
 
   useEffect(() => {
     let cancelled = false;
-    load()
+    let request = inflight.get(key) as Promise<T> | undefined;
+    if (!request) {
+      request = load().finally(() => inflight.delete(key));
+      inflight.set(key, request);
+    }
+    request
       .then((data) => {
-        lastResults.set(key, data);
+        remember(key, data);
         if (!cancelled) setState({ key, data, error: null, done: true });
       })
       .catch((error: unknown) => {

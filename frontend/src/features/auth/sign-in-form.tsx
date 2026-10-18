@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { LIVE_ROLES } from "@/lib/live/roles";
-import { LIVE_CONFIGURED, liveSignIn, liveSignOut } from "@/lib/live/session";
+import { AuthRejected, LIVE_CONFIGURED, liveSignIn, liveSignOut } from "@/lib/live/session";
 import { ROUTES } from "@/lib/routes";
 import { signIn } from "@/lib/store/actions";
 import { useDemoState, useHydrated } from "@/lib/store/hooks";
@@ -12,6 +12,7 @@ import { Callout } from "@/components/ui/callout";
 import { Field, TextInput } from "@/components/ui/field";
 
 const MAX_ATTEMPTS = 3;
+const LOCK_MS = 15 * 60 * 1000;
 /** Prototype-only one-time code. Real sign-in is delegated to Supabase Auth. */
 const DEMO_CODE = "123456";
 
@@ -30,6 +31,10 @@ export function SignInForm() {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [attempts, setAttempts] = useState(0);
+  const lockTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (lockTimer.current) clearTimeout(lockTimer.current);
+  }, []);
   const [busy, setBusy] = useState(false);
   const locked = attempts >= MAX_ATTEMPTS;
   const hydrated = useHydrated();
@@ -79,11 +84,25 @@ export function SignInForm() {
       signIn(LIVE_ROLES[profile.role].uiRole);
       router.replace(ROUTES.command);
     } catch (failure) {
+      const message = failure instanceof Error ? failure.message : "Sign-in failed.";
+      // Only wrong credentials count toward the lockout; an outage or an unprovisioned account does not.
+      // This is a UI courtesy: Supabase Auth's server-side rate limit is the real control.
+      if (!(failure instanceof AuthRejected)) {
+        setError(message);
+        return;
+      }
       const next = attempts + 1;
       setAttempts(next);
       setPassword("");
-      const message = failure instanceof Error ? failure.message : "Sign-in failed.";
-      setError(next >= MAX_ATTEMPTS ? "Too many attempts. Sign-in is locked for 15 minutes. Contact your administrator." : `${message} ${MAX_ATTEMPTS - next} attempt(s) left.`);
+      if (next >= MAX_ATTEMPTS) {
+        setError("Too many attempts. Sign-in is locked for 15 minutes. Contact your administrator.");
+        lockTimer.current = setTimeout(() => {
+          setAttempts(0);
+          setError(null);
+        }, LOCK_MS);
+      } else {
+        setError(`${message} ${MAX_ATTEMPTS - next} attempt(s) left.`);
+      }
     } finally {
       setBusy(false);
     }

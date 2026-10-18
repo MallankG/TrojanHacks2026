@@ -134,7 +134,7 @@ def list_run_issues(
 ) -> dict:
     query = (
         get_db().table("data_quality_issues").select("*, source_rows(row_number)", count="exact")
-        .eq("tenant_id", user.tenant_id).eq("run_id", str(run_id)).order("created_at")
+        .eq("tenant_id", user.tenant_id).eq("run_id", str(run_id)).order("created_at").order("id")
     )
     if severity:
         query = query.eq("severity", severity)

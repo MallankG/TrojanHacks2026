@@ -7,6 +7,8 @@ import { bandError } from "@/lib/domain/governance";
 import { parseWeights } from "@/lib/domain/priority";
 import { LIVE_ROLES } from "@/lib/live/roles";
 import { getSession, liveSignOut } from "@/lib/live/session";
+import { clearLiveCache } from "@/lib/live/api";
+import { resolveRole } from "./role";
 import { ROLES, deniedMessage } from "@/lib/seed/roles";
 import type { FeatureFlagKey } from "@/lib/seed/governance";
 import type { AnswerKey, AuditType, Batch, CaseId, CaseStatus, DispositionChoice, NodeKey, Rail, RoleId } from "@/lib/types";
@@ -17,7 +19,7 @@ type EventSpec = { type: AuditType; action: string; object?: string; system?: bo
 
 /** Appends audit events, newest first, advancing the demo clock. */
 function withEvents(state: DemoState, specs: EventSpec[]): DemoState {
-  const role = ROLES[state.role];
+  const role = resolveRole(state.role, getSession()?.profile ?? null);
   let seq = state.seq;
   const created = specs.map((spec) => {
     seq += 1;
@@ -47,7 +49,7 @@ export function dismissToast(id: number): void {
 }
 
 function role() {
-  return ROLES[getState().role];
+  return resolveRole(getState().role, getSession()?.profile ?? null);
 }
 
 /** Returns false (and explains why) when the current role cannot do something. */
@@ -72,6 +74,7 @@ export function signIn(role?: RoleId): void {
 
 export function signOut(): void {
   void liveSignOut();
+  clearLiveCache();
   setState((s) => ({ ...s, authed: false, modal: null }));
 }
 

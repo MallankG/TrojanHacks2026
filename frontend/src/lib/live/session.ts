@@ -96,7 +96,7 @@ interface TokenResponse {
 }
 
 /** Supabase rejected the credentials or refresh token (as opposed to a network or server failure). */
-class AuthRejected extends Error {}
+export class AuthRejected extends Error {}
 
 async function tokenRequest(grant: "password" | "refresh_token", body: Record<string, string>): Promise<TokenResponse> {
   const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=${grant}`, {
@@ -107,7 +107,8 @@ async function tokenRequest(grant: "password" | "refresh_token", body: Record<st
   const data = (await response.json().catch(() => ({}))) as Partial<TokenResponse> & { error_description?: string; msg?: string };
   if (!response.ok || !data.access_token || !data.refresh_token) {
     const message = data.error_description ?? data.msg ?? "Sign-in failed";
-    throw response.status >= 400 && response.status < 500 ? new AuthRejected(message) : new Error(message);
+    // 400/401/403 mean the credentials or token are bad; 429 (throttled) and 5xx are temporary.
+    throw [400, 401, 403].includes(response.status) ? new AuthRejected(message) : new Error(message);
   }
   return data as TokenResponse;
 }
@@ -150,6 +151,13 @@ export async function getAccessToken(): Promise<string | null> {
     .catch((error: unknown) => {
       // Only a rejected refresh token ends the session; a network blip keeps it for the next attempt.
       if (error instanceof AuthRejected) {
+        // Another tab may have rotated the token first; adopt its newer session instead of signing out.
+        const stored = load();
+        if (stored && stored.refreshToken !== current.refreshToken) {
+          session = stored;
+          listeners.forEach((listener) => listener());
+          return stored.accessToken;
+        }
         setSession(null);
         return null;
       }
