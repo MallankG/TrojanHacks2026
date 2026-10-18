@@ -148,6 +148,7 @@ export interface LiveCase {
   disposition: Disposition | null;
   disposition_note: string | null;
   disposed_at: string | null;
+  due_at?: string | null;
   created_at: string;
   updated_at: string;
   assignee?: { id: string; display_name: string | null; role: string } | null;

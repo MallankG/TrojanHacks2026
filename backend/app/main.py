@@ -4,7 +4,7 @@ import uuid
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import admin, alerts, case_workflow, cases, copilot, dashboard, data_ops, data_quality, entities, governance, graph, ingestion, lineage, policy, scoring, scoring
+from app.api.routes import admin, alerts, case_workflow, cases, copilot, dashboard, detection, data_ops, data_quality, entities, governance, graph, ingestion, lineage, policy, scoring
 from app.api.routes import entity_profile
 from app.core.audit import request_id_var
 from app.core.config import get_settings
@@ -52,6 +52,6 @@ def health_check() -> dict[str, str]:
     return {"status": "ok"}
 
 
-for module in (admin, ingestion, data_quality, entities, graph, scoring, alerts, cases, copilot, policy, lineage, dashboard, data_ops, governance, case_workflow):
+for module in (admin, ingestion, data_quality, entities, graph, scoring, alerts, case_workflow, cases, copilot, policy, lineage, dashboard, data_ops, governance, detection):
     app.include_router(module.router)
 app.include_router(entity_profile.router)

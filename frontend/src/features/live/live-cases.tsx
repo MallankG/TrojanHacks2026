@@ -13,10 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { CardHeader, Panel } from "@/components/ui/card";
 import { Field, Select, TextArea, TextInput } from "@/components/ui/field";
-import { KeyValueList } from "@/components/ui/key-value";
 import { EmptyState, Skeleton } from "@/components/ui/misc";
 import { Pill } from "@/components/ui/pill";
 import { DataTable, Td, Th, Tr } from "@/components/ui/table";
+import { casesApi, sha256Hex } from "@/lib/live/api-cases";
 import { LiveAudit } from "./live-audit";
 import { LiveData } from "./live-state";
 
@@ -138,7 +138,7 @@ export function LiveCaseDetail({ caseId }: { caseId: string }) {
             <CardHeader
               eyebrow="Live case"
               title={`${caseLabel(c.case_number)} · ${c.title}`}
-              description={`Opened ${utc(c.created_at)} · owner ${c.assignee?.display_name ?? "unassigned"}`}
+              description={`Opened ${utc(c.created_at)} · owner ${c.assignee?.display_name ?? "unassigned"}${c.due_at ? ` · review due ${utc(c.due_at)}` : ""}`}
               actions={
                 <>
                   <Pill tone={CASE_TONE[c.status]}>{words(c.status)}</Pill>
@@ -168,6 +168,7 @@ export function LiveCaseDetail({ caseId }: { caseId: string }) {
                 )}
               </Panel>
               <EvidencePanel detail={c} role={role} onChanged={refresh} />
+              <ChecklistPanel caseId={c.id} version={auditKey} />
               <Panel>
                 <CardHeader title="Narratives" description="Drafted by the agent service and checked by its verifier before display." />
                 {c.narratives.length === 0 ? (
@@ -342,6 +343,7 @@ function DecisionPanel({ detail, role, onDecided }: { detail: CaseDetail; role: 
               {detail.status === "pending_review" ? "Waiting for a reviewer" : "Send for review"}
             </Button>
           </div>
+          {detail.status !== "escalated" ? <EscalationRequest caseId={detail.id} onRequested={onDecided} /> : null}
         </div>
       ) : (
         <p className="text-[13.5px] text-muted">Your role ({role.label}) can read decisions but not record them.</p>
@@ -367,18 +369,45 @@ function DecisionPanel({ detail, role, onDecided }: { detail: CaseDetail; role: 
   );
 }
 
-function ExportPanel({ caseId, role, onExported }: { caseId: string; role: LiveRole; onExported: () => void }) {
+const CHECK_TONE = { complete: "ok", partial: "warn", missing: "bad" } as const;
+
+/** Evidence coverage computed from real case references; nothing is marked present without one. */
+function ChecklistPanel({ caseId, version }: { caseId: string; version: number }) {
+  const checklist = useLive(() => casesApi.checklist(caseId), `checklist:${caseId}:${version}`);
+  return (
+    <Panel>
+      <CardHeader title="Evidence checklist" description="Complete, partial or missing, from the evidence actually attached to this case." />
+      <LiveData query={checklist} label="checklist">
+        {(c) => (
+          <ul className="flex flex-col gap-1.5">
+            {c.items.map((item) => (
+              <li key={item.key} className="flex flex-wrap items-start gap-2 text-[13.5px]">
+                <Pill tone={CHECK_TONE[item.status]}>{words(item.status)}</Pill>
+                <span>
+                  <b>{item.label}</b> <span className="text-muted">{item.detail}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </LiveData>
+    </Panel>
+  );
+}
+
+/** Analyst side of four-eyes: ask a reviewer (a different person) to approve an escalation. */
+function EscalationRequest({ caseId, onRequested }: { caseId: string; onRequested: () => void }) {
+  const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ url: string; path: string } | null>(null);
-  if (!role.canInvestigate) return null;
-  const run = async () => {
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      const exported = await liveApi.exportUrl(caseId);
-      setResult(exported);
-      onExported();
+      await casesApi.requestEscalation(caseId, reason.trim());
+      setReason("");
+      onRequested();
     } catch (problem) {
       setError(errorMessage(problem));
     } finally {
@@ -386,31 +415,112 @@ function ExportPanel({ caseId, role, onExported }: { caseId: string; role: LiveR
     }
   };
   return (
-    <Panel>
-      <CardHeader title="Evidence bundle" description="JSON export of the case's alerts, transactions, signals, data-quality issues and evidence. A case-support artifact, not a FinCEN filing." />
+    <form className="flex flex-col gap-2 border-t border-line-soft pt-3" onSubmit={submit}>
+      <Field label="Request escalation" hint="A reviewer other than you must approve it.">
+        {(props) => <TextArea {...props} rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why this needs SAR-support review" />}
+      </Field>
       <div>
-        <Button variant="ghost" disabled={busy} onClick={run}>
-          {busy ? "Exporting" : "Export evidence bundle"}
+        <Button type="submit" variant="ghost" size="sm" disabled={busy || !reason.trim()}>
+          Request escalation
         </Button>
       </div>
-      {result ? (
-        <KeyValueList
-          items={[
-            ["Stored at", <span key="p" className="font-mono text-xs">{result.path}</span>],
-            [
-              "Download",
-              <a key="u" href={result.url} target="_blank" rel="noreferrer" className="font-semibold text-brand-link underline underline-offset-2">
-                Signed link (expires in 5 minutes)
-              </a>,
-            ],
-          ]}
-        />
-      ) : null}
+      {error ? <span className="text-xs font-semibold text-danger-ink">{error}</span> : null}
+    </form>
+  );
+}
+
+/** Hashed SAR-support evidence package (case-support artifact, not a FinCEN filing). */
+function ExportPanel({ caseId, role, onExported }: { caseId: string; role: LiveRole; onExported: () => void }) {
+  const [version, setVersion] = useState(0);
+  const exports = useLive(() => casesApi.exports(caseId), `case-exports:${caseId}:${version}`);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [verified, setVerified] = useState<Record<string, string>>({});
+  if (!role.canInvestigate) return null;
+
+  const run = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await casesApi.exportPackage(caseId);
+      setVersion((v) => v + 1);
+      invalidateLive("exports");
+      onExported();
+    } catch (problem) {
+      setError(errorMessage(problem));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verify = async (key: string, url: string, expected: string) => {
+    try {
+      setVerified((v) => ({ ...v, [key]: "checking" }));
+      const actual = await sha256Hex(url);
+      setVerified((v) => ({ ...v, [key]: actual === expected ? "ok" : "mismatch" }));
+    } catch (problem) {
+      setVerified((v) => ({ ...v, [key]: errorMessage(problem) }));
+    }
+  };
+
+  const label = (state: string) => (state === "ok" ? "Hash matches" : state === "mismatch" ? "Hash does not match" : state === "checking" ? "Checking" : state);
+
+  return (
+    <Panel>
+      <CardHeader
+        title="Evidence package"
+        description="Manifest, transaction schedule, entities, detector outputs, data-quality issues, decisions and audit timeline, each with a SHA-256 hash. Tamper-evident, not legally certified."
+      />
+      <div>
+        <Button variant="ghost" disabled={busy} onClick={run}>
+          {busy ? "Building package" : "Export evidence package"}
+        </Button>
+      </div>
       {error ? (
         <Callout tone="bad" role="alert">
           {error}
         </Callout>
       ) : null}
+      <LiveData query={exports} label="exports">
+        {(list) =>
+          list.length === 0 ? (
+            <p className="text-xs text-muted">No packages yet.</p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {list.map((p) => (
+                <li key={p.id} className="flex flex-col gap-1 rounded-[10px] border border-line-soft p-2.5 text-[13px]">
+                  <span>
+                    <b>{utc(p.created_at)}</b> by {p.creator?.display_name ?? "unknown"} · manifest{" "}
+                    <span className="font-mono text-xs">{p.manifest_sha256.slice(0, 16)}…</span>
+                  </span>
+                  {p.files.map((f) => {
+                    const key = `${p.id}:${f.name}`;
+                    const state = verified[key];
+                    return (
+                      <span key={f.name} className="flex flex-wrap items-center gap-2 text-xs">
+                        {f.url ? (
+                          <a href={f.url} target="_blank" rel="noreferrer" className="font-mono font-semibold text-brand-link underline underline-offset-2">
+                            {f.name}
+                          </a>
+                        ) : (
+                          <span className="font-mono">{f.name}</span>
+                        )}
+                        <span className="font-mono text-muted">{f.sha256.slice(0, 12)}…</span>
+                        {f.url ? (
+                          <Button variant="link" onClick={() => verify(key, f.url!, f.sha256)}>
+                            Verify hash
+                          </Button>
+                        ) : null}
+                        {state ? <Pill tone={state === "ok" ? "ok" : state === "checking" ? "mute" : "bad"}>{label(state)}</Pill> : null}
+                      </span>
+                    );
+                  })}
+                </li>
+              ))}
+            </ul>
+          )
+        }
+      </LiveData>
     </Panel>
   );
 }
