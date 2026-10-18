@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -12,6 +13,7 @@ DEFAULT_LLM_TIMEOUT_S = 120.0
 # Headroom an LLM node keeps beyond the LLM budget, so the client can still fall back to the
 # template before the node itself times out.
 LLM_NODE_HEADROOM_S = 30.0
+PRECOMPUTED_ENV = "TRACELAYER_PRECOMPUTED"
 
 
 def llm_timeout_s() -> float:
@@ -44,6 +46,11 @@ class AgentConfig(BaseModel):
 
     source_asset_id: str = "amlsim_transactions_v1"
 
+    # Demo safety net: serve the golden run's case draft and copilot answer from
+    # `mocks/fixtures/golden_run.json` instead of calling the LLM, only for the golden alert and
+    # question (see `precomputed`). Env: TRACELAYER_PRECOMPUTED=1. Live runs are the default.
+    use_precomputed: bool = False
+
     @model_validator(mode="after")
     def _tiers_ordered(self) -> AgentConfig:
         if self.tier_high_top_pct > self.tier_medium_top_pct:
@@ -62,9 +69,11 @@ class AgentConfig(BaseModel):
 
     @classmethod
     def from_env(cls) -> AgentConfig:
-        overrides: dict[str, float] = {}
+        overrides: dict[str, Any] = {}
         if timeout := os.environ.get("TRACELAYER_NODE_TIMEOUT_S", "").strip():
             overrides["node_timeout_s"] = float(timeout)
         if llm_timeout := os.environ.get("TRACELAYER_LLM_NODE_TIMEOUT_S", "").strip():
             overrides["llm_node_timeout_s"] = float(llm_timeout)
+        if os.environ.get(PRECOMPUTED_ENV, "").strip().lower() in {"1", "true", "yes"}:
+            overrides["use_precomputed"] = True
         return cls(**overrides)

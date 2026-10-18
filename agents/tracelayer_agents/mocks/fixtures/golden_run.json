@@ -1,0 +1,2275 @@
+{
+  "format_version": 1,
+  "created_at": "2026-10-18T00:00:49.874635Z",
+  "seed": 20261017,
+  "dataset_hashes": {
+    "fan_out.csv": "ce08c0c644f430709b59cece035104b191834444c68f39158fa9f794951d5d44",
+    "bad_batch.csv": "16c820eab747824b76a454a016e9368e634e95e9b2e77a30dd2b2b5d5050bd29",
+    "cycle.csv": "c16aea851d38fa68fdfa36434e057f2666b0436154abbeb3742fd756b1d86262",
+    "accounts.csv": "3716306645b626448bfe03e631c041a205c268f483818e32bdb0b9c4e28c27de",
+    "policy_chunks.json": "755ae12ef63940ecb5e692b21a9149e4886b8408561f0a01105a6016fb58144d"
+  },
+  "config_hash": "5cf66f2e2ee49388a59302253374caf09bbac75c1068150bb625975caab66bbf",
+  "golden_alert_id": "alrt_a812f90d1b25",
+  "golden_question": "What should an analyst document when escalating an alert for supervisor review?",
+  "copilot_source_ids": [
+    "mock_ffiec_sar_program_001",
+    "mock_ffiec_sar_timing_002",
+    "mock_fictional_triage_007"
+  ],
+  "analyses": {
+    "fan_out/strict": {
+      "status": "ok",
+      "error": null,
+      "trace_id": "tr_e3cf0202e350433494ea44bc2853e9a9",
+      "governance_status": "pass",
+      "halted": false,
+      "alerts": [
+        {
+          "alert_id": "alrt_a812f90d1b25",
+          "tx_ids": [
+            "TX-51001"
+          ],
+          "composite_score": 0.932203,
+          "component_scores": {
+            "mock_velocity": 0.727273,
+            "mock_typology_rules": 0.7,
+            "mock_graph_risk": 0.75
+          },
+          "typology_tags": [
+            "fan_out"
+          ],
+          "tier": "high",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_60742743c1f42dee",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 1,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_fb67b92f8daa",
+          "tx_ids": [
+            "TX-51002"
+          ],
+          "composite_score": 0.932203,
+          "component_scores": {
+            "mock_velocity": 0.727273,
+            "mock_typology_rules": 0.7,
+            "mock_graph_risk": 0.75
+          },
+          "typology_tags": [
+            "fan_out"
+          ],
+          "tier": "high",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_60742743c1f42dee",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 2,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_605fd90debe0",
+          "tx_ids": [
+            "TX-51003"
+          ],
+          "composite_score": 0.932203,
+          "component_scores": {
+            "mock_velocity": 0.727273,
+            "mock_typology_rules": 0.7,
+            "mock_graph_risk": 0.75
+          },
+          "typology_tags": [
+            "fan_out"
+          ],
+          "tier": "high",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_60742743c1f42dee",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 3,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_7626d13566ab",
+          "tx_ids": [
+            "TX-51004"
+          ],
+          "composite_score": 0.932203,
+          "component_scores": {
+            "mock_velocity": 0.727273,
+            "mock_typology_rules": 0.7,
+            "mock_graph_risk": 0.75
+          },
+          "typology_tags": [
+            "fan_out"
+          ],
+          "tier": "high",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_60742743c1f42dee",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 4,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_94769ff7a2a4",
+          "tx_ids": [
+            "TX-51005"
+          ],
+          "composite_score": 0.932203,
+          "component_scores": {
+            "mock_velocity": 0.727273,
+            "mock_typology_rules": 0.7,
+            "mock_graph_risk": 0.75
+          },
+          "typology_tags": [
+            "fan_out"
+          ],
+          "tier": "high",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_60742743c1f42dee",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 5,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_d628f63b6f11",
+          "tx_ids": [
+            "TX-51006"
+          ],
+          "composite_score": 0.932203,
+          "component_scores": {
+            "mock_velocity": 0.727273,
+            "mock_typology_rules": 0.7,
+            "mock_graph_risk": 0.75
+          },
+          "typology_tags": [
+            "fan_out"
+          ],
+          "tier": "high",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_60742743c1f42dee",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 6,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_4edac5b293d3",
+          "tx_ids": [
+            "TX-51007"
+          ],
+          "composite_score": 0.932203,
+          "component_scores": {
+            "mock_velocity": 0.727273,
+            "mock_typology_rules": 0.7,
+            "mock_graph_risk": 0.75
+          },
+          "typology_tags": [
+            "fan_out"
+          ],
+          "tier": "high",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_60742743c1f42dee",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 7,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_b8a7e7caf5e3",
+          "tx_ids": [
+            "TX-51008"
+          ],
+          "composite_score": 0.932203,
+          "component_scores": {
+            "mock_velocity": 0.727273,
+            "mock_typology_rules": 0.7,
+            "mock_graph_risk": 0.75
+          },
+          "typology_tags": [
+            "fan_out"
+          ],
+          "tier": "high",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_60742743c1f42dee",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 8,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_fdc87d585c08",
+          "tx_ids": [
+            "TX-51009"
+          ],
+          "composite_score": 0.932203,
+          "component_scores": {
+            "mock_velocity": 0.727273,
+            "mock_typology_rules": 0.7,
+            "mock_graph_risk": 0.75
+          },
+          "typology_tags": [
+            "fan_out"
+          ],
+          "tier": "high",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_60742743c1f42dee",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 9,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_76c27f8215bf",
+          "tx_ids": [
+            "TX-11017"
+          ],
+          "composite_score": 0.652542,
+          "component_scores": {
+            "mock_velocity": 0.25,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.727273
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_60742743c1f42dee",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 10,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_ecb4a31f49e4",
+          "tx_ids": [
+            "TX-11021"
+          ],
+          "composite_score": 0.652542,
+          "component_scores": {
+            "mock_velocity": 0.25,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.727273
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_60742743c1f42dee",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 11,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_829c0a4d4de1",
+          "tx_ids": [
+            "TX-11044"
+          ],
+          "composite_score": 0.652542,
+          "component_scores": {
+            "mock_velocity": 0.25,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.727273
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_60742743c1f42dee",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 12,
+          "model_run_id": null
+        }
+      ],
+      "trace": [
+        {
+          "trace_id": "tr_e3cf0202e350433494ea44bc2853e9a9",
+          "node": "ingest",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.013244Z",
+          "ended_at": "2026-10-17T23:59:16.014757Z",
+          "duration_ms": 1.515,
+          "input_hash": "7abacce61f81c477d70ce4ad10ab499429ad7a7a808dedf7b03757ab1a0d6804",
+          "output_hash": "f6a036ce4d5a0887e683ced27b3579aa7d05e29e51608b6af38b226f7512454c",
+          "error": null
+        },
+        {
+          "trace_id": "tr_e3cf0202e350433494ea44bc2853e9a9",
+          "node": "governance",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.015125Z",
+          "ended_at": "2026-10-17T23:59:16.016956Z",
+          "duration_ms": 1.831,
+          "input_hash": "5f28b560dc527630101c1d36a6a903967bd6441c7540b11c58cc9c08db2dfe95",
+          "output_hash": "b9e819c4529478776ff83df4c45ed9e036d30296145b03ff49dc9085728669bd",
+          "error": null
+        },
+        {
+          "trace_id": "tr_e3cf0202e350433494ea44bc2853e9a9",
+          "node": "build_graph",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.017456Z",
+          "ended_at": "2026-10-17T23:59:16.017750Z",
+          "duration_ms": 0.294,
+          "input_hash": "53ca52aab9e4eb0ad1e10761d9653eb557dc79957f61424beaa30b95a19b9b71",
+          "output_hash": "bd504aaaffd91118223fbd9894b6621f180e2a919e7d18655d60be2b05b856e5",
+          "error": null
+        },
+        {
+          "trace_id": "tr_e3cf0202e350433494ea44bc2853e9a9",
+          "node": "detect_behavior",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.018097Z",
+          "ended_at": "2026-10-17T23:59:16.019699Z",
+          "duration_ms": 1.602,
+          "input_hash": "4b6d38b430d89c6c4357ff0b55dcd2ce7823442081ae70b5f0710ad2caf8b19a",
+          "output_hash": "5c6da8c9545f9b6fe7004fc2d82d369ccbf504a6e08b46518e0780ae9486fc5c",
+          "error": null
+        },
+        {
+          "trace_id": "tr_e3cf0202e350433494ea44bc2853e9a9",
+          "node": "detect_graphml",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.018119Z",
+          "ended_at": "2026-10-17T23:59:16.019858Z",
+          "duration_ms": 1.739,
+          "input_hash": "4b6d38b430d89c6c4357ff0b55dcd2ce7823442081ae70b5f0710ad2caf8b19a",
+          "output_hash": "207580754592e866e068fc073c5a26077fcd420372c07fe24272927aa29e0ac3",
+          "error": null
+        },
+        {
+          "trace_id": "tr_e3cf0202e350433494ea44bc2853e9a9",
+          "node": "aggregate",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.020723Z",
+          "ended_at": "2026-10-17T23:59:16.022144Z",
+          "duration_ms": 1.421,
+          "input_hash": "979c70ec38070d4caf7a6f52d2e4a3980fe4a967f66e1be72f07d5578908431b",
+          "output_hash": "956b56bcb701cbebe8da13a8812aa6870a6b25c5d0c5c28a4b6f523d15c448ab",
+          "error": null
+        },
+        {
+          "trace_id": "tr_e3cf0202e350433494ea44bc2853e9a9",
+          "node": "investigate_flows",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.022928Z",
+          "ended_at": "2026-10-17T23:59:16.027103Z",
+          "duration_ms": 4.175,
+          "input_hash": "3685069c83e05161e669c2d6a08cb175b01cbbfa744773daf2fb841dc9718dd9",
+          "output_hash": "baf2cc86b942300264d09bf96c1e4da28638d0d9ad7f9b7f8bc497b091a9e26a",
+          "error": null
+        }
+      ]
+    },
+    "bad_batch/strict": {
+      "status": "halted",
+      "error": null,
+      "trace_id": "tr_78b133be3c754d5f84172b74b205d6ce",
+      "governance_status": "fail",
+      "halted": true,
+      "alerts": [],
+      "trace": [
+        {
+          "trace_id": "tr_78b133be3c754d5f84172b74b205d6ce",
+          "node": "ingest",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.028994Z",
+          "ended_at": "2026-10-17T23:59:16.030027Z",
+          "duration_ms": 1.033,
+          "input_hash": "eecab23d0fc53051190b64aa2f314a1e612f55aae6ce706aa40937f8d55752b3",
+          "output_hash": "82f4c145fe63416447b22be851e63c3e76d45f99d274442c08b80b38bd283d3c",
+          "error": null
+        },
+        {
+          "trace_id": "tr_78b133be3c754d5f84172b74b205d6ce",
+          "node": "governance",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.030314Z",
+          "ended_at": "2026-10-17T23:59:16.032626Z",
+          "duration_ms": 2.312,
+          "input_hash": "17ed099a282774aba41abe1e8bcdedd972b7e71976e906e78b2cd793cccc78ef",
+          "output_hash": "6ad67ebe56400554d021289fbacb6d530506064e84b82d36eaccc2139a17c555",
+          "error": null
+        }
+      ]
+    },
+    "bad_batch/exploratory": {
+      "status": "ok",
+      "error": null,
+      "trace_id": "tr_50574a77395d41169c5ee443755bd942",
+      "governance_status": "fail",
+      "halted": false,
+      "alerts": [
+        {
+          "alert_id": "alrt_a3850de837cb",
+          "tx_ids": [
+            "TX-14013"
+          ],
+          "composite_score": 0.745283,
+          "component_scores": {
+            "mock_velocity": 0.25,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.7
+          },
+          "typology_tags": [],
+          "tier": "high",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 1,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_c2ff4866c1a0",
+          "tx_ids": [
+            "TX-14026"
+          ],
+          "composite_score": 0.745283,
+          "component_scores": {
+            "mock_velocity": 0.25,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.7
+          },
+          "typology_tags": [],
+          "tier": "high",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 2,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_f3ae53abcfc7",
+          "tx_ids": [
+            "TX-14036"
+          ],
+          "composite_score": 0.745283,
+          "component_scores": {
+            "mock_velocity": 0.25,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.7
+          },
+          "typology_tags": [],
+          "tier": "high",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 3,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_3462c2a74a67",
+          "tx_ids": [
+            "TX-14001"
+          ],
+          "composite_score": 0.641509,
+          "component_scores": {
+            "mock_velocity": 0.25,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.666667
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 4,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_375d9e5ab93d",
+          "tx_ids": [
+            "TX-14007"
+          ],
+          "composite_score": 0.641509,
+          "component_scores": {
+            "mock_velocity": 0.25,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.666667
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 5,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_37ab97368d09",
+          "tx_ids": [
+            "TX-14016"
+          ],
+          "composite_score": 0.641509,
+          "component_scores": {
+            "mock_velocity": 0.25,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.666667
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 6,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_21bd48c4c87c",
+          "tx_ids": [
+            "TX-14031"
+          ],
+          "composite_score": 0.641509,
+          "component_scores": {
+            "mock_velocity": 0.25,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.666667
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 7,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_19476a28d49d",
+          "tx_ids": [
+            "TX-14035"
+          ],
+          "composite_score": 0.641509,
+          "component_scores": {
+            "mock_velocity": 0.25,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.666667
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 8,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_be60eb5b144b",
+          "tx_ids": [
+            "TX-14009"
+          ],
+          "composite_score": 0.578616,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.7
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 9,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_a01d3f54c94b",
+          "tx_ids": [
+            "TX-14012"
+          ],
+          "composite_score": 0.578616,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.7
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 10,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_866c63be1c95",
+          "tx_ids": [
+            "TX-14018"
+          ],
+          "composite_score": 0.578616,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.7
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 11,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_3d546ead9f88",
+          "tx_ids": [
+            "TX-14021"
+          ],
+          "composite_score": 0.578616,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.7
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 12,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_d9086becff9d",
+          "tx_ids": [
+            "TX-14028"
+          ],
+          "composite_score": 0.578616,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.7
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 13,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_9ceb32cf36ef",
+          "tx_ids": [
+            "TX-14034"
+          ],
+          "composite_score": 0.578616,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.7
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 14,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_ca1e354c1f17",
+          "tx_ids": [
+            "TX-14037"
+          ],
+          "composite_score": 0.578616,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.7
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 15,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_2f93730f0bbf",
+          "tx_ids": [
+            "TX-14039"
+          ],
+          "composite_score": 0.578616,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.7
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 16,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_d6163fb02e7a",
+          "tx_ids": [
+            "TX-14042"
+          ],
+          "composite_score": 0.578616,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.7
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 17,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_a211870fa6e2",
+          "tx_ids": [
+            "TX-14044"
+          ],
+          "composite_score": 0.578616,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.7
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 18,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_91531ed34e19",
+          "tx_ids": [
+            "TX-14046"
+          ],
+          "composite_score": 0.578616,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.7
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 19,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_df1984ea0278",
+          "tx_ids": [
+            "TX-14047"
+          ],
+          "composite_score": 0.578616,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.7
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 20,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_99aaa96936cc",
+          "tx_ids": [
+            "TX-14048"
+          ],
+          "composite_score": 0.578616,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.7
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 21,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_c3335a2d1f4c",
+          "tx_ids": [
+            "TX-14049"
+          ],
+          "composite_score": 0.578616,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.7
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "fail",
+          "confidence_caveat": "incomplete_data",
+          "graph_snapshot_id": "snap_42216deba19c6dad",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 22,
+          "model_run_id": null
+        }
+      ],
+      "trace": [
+        {
+          "trace_id": "tr_50574a77395d41169c5ee443755bd942",
+          "node": "ingest",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.034470Z",
+          "ended_at": "2026-10-17T23:59:16.034575Z",
+          "duration_ms": 0.106,
+          "input_hash": "0968185b497d84a5586154bd7831f9378b157118e494d774e48a45ca02962329",
+          "output_hash": "82f4c145fe63416447b22be851e63c3e76d45f99d274442c08b80b38bd283d3c",
+          "error": null
+        },
+        {
+          "trace_id": "tr_50574a77395d41169c5ee443755bd942",
+          "node": "governance",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.034823Z",
+          "ended_at": "2026-10-17T23:59:16.036952Z",
+          "duration_ms": 2.129,
+          "input_hash": "68ce6b8bd95abbbe1dce87bd24ef8b26b2354341765970daef104d849b600aa1",
+          "output_hash": "ab613cb16a7ba335c307b4811b5b964afd9957cce948f265afef371311a600fc",
+          "error": null
+        },
+        {
+          "trace_id": "tr_50574a77395d41169c5ee443755bd942",
+          "node": "build_graph",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.037428Z",
+          "ended_at": "2026-10-17T23:59:16.037604Z",
+          "duration_ms": 0.177,
+          "input_hash": "f62b73bda819a48e9d6ca04c1fc88014beee898a98fd992f455f868d3360dd8f",
+          "output_hash": "6bf804e42cdf38868f8704d8868da163539f4b73e2ad9aad8a36d66030a467b3",
+          "error": null
+        },
+        {
+          "trace_id": "tr_50574a77395d41169c5ee443755bd942",
+          "node": "detect_behavior",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.037953Z",
+          "ended_at": "2026-10-17T23:59:16.039000Z",
+          "duration_ms": 1.046,
+          "input_hash": "49e31e5160aab2a96dd0d16ded1c787dc10700299769e67185a80503a13e37d4",
+          "output_hash": "c2fbdbd4594921646e19b116735e3f85e64521bbdd792d2f6cb771dd49207189",
+          "error": null
+        },
+        {
+          "trace_id": "tr_50574a77395d41169c5ee443755bd942",
+          "node": "detect_graphml",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.037992Z",
+          "ended_at": "2026-10-17T23:59:16.039119Z",
+          "duration_ms": 1.127,
+          "input_hash": "49e31e5160aab2a96dd0d16ded1c787dc10700299769e67185a80503a13e37d4",
+          "output_hash": "6d1f9b062974fe79fd0f6c2510fbdf7c53adb494fb51e46864a0cac4ad1008f7",
+          "error": null
+        },
+        {
+          "trace_id": "tr_50574a77395d41169c5ee443755bd942",
+          "node": "aggregate",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.039848Z",
+          "ended_at": "2026-10-17T23:59:16.041774Z",
+          "duration_ms": 1.927,
+          "input_hash": "dc089a557e87af4a0b8c1d435b3a518f70eb5e9c5af83949f1237886fc50899f",
+          "output_hash": "cfd688bc459d063180a7755965fd78c2c48501a9128a07b17a3aecdd172f82a5",
+          "error": null
+        },
+        {
+          "trace_id": "tr_50574a77395d41169c5ee443755bd942",
+          "node": "investigate_flows",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.042645Z",
+          "ended_at": "2026-10-17T23:59:16.044244Z",
+          "duration_ms": 1.6,
+          "input_hash": "bdb184dd3b1ffce60811a8d8c9962a427d6d61caf7bfe36d8ba14efe7a485e78",
+          "output_hash": "62363569a5168f9331b891b3ca3c3100bdc5f0ae30e19f2aee20647b1d3b32e5",
+          "error": null
+        }
+      ]
+    },
+    "cycle/strict": {
+      "status": "ok",
+      "error": null,
+      "trace_id": "tr_a50e110f3b9f4b729b63ee9233a137a8",
+      "governance_status": "pass",
+      "halted": false,
+      "alerts": [
+        {
+          "alert_id": "alrt_767d17dbdac0",
+          "tx_ids": [
+            "TX-13007"
+          ],
+          "composite_score": 0.768519,
+          "component_scores": {
+            "mock_velocity": 0.25,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.769231
+          },
+          "typology_tags": [],
+          "tier": "high",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_ec9721b145d36c53",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 1,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_b3d28d9c50b5",
+          "tx_ids": [
+            "TX-13046"
+          ],
+          "composite_score": 0.768519,
+          "component_scores": {
+            "mock_velocity": 0.25,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.769231
+          },
+          "typology_tags": [],
+          "tier": "high",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_ec9721b145d36c53",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 2,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_ee3ac3ec49fe",
+          "tx_ids": [
+            "TX-13032"
+          ],
+          "composite_score": 0.703704,
+          "component_scores": {
+            "mock_velocity": 0.25,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.727273
+          },
+          "typology_tags": [],
+          "tier": "high",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_ec9721b145d36c53",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 3,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_d8ccbc5bb9df",
+          "tx_ids": [
+            "TX-13001"
+          ],
+          "composite_score": 0.601852,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.769231
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_ec9721b145d36c53",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 4,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_61c144da3317",
+          "tx_ids": [
+            "TX-13014"
+          ],
+          "composite_score": 0.601852,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.769231
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_ec9721b145d36c53",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 5,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_58d77cf1cf86",
+          "tx_ids": [
+            "TX-13016"
+          ],
+          "composite_score": 0.601852,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.769231
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_ec9721b145d36c53",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 6,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_8944b9ed4689",
+          "tx_ids": [
+            "TX-13017"
+          ],
+          "composite_score": 0.601852,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.769231
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_ec9721b145d36c53",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 7,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_9c3c786d0ace",
+          "tx_ids": [
+            "TX-13021"
+          ],
+          "composite_score": 0.601852,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.769231
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_ec9721b145d36c53",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 8,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_757764a88592",
+          "tx_ids": [
+            "TX-13022"
+          ],
+          "composite_score": 0.601852,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.769231
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_ec9721b145d36c53",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 9,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_420590b90b27",
+          "tx_ids": [
+            "TX-13024"
+          ],
+          "composite_score": 0.601852,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.769231
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_ec9721b145d36c53",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 10,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_5c688e764fa8",
+          "tx_ids": [
+            "TX-13042"
+          ],
+          "composite_score": 0.601852,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.0,
+            "mock_graph_risk": 0.769231
+          },
+          "typology_tags": [],
+          "tier": "medium",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_ec9721b145d36c53",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 11,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_9d35774d5063",
+          "tx_ids": [
+            "TX-53001"
+          ],
+          "composite_score": 0.478395,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.7,
+            "mock_graph_risk": 0.25
+          },
+          "typology_tags": [
+            "cycle"
+          ],
+          "tier": "low",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_ec9721b145d36c53",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 12,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_a8d050cd9f09",
+          "tx_ids": [
+            "TX-53002"
+          ],
+          "composite_score": 0.478395,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.7,
+            "mock_graph_risk": 0.25
+          },
+          "typology_tags": [
+            "cycle"
+          ],
+          "tier": "low",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_ec9721b145d36c53",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 13,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_5ab1e544e9b4",
+          "tx_ids": [
+            "TX-53003"
+          ],
+          "composite_score": 0.478395,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.7,
+            "mock_graph_risk": 0.25
+          },
+          "typology_tags": [
+            "cycle"
+          ],
+          "tier": "low",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_ec9721b145d36c53",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 14,
+          "model_run_id": null
+        },
+        {
+          "alert_id": "alrt_de3f739ce4be",
+          "tx_ids": [
+            "TX-53004"
+          ],
+          "composite_score": 0.478395,
+          "component_scores": {
+            "mock_velocity": 0.0,
+            "mock_typology_rules": 0.7,
+            "mock_graph_risk": 0.25
+          },
+          "typology_tags": [
+            "cycle"
+          ],
+          "tier": "low",
+          "quality_status": "pass",
+          "confidence_caveat": null,
+          "graph_snapshot_id": "snap_ec9721b145d36c53",
+          "model_versions": {
+            "mock_velocity": "mock-0",
+            "mock_typology_rules": "mock-0",
+            "mock_graph_risk": "mock-0"
+          },
+          "rank": 15,
+          "model_run_id": null
+        }
+      ],
+      "trace": [
+        {
+          "trace_id": "tr_a50e110f3b9f4b729b63ee9233a137a8",
+          "node": "ingest",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.045929Z",
+          "ended_at": "2026-10-17T23:59:16.046855Z",
+          "duration_ms": 0.926,
+          "input_hash": "36460c66c7096785e554045d794d6ac80cb68c7ac4f2fff8fa8ad4caadad23c2",
+          "output_hash": "ef6a5bd10b4d1bb62f8d251c418f9b68ee9ac70a56c0a55c1b564f9c0b3db1ab",
+          "error": null
+        },
+        {
+          "trace_id": "tr_a50e110f3b9f4b729b63ee9233a137a8",
+          "node": "governance",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.047109Z",
+          "ended_at": "2026-10-17T23:59:16.048501Z",
+          "duration_ms": 1.392,
+          "input_hash": "17f65405c8cc7572a39bdca76769170bccf4e7ed97268e2f8e3327b0dced8124",
+          "output_hash": "b9e819c4529478776ff83df4c45ed9e036d30296145b03ff49dc9085728669bd",
+          "error": null
+        },
+        {
+          "trace_id": "tr_a50e110f3b9f4b729b63ee9233a137a8",
+          "node": "build_graph",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.048957Z",
+          "ended_at": "2026-10-17T23:59:16.049127Z",
+          "duration_ms": 0.17,
+          "input_hash": "f6ba6fba072b4c2506d64f1c301f05f55dafcf7d99cf26b5e0fcabbb09dd1c11",
+          "output_hash": "4a83eb1619452174dcabb81e43e5649d9edf9e687e035d7c922430603dfc4e83",
+          "error": null
+        },
+        {
+          "trace_id": "tr_a50e110f3b9f4b729b63ee9233a137a8",
+          "node": "detect_behavior",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.049446Z",
+          "ended_at": "2026-10-17T23:59:16.050530Z",
+          "duration_ms": 1.083,
+          "input_hash": "e7f202b63eb4187724c52edfefed9b2649e25371c7d11998f8d373e6beae7f3d",
+          "output_hash": "e5192ebe901331724aec254d532de89b120df7c18230f212d001b37c46f1b071",
+          "error": null
+        },
+        {
+          "trace_id": "tr_a50e110f3b9f4b729b63ee9233a137a8",
+          "node": "detect_graphml",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.049504Z",
+          "ended_at": "2026-10-17T23:59:16.050651Z",
+          "duration_ms": 1.147,
+          "input_hash": "e7f202b63eb4187724c52edfefed9b2649e25371c7d11998f8d373e6beae7f3d",
+          "output_hash": "4987d1e32542e62eb24f36d05a8f55804046fa78732b7a7001e6f59b500e94e9",
+          "error": null
+        },
+        {
+          "trace_id": "tr_a50e110f3b9f4b729b63ee9233a137a8",
+          "node": "aggregate",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.051386Z",
+          "ended_at": "2026-10-17T23:59:16.052695Z",
+          "duration_ms": 1.309,
+          "input_hash": "c7e67e46c9431e95f2362d71a042cd48bdd2bd8ccc207607501ee32566acf403",
+          "output_hash": "4ec9a5933e74b2102e0fc211cc11f3cc77cd050f4a01b235df09b699c62c0557",
+          "error": null
+        },
+        {
+          "trace_id": "tr_a50e110f3b9f4b729b63ee9233a137a8",
+          "node": "investigate_flows",
+          "status": "ok",
+          "started_at": "2026-10-17T23:59:16.053452Z",
+          "ended_at": "2026-10-17T23:59:16.056085Z",
+          "duration_ms": 2.633,
+          "input_hash": "6cf9cc4268fc6a0ae2e6010de422cb38c2e4b400c21519bcc79578f956e6a848",
+          "output_hash": "9b434abcfc31affa51ff0bbd860c7d6f458a769290aa7841cf110bef9ad275b5",
+          "error": null
+        }
+      ]
+    }
+  },
+  "case": {
+    "status": "ok",
+    "error": null,
+    "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+    "case_id": "case_a5ac520bf1ef",
+    "alert_id": "alrt_a812f90d1b25",
+    "draft": {
+      "summary": "The evidence documents a series of outgoing transfers from account ACC-3001 to nine distinct receiving accounts, all executed on the same date within a span of approximately two hours. The total value involved in this specific sequence is $43,855.00.",
+      "observed_facts": [
+        {
+          "text": "A fan-out pattern links 9 transactions among accounts ACC-3001, ACC-3101, ACC-3102, ACC-3103, ACC-3104, ACC-3105, ACC-3106, ACC-3107, ACC-3108, ACC-3109, totaling $43,855.00, dated 2026-09-04.",
+          "claim_type": "fact",
+          "transaction_ids": [
+            "TX-51001",
+            "TX-51002",
+            "TX-51003",
+            "TX-51004",
+            "TX-51005",
+            "TX-51006",
+            "TX-51007",
+            "TX-51008",
+            "TX-51009"
+          ],
+          "account_ids": [
+            "ACC-3001",
+            "ACC-3101",
+            "ACC-3102",
+            "ACC-3103",
+            "ACC-3104",
+            "ACC-3105",
+            "ACC-3106",
+            "ACC-3107",
+            "ACC-3108",
+            "ACC-3109"
+          ],
+          "amounts": [
+            "43855.00"
+          ],
+          "dates": [
+            "2026-09-04"
+          ],
+          "citation_chunk_ids": []
+        },
+        {
+          "text": "Transaction TX-51001 moved $4,850.00 from ACC-3001 to ACC-3101 on 2026-09-04.",
+          "claim_type": "fact",
+          "transaction_ids": [
+            "TX-51001"
+          ],
+          "account_ids": [
+            "ACC-3001",
+            "ACC-3101"
+          ],
+          "amounts": [
+            "4850.00"
+          ],
+          "dates": [
+            "2026-09-04"
+          ],
+          "citation_chunk_ids": []
+        },
+        {
+          "text": "Transaction TX-51002 moved $4,920.00 from ACC-3001 to ACC-3102 on 2026-09-04.",
+          "claim_type": "fact",
+          "transaction_ids": [
+            "TX-51002"
+          ],
+          "account_ids": [
+            "ACC-3001",
+            "ACC-3102"
+          ],
+          "amounts": [
+            "4920.00"
+          ],
+          "dates": [
+            "2026-09-04"
+          ],
+          "citation_chunk_ids": []
+        },
+        {
+          "text": "Transaction TX-51003 moved $4,775.00 from ACC-3001 to ACC-3103 on 2026-09-04.",
+          "claim_type": "fact",
+          "transaction_ids": [
+            "TX-51003"
+          ],
+          "account_ids": [
+            "ACC-3001",
+            "ACC-3103"
+          ],
+          "amounts": [
+            "4775.00"
+          ],
+          "dates": [
+            "2026-09-04"
+          ],
+          "citation_chunk_ids": []
+        },
+        {
+          "text": "Transaction TX-51004 moved $4,990.00 from ACC-3001 to ACC-3104 on 2026-09-04.",
+          "claim_type": "fact",
+          "transaction_ids": [
+            "TX-51004"
+          ],
+          "account_ids": [
+            "ACC-3001",
+            "ACC-3104"
+          ],
+          "amounts": [
+            "4990.00"
+          ],
+          "dates": [
+            "2026-09-04"
+          ],
+          "citation_chunk_ids": []
+        },
+        {
+          "text": "Transaction TX-51005 moved $4,810.00 from ACC-3001 to ACC-3105 on 2026-09-04.",
+          "claim_type": "fact",
+          "transaction_ids": [
+            "TX-51005"
+          ],
+          "account_ids": [
+            "ACC-3001",
+            "ACC-3105"
+          ],
+          "amounts": [
+            "4810.00"
+          ],
+          "dates": [
+            "2026-09-04"
+          ],
+          "citation_chunk_ids": []
+        },
+        {
+          "text": "Transaction TX-51006 moved $4,905.00 from ACC-3001 to ACC-3106 on 2026-09-04.",
+          "claim_type": "fact",
+          "transaction_ids": [
+            "TX-51006"
+          ],
+          "account_ids": [
+            "ACC-3001",
+            "ACC-3106"
+          ],
+          "amounts": [
+            "4905.00"
+          ],
+          "dates": [
+            "2026-09-04"
+          ],
+          "citation_chunk_ids": []
+        },
+        {
+          "text": "Transaction TX-51007 moved $4,860.00 from ACC-3001 to ACC-3107 on 2026-09-04.",
+          "claim_type": "fact",
+          "transaction_ids": [
+            "TX-51007"
+          ],
+          "account_ids": [
+            "ACC-3001",
+            "ACC-3107"
+          ],
+          "amounts": [
+            "4860.00"
+          ],
+          "dates": [
+            "2026-09-04"
+          ],
+          "citation_chunk_ids": []
+        },
+        {
+          "text": "Transaction TX-51008 moved $4,950.00 from ACC-3001 to ACC-3108 on 2026-09-04.",
+          "claim_type": "fact",
+          "transaction_ids": [
+            "TX-51008"
+          ],
+          "account_ids": [
+            "ACC-3001",
+            "ACC-3108"
+          ],
+          "amounts": [
+            "4950.00"
+          ],
+          "dates": [
+            "2026-09-04"
+          ],
+          "citation_chunk_ids": []
+        },
+        {
+          "text": "Transaction TX-51009 moved $4,795.00 from ACC-3001 to ACC-3109 on 2026-09-04.",
+          "claim_type": "fact",
+          "transaction_ids": [
+            "TX-51009"
+          ],
+          "account_ids": [
+            "ACC-3001",
+            "ACC-3109"
+          ],
+          "amounts": [
+            "4795.00"
+          ],
+          "dates": [
+            "2026-09-04"
+          ],
+          "citation_chunk_ids": []
+        },
+        {
+          "text": "Within the evidence, ACC-3001 sent $43,855.00 across 9 transactions.",
+          "claim_type": "fact",
+          "transaction_ids": [
+            "TX-51001",
+            "TX-51002",
+            "TX-51003",
+            "TX-51004",
+            "TX-51005",
+            "TX-51006",
+            "TX-51007",
+            "TX-51008",
+            "TX-51009"
+          ],
+          "account_ids": [
+            "ACC-3001"
+          ],
+          "amounts": [
+            "43855.00"
+          ],
+          "dates": [],
+          "citation_chunk_ids": []
+        },
+        {
+          "text": "Within the evidence, ACC-3101 received $4,850.00 across 1 transaction.",
+          "claim_type": "fact",
+          "transaction_ids": [
+            "TX-51001"
+          ],
+          "account_ids": [
+            "ACC-3101"
+          ],
+          "amounts": [
+            "4850.00"
+          ],
+          "dates": [],
+          "citation_chunk_ids": []
+        },
+        {
+          "text": "Within the evidence, ACC-3102 received $4,920.00 across 1 transaction.",
+          "claim_type": "fact",
+          "transaction_ids": [
+            "TX-51002"
+          ],
+          "account_ids": [
+            "ACC-3102"
+          ],
+          "amounts": [
+            "4920.00"
+          ],
+          "dates": [],
+          "citation_chunk_ids": []
+        },
+        {
+          "text": "The rapid distribution of funds from one account to multiple others could indicate an attempt to disperse assets quickly; however, it may also represent a legitimate business operation such as payroll processing or vendor payments that coincidentally occurred on the same day. It may have a legitimate explanation; this requires reviewer assessment.",
+          "claim_type": "hypothesis",
+          "transaction_ids": [
+            "TX-51001",
+            "TX-51002",
+            "TX-51003",
+            "TX-51004",
+            "TX-51005",
+            "TX-51006",
+            "TX-51007",
+            "TX-51008",
+            "TX-51009"
+          ],
+          "account_ids": [
+            "ACC-3001",
+            "ACC-3101",
+            "ACC-3102",
+            "ACC-3103",
+            "ACC-3104",
+            "ACC-3105",
+            "ACC-3106",
+            "ACC-3107",
+            "ACC-3108",
+            "ACC-3109"
+          ],
+          "amounts": [],
+          "dates": [],
+          "citation_chunk_ids": []
+        },
+        {
+          "text": "The transactions involve multiple accounts receiving funds from a single source in close temporal proximity, which warrants attention but does not confirm any illicit intent without further context regarding the nature of these relationships. It may have a legitimate explanation; this requires reviewer assessment.",
+          "claim_type": "hypothesis",
+          "transaction_ids": [
+            "TX-51001",
+            "TX-51002",
+            "TX-51003",
+            "TX-51004",
+            "TX-51005",
+            "TX-51006",
+            "TX-51007",
+            "TX-51008",
+            "TX-51009"
+          ],
+          "account_ids": [
+            "ACC-3001",
+            "ACC-3101",
+            "ACC-3102",
+            "ACC-3103",
+            "ACC-3104",
+            "ACC-3105",
+            "ACC-3106",
+            "ACC-3107",
+            "ACC-3108",
+            "ACC-3109"
+          ],
+          "amounts": [],
+          "dates": [],
+          "citation_chunk_ids": []
+        },
+        {
+          "text": "The pattern shows funds moving from one account to several others, which could be part of normal commercial activity or potentially related to structuring if the amounts were specifically chosen for regulatory reasons. It may have a legitimate explanation; this requires reviewer assessment.",
+          "claim_type": "hypothesis",
+          "transaction_ids": [
+            "TX-51001",
+            "TX-51002",
+            "TX-51003",
+            "TX-51004",
+            "TX-51005",
+            "TX-51006",
+            "TX-51007",
+            "TX-51008",
+            "TX-51009"
+          ],
+          "account_ids": [
+            "ACC-3001",
+            "ACC-3101",
+            "ACC-3102",
+            "ACC-3103",
+            "ACC-3104",
+            "ACC-3105",
+            "ACC-3106",
+            "ACC-3107",
+            "ACC-3108",
+            "ACC-3109"
+          ],
+          "amounts": [],
+          "dates": [],
+          "citation_chunk_ids": []
+        },
+        {
+          "text": "FFIEC BSA/AML Examination Manual (Appendix: money laundering and terrorist financing red flags) sets out review expectations relevant to this activity.",
+          "claim_type": "policy",
+          "transaction_ids": [],
+          "account_ids": [],
+          "amounts": [],
+          "dates": [],
+          "citation_chunk_ids": [
+            "mock_ffiec_red_flags_003"
+          ]
+        },
+        {
+          "text": "31 CFR 1020.320, Reports by banks of suspicious transactions (Paragraph (a): transactions requiring a report) sets out review expectations relevant to this activity.",
+          "claim_type": "policy",
+          "transaction_ids": [],
+          "account_ids": [],
+          "amounts": [],
+          "dates": [],
+          "citation_chunk_ids": [
+            "mock_cfr_sar_thresholds_004"
+          ]
+        }
+      ],
+      "uncertainties": [
+        "The identity and relationship status between account ACC-3001 and the nine receiving accounts are not established in the current evidence set.",
+        "There is no information available regarding the source of funds deposited into or held by account ACC-3001 prior to these outgoing transfers.",
+        "It remains unclear whether any of the receiving accounts have been previously flagged for suspicious activity within this institution's records."
+      ],
+      "follow_up_questions": [
+        "What is the known business purpose and relationship between the sender (ACC-3001) and each recipient account?",
+        "Are there corresponding deposits or other inflows to ACC-3001 that explain the availability of funds for these specific transfers?",
+        "Have any of the receiving accounts been involved in similar transaction patterns on different dates?"
+      ],
+      "citations": [
+        "mock_ffiec_red_flags_003",
+        "mock_cfr_sar_thresholds_004"
+      ],
+      "evidence_transaction_ids": [
+        "TX-51001",
+        "TX-51002",
+        "TX-51003",
+        "TX-51004",
+        "TX-51005",
+        "TX-51006",
+        "TX-51007",
+        "TX-51008",
+        "TX-51009"
+      ],
+      "provider": "ollama",
+      "model": "qwen3.5:9b",
+      "prompt_version": "narrative_v3",
+      "fallback_used": false
+    },
+    "verifier_errors": [],
+    "flagged_claims": [],
+    "llm_meta": {
+      "provider": "ollama",
+      "model": "qwen3.5:9b",
+      "prompt_version": "narrative_v3",
+      "input_hash": "a5a83f7645db337b278934cb3227a89174c250e8ac93ade4eb8d9a810471e9b5",
+      "attempts": 1,
+      "fallback_used": false,
+      "latency_ms": 32120.591,
+      "errors": []
+    },
+    "case_status": "awaiting_review",
+    "trace": [
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "load_case",
+        "status": "ok",
+        "started_at": "2026-10-17T23:59:16.057732Z",
+        "ended_at": "2026-10-17T23:59:16.058269Z",
+        "duration_ms": 0.537,
+        "input_hash": "59bff4a16a208679e1ee1d511166cfbc340586e8bcaa8a2379cceb94dfa8e2bf",
+        "output_hash": "fdda6b00d7df7e76a2d23e9caa3a17bdf73451d486a5423d97e6d152631be7f0",
+        "error": null
+      },
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "retrieve_policy",
+        "status": "ok",
+        "started_at": "2026-10-17T23:59:16.058734Z",
+        "ended_at": "2026-10-17T23:59:16.058960Z",
+        "duration_ms": 0.226,
+        "input_hash": "780f7fbc007d5fb943c4330081fe559d8e0bb5d0762259b45645c7689b82dfb9",
+        "output_hash": "228ac1851780a0195088e2b684a1f42106f474eb43c2b1e100da69fd26a3f523",
+        "error": null
+      },
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "draft_narrative",
+        "status": "ok",
+        "started_at": "2026-10-17T23:59:16.059310Z",
+        "ended_at": "2026-10-18T00:00:02.281533Z",
+        "duration_ms": 46222.204,
+        "input_hash": "c1f8d4e0799f191b2df60cf8778b97b4eeb352bcfd20f0dcd8bcd995eed442ea",
+        "output_hash": "90440c4617ca7f02a1467b036c4d6e93fb958c3a9e2c77785950829a6f2b91e0",
+        "error": null
+      },
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "verify_evidence",
+        "status": "ok",
+        "started_at": "2026-10-18T00:00:02.290159Z",
+        "ended_at": "2026-10-18T00:00:02.293629Z",
+        "duration_ms": 3.469,
+        "input_hash": "16f2610243abaceeb04129d7db74408e138d203286525dbe0c4047dcbd48dfe0",
+        "output_hash": "70cf4ce2602bd1c1ecc2b25552a520fe4fabe86241e5b77fec999f0eb833520e",
+        "error": null
+      },
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "save_draft",
+        "status": "ok",
+        "started_at": "2026-10-18T00:00:02.294405Z",
+        "ended_at": "2026-10-18T00:00:02.295635Z",
+        "duration_ms": 1.229,
+        "input_hash": "34fd31bbe4c2e9c44068127626eaba0369225b4aebf8a7281cde4927c67a2ec0",
+        "output_hash": "8edba4aea4761fc128c79f7a74d97625db34e0cdaaf48643041d03b3e4d30e81",
+        "error": null
+      },
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "draft_narrative",
+        "status": "ok",
+        "started_at": "2026-10-18T00:00:02.296662Z",
+        "ended_at": "2026-10-18T00:00:34.416997Z",
+        "duration_ms": 32122.838,
+        "input_hash": "34fd31bbe4c2e9c44068127626eaba0369225b4aebf8a7281cde4927c67a2ec0",
+        "output_hash": "3f34c882b16bc34067bf5fa1a7305b1157d86d306dd15161ee46fd0c91901b28",
+        "error": null
+      },
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "verify_evidence",
+        "status": "ok",
+        "started_at": "2026-10-18T00:00:34.420658Z",
+        "ended_at": "2026-10-18T00:00:34.422719Z",
+        "duration_ms": 2.062,
+        "input_hash": "b307acc0f30e3fa05f3a7a550a19be692aec898ea71a15bc82f57a48d3acad7e",
+        "output_hash": "7f55989101d119429a06c1a373c56a39bbe648b38f396d75ac20c496788791e1",
+        "error": null
+      },
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "save_draft",
+        "status": "ok",
+        "started_at": "2026-10-18T00:00:34.423894Z",
+        "ended_at": "2026-10-18T00:00:34.425207Z",
+        "duration_ms": 1.313,
+        "input_hash": "2b65b2a33b35f5d84a145e9c064969dfa3cca852ca4b12952c0e959d7148d64e",
+        "output_hash": "6c3b662b67b6d22dc410578da29ebb2a0dfe8ef9020554c2f4b24681c120a747",
+        "error": null
+      }
+    ],
+    "precomputed": false
+  },
+  "copilot": {
+    "status": "ok",
+    "error": null,
+    "trace_id": "tr_1d44641bd2924dc5ade83b2fc8c11828",
+    "answer": {
+      "question": "What should an analyst document when escalating an alert for supervisor review?",
+      "answer": "When escalating an alert for supervisor review, the analyst should document the evidence reviewed and provide a written rationale. This documentation supports internal escalation steps where investigators either dismiss alerts or request more data before final filing decisions are made by senior officers.",
+      "claims": [
+        {
+          "text": "An investigator records the evidence reviewed and a written rationale when managing alerts, which includes escalating them to a second-level reviewer.",
+          "citation_chunk_ids": [
+            "mock_fictional_triage_007"
+          ]
+        },
+        {
+          "text": "Decisions not to file are documented as part of the suspicious activity monitoring lifecycle.",
+          "citation_chunk_ids": [
+            "mock_ffiec_sar_program_001"
+          ]
+        }
+      ],
+      "unknowns": [],
+      "citations": [
+        "mock_fictional_triage_007",
+        "mock_ffiec_sar_program_001"
+      ],
+      "no_answer": false,
+      "provider": "ollama",
+      "model": "qwen3.5:9b",
+      "prompt_version": "policy_qa_v1",
+      "fallback_used": false
+    },
+    "sources": [
+      {
+        "chunk_id": "mock_ffiec_sar_program_001",
+        "doc_title": "FFIEC BSA/AML Examination Manual",
+        "section": "Suspicious Activity Reporting: program overview",
+        "source_uri": "https://bsaaml.ffiec.gov/manual",
+        "excerpt": "Paraphrase for mock retrieval, not source text: a bank's suspicious activity monitoring is expected to cover the whole lifecycle, from identifying unusual activity (through employee referrals, manual review or automated monitoring) to managing alerts, researching them, deciding whether a SAR is warranted, and documenting that decision. Examiners look at whether alert thresholds and filtering criteria are reasonable for the bank's risk profile and whether decisions not to file are documented.",
+        "score": 0.333333,
+        "effective_date": null,
+        "indexed_at": null
+      },
+      {
+        "chunk_id": "mock_ffiec_sar_timing_002",
+        "doc_title": "FFIEC BSA/AML Examination Manual",
+        "section": "Suspicious Activity Reporting: timing and continuing activity",
+        "source_uri": "https://bsaaml.ffiec.gov/manual",
+        "excerpt": "Paraphrase for mock retrieval, not source text: the filing clock generally starts when the bank first detects facts that may form the basis for a SAR, with a 30-calendar-day deadline that can stretch to 60 days when no suspect has been identified. For activity that continues after a filing, the manual describes periodic review (about every 90 days) with a continuing report filed within the following 30 days. A reasonable review period before the clock starts is acceptable, but it should not be unduly long.",
+        "score": 0.166667,
+        "effective_date": null,
+        "indexed_at": null
+      },
+      {
+        "chunk_id": "mock_fictional_triage_007",
+        "doc_title": "FICTIONAL: Example Community Bank Alert Triage Procedure v1 (synthetic, not a real institution)",
+        "section": "Triage and escalation",
+        "source_uri": "urn:tracelayer:fictional:example-bank:alert-triage-v1",
+        "excerpt": "FICTIONAL PROCEDURE FOR DEMO USE ONLY. At the made-up Example Community Bank, an investigator reviews each model alert within 5 business days, records the evidence reviewed and a written rationale, and either dismisses it, requests more data, or escalates it to a second-level reviewer. Escalation is an internal step; only the BSA Officer decides whether to file. Investigators do not contact the customer about an open alert.",
+        "score": 0.166667,
+        "effective_date": null,
+        "indexed_at": null
+      }
+    ],
+    "verifier_errors": [],
+    "trace": [
+      {
+        "trace_id": "tr_1d44641bd2924dc5ade83b2fc8c11828",
+        "node": "retrieve_policy",
+        "status": "ok",
+        "started_at": "2026-10-18T00:00:34.442363Z",
+        "ended_at": "2026-10-18T00:00:34.445065Z",
+        "duration_ms": 2.704,
+        "input_hash": "e683cc44306313ce69955bd6b222be84629f5b2e9adcede8cb324fddf7ba5e15",
+        "output_hash": "02c5d0df460e5c3baf324baeb976882e37530026651cae8450af945aaa5eea8d",
+        "error": null
+      },
+      {
+        "trace_id": "tr_1d44641bd2924dc5ade83b2fc8c11828",
+        "node": "copilot_answer",
+        "status": "ok",
+        "started_at": "2026-10-18T00:00:34.445769Z",
+        "ended_at": "2026-10-18T00:00:49.848274Z",
+        "duration_ms": 15402.808,
+        "input_hash": "4cd9c734e6ccc0b4d90a06ae318cdc95672528852efec920a582a5aa2ed582a2",
+        "output_hash": "8f00fe208b01b9331799768aa9a718aba7afa3f40aa94ef94cc4322808054bd2",
+        "error": null
+      },
+      {
+        "trace_id": "tr_1d44641bd2924dc5ade83b2fc8c11828",
+        "node": "verify_citations",
+        "status": "ok",
+        "started_at": "2026-10-18T00:00:49.850594Z",
+        "ended_at": "2026-10-18T00:00:49.851292Z",
+        "duration_ms": 0.697,
+        "input_hash": "5954fee10f31d62ff3f517bf7c11ed6cb1609498aa8863d1c2b33afa03f037ab",
+        "output_hash": "f62155b07ba451df3fcfd8f3808cd9a2d46747603574124542feea473c7b477b",
+        "error": null
+      }
+    ],
+    "precomputed": false
+  },
+  "decision": {
+    "status": "ok",
+    "error": null,
+    "case_id": "case_a5ac520bf1ef",
+    "case_status": "escalated",
+    "audit_event": {
+      "event_id": "evt_f384a877a2ec4a00be8f9921de74241e",
+      "actor_id": "demo_user",
+      "actor_role": "analyst",
+      "action": "case.decision",
+      "object_type": "case",
+      "object_id": "case_a5ac520bf1ef",
+      "before_hash": "b1dac43021a632d27d57d6998522c97716a026fd0de95b73e5db83bad0c8f90d",
+      "after_hash": "5477fd88f8042ee91075480f3a4cc1f4854e3255a48d0bc619b3789a0594406a",
+      "prev_hash": "0094a6a31c7c45d3b82f6d228cb2959b1079c7bc36e6ddf71cf06c6c91c3f3c7",
+      "hash": "b9bba8406e5a82b3dc0eff2778f42c651251ff05354fdc3af28baacaaeb0ece6",
+      "model_versions": {
+        "mock_velocity": "mock-0",
+        "mock_typology_rules": "mock-0",
+        "mock_graph_risk": "mock-0"
+      },
+      "prompt_version": "narrative_v3",
+      "timestamp": "2026-10-18T00:00:49.866705Z",
+      "reason": "Rapid fan-out from one account to new accounts within hours; escalate for supervisor review.",
+      "metadata": {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "alert_id": "alrt_a812f90d1b25",
+        "action": "escalate",
+        "previous_status": "awaiting_review",
+        "case_status": "escalated",
+        "bundle_hash": "2fb828287f67bf7c7c9ba54d68510cff86752fb0b0190d4889dd701587ab72ee",
+        "graph_snapshot_id": "snap_60742743c1f42dee"
+      }
+    },
+    "trace": [
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "load_case",
+        "status": "ok",
+        "started_at": "2026-10-17T23:59:16.057732Z",
+        "ended_at": "2026-10-17T23:59:16.058269Z",
+        "duration_ms": 0.537,
+        "input_hash": "59bff4a16a208679e1ee1d511166cfbc340586e8bcaa8a2379cceb94dfa8e2bf",
+        "output_hash": "fdda6b00d7df7e76a2d23e9caa3a17bdf73451d486a5423d97e6d152631be7f0",
+        "error": null
+      },
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "retrieve_policy",
+        "status": "ok",
+        "started_at": "2026-10-17T23:59:16.058734Z",
+        "ended_at": "2026-10-17T23:59:16.058960Z",
+        "duration_ms": 0.226,
+        "input_hash": "780f7fbc007d5fb943c4330081fe559d8e0bb5d0762259b45645c7689b82dfb9",
+        "output_hash": "228ac1851780a0195088e2b684a1f42106f474eb43c2b1e100da69fd26a3f523",
+        "error": null
+      },
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "draft_narrative",
+        "status": "ok",
+        "started_at": "2026-10-17T23:59:16.059310Z",
+        "ended_at": "2026-10-18T00:00:02.281533Z",
+        "duration_ms": 46222.204,
+        "input_hash": "c1f8d4e0799f191b2df60cf8778b97b4eeb352bcfd20f0dcd8bcd995eed442ea",
+        "output_hash": "90440c4617ca7f02a1467b036c4d6e93fb958c3a9e2c77785950829a6f2b91e0",
+        "error": null
+      },
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "verify_evidence",
+        "status": "ok",
+        "started_at": "2026-10-18T00:00:02.290159Z",
+        "ended_at": "2026-10-18T00:00:02.293629Z",
+        "duration_ms": 3.469,
+        "input_hash": "16f2610243abaceeb04129d7db74408e138d203286525dbe0c4047dcbd48dfe0",
+        "output_hash": "70cf4ce2602bd1c1ecc2b25552a520fe4fabe86241e5b77fec999f0eb833520e",
+        "error": null
+      },
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "save_draft",
+        "status": "ok",
+        "started_at": "2026-10-18T00:00:02.294405Z",
+        "ended_at": "2026-10-18T00:00:02.295635Z",
+        "duration_ms": 1.229,
+        "input_hash": "34fd31bbe4c2e9c44068127626eaba0369225b4aebf8a7281cde4927c67a2ec0",
+        "output_hash": "8edba4aea4761fc128c79f7a74d97625db34e0cdaaf48643041d03b3e4d30e81",
+        "error": null
+      },
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "draft_narrative",
+        "status": "ok",
+        "started_at": "2026-10-18T00:00:02.296662Z",
+        "ended_at": "2026-10-18T00:00:34.416997Z",
+        "duration_ms": 32122.838,
+        "input_hash": "34fd31bbe4c2e9c44068127626eaba0369225b4aebf8a7281cde4927c67a2ec0",
+        "output_hash": "3f34c882b16bc34067bf5fa1a7305b1157d86d306dd15161ee46fd0c91901b28",
+        "error": null
+      },
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "verify_evidence",
+        "status": "ok",
+        "started_at": "2026-10-18T00:00:34.420658Z",
+        "ended_at": "2026-10-18T00:00:34.422719Z",
+        "duration_ms": 2.062,
+        "input_hash": "b307acc0f30e3fa05f3a7a550a19be692aec898ea71a15bc82f57a48d3acad7e",
+        "output_hash": "7f55989101d119429a06c1a373c56a39bbe648b38f396d75ac20c496788791e1",
+        "error": null
+      },
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "save_draft",
+        "status": "ok",
+        "started_at": "2026-10-18T00:00:34.423894Z",
+        "ended_at": "2026-10-18T00:00:34.425207Z",
+        "duration_ms": 1.313,
+        "input_hash": "2b65b2a33b35f5d84a145e9c064969dfa3cca852ca4b12952c0e959d7148d64e",
+        "output_hash": "6c3b662b67b6d22dc410578da29ebb2a0dfe8ef9020554c2f4b24681c120a747",
+        "error": null
+      },
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "human_decision",
+        "status": "ok",
+        "started_at": "2026-10-18T00:00:49.865607Z",
+        "ended_at": "2026-10-18T00:00:49.865698Z",
+        "duration_ms": 0.083,
+        "input_hash": "25a5515b92cb547ebed5fefdcf8be5a03d205e0c1d6c9b8ba488a5b2e6095273",
+        "output_hash": "1d064c488e28be5b5708828b621ee2aa36cc95c05cf62b251c9df2370c68d94f",
+        "error": null
+      },
+      {
+        "trace_id": "tr_e2d805cabf2b4269af49eea22ec10036",
+        "node": "record_decision",
+        "status": "ok",
+        "started_at": "2026-10-18T00:00:49.866364Z",
+        "ended_at": "2026-10-18T00:00:49.867010Z",
+        "duration_ms": 0.646,
+        "input_hash": "f6319456d01ac2db9635c25f5571794cd1b19d3f7e252dfece9ebbe3d90242a8",
+        "output_hash": "c94cd2bd6bd520a6269d9a401a942aa711b744d43731892982e3df11161c309f",
+        "error": null
+      }
+    ]
+  }
+}

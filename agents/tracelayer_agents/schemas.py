@@ -665,6 +665,7 @@ class RetrievePolicyOutput(Contract):
 
 class CopilotAnswerOutput(Contract):
     answer: PolicyAnswer
+    precomputed: bool | None = None  # True when served from the golden run (`precomputed`)
 
 
 class VerifyCitationsOutput(Contract):
@@ -682,6 +683,7 @@ class DraftNarrativeOutput(Contract):
     draft_narrative: NarrativeDraft
     draft_attempts: int = Field(ge=1)
     llm_meta: LLMMeta
+    precomputed: bool | None = None  # True when served from the golden run (`precomputed`)
 
 
 class VerifyEvidenceOutput(Contract):
@@ -730,6 +732,9 @@ class CaseDraftResult(Contract):
     llm_meta: LLMMeta | None = None
     case_status: CaseStatus | None = None
     trace: list[TraceEvent] = Field(default_factory=list)
+    # True when the draft was served from the precomputed golden run; `draft` and `llm_meta` then
+    # keep the original run's provider, model and prompt_version.
+    precomputed: bool = False
 
     @model_validator(mode="after")
     def _complete_when_ok(self) -> CaseDraftResult:
@@ -767,6 +772,8 @@ class CopilotResult(Contract):
     sources: list[RetrievedChunk] = Field(default_factory=list)
     verifier_errors: list[VerifierError] = Field(default_factory=list)
     trace: list[TraceEvent] = Field(default_factory=list)
+    # True when the answer was served from the precomputed golden run (original provenance kept).
+    precomputed: bool = False
 
     @model_validator(mode="after")
     def _complete_when_ok(self) -> CopilotResult:

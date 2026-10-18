@@ -82,4 +82,5 @@ async def run_copilot(
         sources=state.get("retrieved_sources", []),
         verifier_errors=state.get("verifier_errors", []),
         trace=state.get("trace_events", []),
+        precomputed=bool(state.get("precomputed")),
     )
