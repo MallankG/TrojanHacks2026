@@ -1,0 +1,1 @@
+Investigations run on bounded LangGraph multi-agent workflows. A local air-gapped language model writes the narrative synthesis, which is immediately checked by a nine-rule deterministic verifier validating every dollar amount, account ID, and timestamp against ground truth.

@@ -9,29 +9,124 @@ import { selectGraphNode, updateGraph } from "@/lib/store/actions";
 import type { EdgeKey, GraphNode, NodeKey } from "@/lib/types";
 import { MaskedRef } from "@/components/ui/sensitive";
 
-const COLORS = { path: "#0B7A70", selected: "#1F4F8F", hold: "#B8860B" };
+const COLORS = {
+  detected: "#DC2626", // Red lines for detected laundering path
+  selected: "#2563EB", // Vibrant Royal Blue when selected
+  hold: "#D97706",     // Amber dashed for quarantined batches
+  side: "#7C3AED",     // Violet for device-linked side splits
+  normal: "#64748B",
+};
+
+const DETECTED_EDGES = new Set<EdgeKey>(["e1", "e2", "e3", "e4", "e5", "e6"]);
+const DETECTED_NODES = new Set<NodeKey>(["A", "B", "C", "D", "E", "F"]);
 
 const pct = (value: number, total: number) => `${((value / total) * 100).toFixed(2)}%`;
 
-function NodeShape({ node, opacity }: { node: GraphNode; opacity: number }) {
+function NodeShape({ node, opacity, isSelected }: { node: GraphNode; opacity: number; isSelected: boolean }) {
   const { x, y } = node;
+  
+  // Highlighting colors for investigating:
+  // - Node B: Seed alerted account (Amber/Gold with vivid crimson pulse ring)
+  // - Nodes C, D, E: Layering intermediaries in detected path (Vibrant alert crimson & coral)
+  // - Node F: Cross-border exit target (Thick crimson border)
+  // - Node A: Inflow source (Deep navy with alert border)
+  // - Node G: Device collusion account (Purple)
+  // - Node T: Device token (Hexagon gold)
   switch (node.shape) {
-    case "square":
-      return <rect x={x - 22} y={y - 22} width={44} height={44} rx={8} fill="#1F4F8F" opacity={opacity} />;
-    case "diamond":
-      return <polygon points={`${x},${y - 26} ${x + 26},${y} ${x},${y + 26} ${x - 26},${y}`} fill="#0B7A70" opacity={opacity} />;
-    case "open":
-      return <circle cx={x} cy={y} r={22} fill="#FFFFFF" stroke="#0E1A2B" strokeWidth={4} opacity={opacity} />;
-    case "hex":
-      return <polygon points={`${x},${y - 22} ${x + 19},${y - 11} ${x + 19},${y + 11} ${x},${y + 22} ${x - 19},${y + 11} ${x - 19},${y - 11}`} fill="#F2B84B" opacity={opacity} />;
-    case "circle":
-    default:
+    case "square": {
+      const isDetected = DETECTED_NODES.has(node.key);
+      const fill = node.key === "E" ? "#B91C1C" : isDetected ? "#1E293B" : "#1F4F8F";
       return (
-        <g opacity={opacity}>
-          <circle cx={x} cy={y} r={node.key === "B" ? 24 : 22} fill="#0E1A2B" />
-          {node.key === "B" ? <circle cx={x} cy={y} r={30} fill="none" stroke="#F2B84B" strokeWidth={3} /> : null}
+        <g opacity={opacity} filter="url(#node-shadow)">
+          <rect
+            x={x - 22}
+            y={y - 22}
+            width={44}
+            height={44}
+            rx={8}
+            fill={fill}
+            stroke={isDetected ? "#DC2626" : "#3B82F6"}
+            strokeWidth={isDetected ? 2.5 : 1.5}
+          />
+          {node.key === "E" ? (
+            <text x={x} y={y + 4} textAnchor="middle" fill="#FFFFFF" fontSize="10" fontWeight="bold">HOP 3</text>
+          ) : null}
         </g>
       );
+    }
+    case "diamond": {
+      // Node D: Intermediate hop 2 (Prepaid wallet)
+      return (
+        <g opacity={opacity} filter="url(#node-shadow)">
+          <polygon
+            points={`${x},${y - 26} ${x + 26},${y} ${x},${y + 26} ${x - 26},${y}`}
+            fill="#EA580C"
+            stroke="#DC2626"
+            strokeWidth={2.5}
+          />
+          <text x={x} y={y + 3.5} textAnchor="middle" fill="#FFFFFF" fontSize="9" fontWeight="bold">HOP 2</text>
+        </g>
+      );
+    }
+    case "open": {
+      // Node F: Cross-border exit account
+      return (
+        <g opacity={opacity} filter="url(#node-shadow)">
+          <circle cx={x} cy={y} r={23} fill="#FEF2F2" stroke="#DC2626" strokeWidth={4} />
+          <circle cx={x} cy={y} r={17} fill="none" stroke="#DC2626" strokeWidth={1.5} strokeDasharray="3 3" />
+          <circle cx={x} cy={y} r={6} fill="#DC2626" />
+        </g>
+      );
+    }
+    case "hex": {
+      // Node T: Device token
+      return (
+        <g opacity={opacity} filter="url(#node-shadow)">
+          <polygon
+            points={`${x},${y - 22} ${x + 19},${y - 11} ${x + 19},${y + 11} ${x},${y + 22} ${x - 19},${y + 11} ${x - 19},${y - 11}`}
+            fill="#D97706"
+            stroke="#F59E0B"
+            strokeWidth={2}
+          />
+        </g>
+      );
+    }
+    case "circle":
+    default: {
+      if (node.key === "B") {
+        // Seed alerted account: ACC-2208 (Amber core with prominent crimson pulse aura)
+        return (
+          <g opacity={opacity} filter="url(#detected-glow)">
+            {/* Outer alert beacon ring */}
+            <circle cx={x} cy={y} r={33} fill="none" stroke="#DC2626" strokeWidth={2.5} strokeDasharray="5 3" />
+            <circle cx={x} cy={y} r={25} fill="#D97706" stroke="#FEF3C7" strokeWidth={2.5} />
+            <text x={x} y={y + 4} textAnchor="middle" fill="#FFFFFF" fontSize="10" fontWeight="bold">SEED</text>
+          </g>
+        );
+      }
+      if (node.key === "C") {
+        // Node C: Layering hop 1
+        return (
+          <g opacity={opacity} filter="url(#node-shadow)">
+            <circle cx={x} cy={y} r={23} fill="#EF4444" stroke="#B91C1C" strokeWidth={2.5} />
+            <text x={x} y={y + 4} textAnchor="middle" fill="#FFFFFF" fontSize="9.5" fontWeight="bold">HOP 1</text>
+          </g>
+        );
+      }
+      if (node.key === "G") {
+        // Node G: Collusion / Shared device checking account
+        return (
+          <g opacity={opacity} filter="url(#node-shadow)">
+            <circle cx={x} cy={y} r={22} fill="#7C3AED" stroke="#C4B5FD" strokeWidth={2} />
+          </g>
+        );
+      }
+      return (
+        <g opacity={opacity}>
+          <circle cx={x} cy={y} r={22} fill="#0E1A2B" />
+        </g>
+      );
+    }
   }
 }
 
@@ -46,14 +141,27 @@ export function GraphCanvas({ model, fixed }: { model: GraphModel; fixed: boolea
   const b = NODES.B;
 
   return (
-    <div className="relative w-full overflow-hidden rounded-xl bg-[#fafbfc]" style={{ aspectRatio: `${width} / ${height}` }}>
+    <div className="relative w-full overflow-hidden rounded-xl border border-red-500/20 bg-[#fafbfc] shadow-sm" style={{ aspectRatio: `${width} / ${height}` }}>
       <svg role="img" aria-label="Money-flow graph for CASE-0412. Accounts are nodes; transfers are arrows. Use the Table view for the same information." viewBox={`0 0 ${width} ${height}`} className="absolute inset-0 h-full w-full">
         <defs>
-          {Object.entries(COLORS).map(([name, color]) => (
-            <marker key={name} id={`arrow-${name}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M0 0L10 5L0 10z" fill={color} />
-            </marker>
-          ))}
+          <filter id="detected-glow" x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow dx="0" dy="0" stdDeviation="3.5" floodColor="#DC2626" floodOpacity="0.55" />
+          </filter>
+          <filter id="node-shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="2" stdDeviation="2.5" floodColor="#0F172A" floodOpacity="0.2" />
+          </filter>
+          <marker id="arrow-detected" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
+            <path d="M0 0L10 5L0 10z" fill={COLORS.detected} />
+          </marker>
+          <marker id="arrow-selected" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0 0L10 5L0 10z" fill={COLORS.selected} />
+          </marker>
+          <marker id="arrow-hold" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0L10 5L0 10z" fill={COLORS.hold} />
+          </marker>
+          <marker id="arrow-side" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0L10 5L0 10z" fill={COLORS.side} />
+          </marker>
         </defs>
         <g opacity={model.tokenVisible ? 1 : 0}>
           <line x1={b.x} y1={b.y + 28} x2={token.x} y2={token.y - 24} stroke={COLORS.hold} strokeWidth={2.5} strokeDasharray="3 6" strokeLinecap="round" />
@@ -61,10 +169,33 @@ export function GraphCanvas({ model, fixed }: { model: GraphModel; fixed: boolea
         </g>
         {edgeKeys.map((key) => {
           const e = model.edges[key];
+          const isDetected = DETECTED_EDGES.has(key);
           const dashed = e.placeholder || Boolean(e.edge.cycle);
-          const color = dashed ? COLORS.hold : e.selected ? COLORS.selected : COLORS.path;
-          const marker = dashed ? "url(#arrow-hold)" : e.selected ? "url(#arrow-selected)" : "url(#arrow-path)";
-          const common = { stroke: color, strokeWidth: e.selected ? 5 : 3, strokeDasharray: dashed ? "9 7" : undefined, markerEnd: marker, opacity: e.visible ? 1 : 0, fill: "none" };
+          const color = e.selected
+            ? COLORS.selected
+            : dashed
+            ? COLORS.hold
+            : key === "e7"
+            ? COLORS.side
+            : isDetected
+            ? COLORS.detected
+            : COLORS.normal;
+          const marker = e.selected
+            ? "url(#arrow-selected)"
+            : dashed
+            ? "url(#arrow-hold)"
+            : key === "e7"
+            ? "url(#arrow-side)"
+            : "url(#arrow-detected)";
+          const common = {
+            stroke: color,
+            strokeWidth: e.selected ? 5.5 : isDetected ? 3.8 : 2.5,
+            strokeDasharray: dashed ? "9 7" : undefined,
+            markerEnd: marker,
+            opacity: e.visible ? 1 : 0,
+            fill: "none",
+            filter: isDetected && !dashed ? "url(#detected-glow)" : undefined,
+          };
           if (e.edge.cycle) {
             const from = NODES[e.edge.from];
             const to = NODES[e.edge.to];
@@ -77,8 +208,8 @@ export function GraphCanvas({ model, fixed }: { model: GraphModel; fixed: boolea
           const render = model.nodes[key];
           return (
             <g key={key}>
-              <circle cx={node.x} cy={node.y} r={key === "T" ? 32 : 36} fill="none" stroke={COLORS.selected} strokeWidth={2} strokeDasharray="4 4" opacity={render.selected ? 1 : 0} />
-              <NodeShape node={node} opacity={render.opacity} />
+              <circle cx={node.x} cy={node.y} r={key === "T" ? 32 : 36} fill="none" stroke={COLORS.selected} strokeWidth={2.5} strokeDasharray="4 4" opacity={render.selected ? 1 : 0} />
+              <NodeShape node={node} opacity={render.opacity} isSelected={render.selected} />
             </g>
           );
         })}

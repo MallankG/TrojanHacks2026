@@ -41,6 +41,26 @@ flowchart LR
 - **Secrets**: the Supabase service-role key and `SERVICE_API_KEY` live only in `backend/.env` (or the host's
   env). The frontend gets only public `NEXT_PUBLIC_*` values.
 
+## Demo Accounts & Role Credentials
+
+All 5 core roles are pre-provisioned in Supabase Auth with password `TraceLayer2026!Demo` (see [ACCOUNTS_AND_ROLES.md](ACCOUNTS_AND_ROLES.md) for complete details):
+
+| Role | Email | Password | Primary Focus |
+|---|---|---|---|
+| **Admin** | `admin@demo.test` | `TraceLayer2026!Demo` | Enterprise policy, tenant config, user administration |
+| **Investigator** | `investigator@demo.test` | `TraceLayer2026!Demo` | Graph investigation workbench, evidence pinning, copilot Q&A |
+| **Analyst** | `analyst@demo.test` | `TraceLayer2026!Demo` | Ingestion review, alert triage, model ranking verification |
+| **Reviewer** | `reviewer@demo.test` | `TraceLayer2026!Demo` | Four-eyes supervisory review, disposition sign-off |
+| **Data Steward** | `steward@demo.test` | `TraceLayer2026!Demo` | Ingestion quality rules, schema drift, quarantine repair |
+
+*SSO / Quick Demo Access*: On the sign-in screen, click **"Continue with company SSO"** and enter prototype code `123456`.
+
+## Synthetic Datasets (Thousands of Rows)
+
+- Standard reproducible demo dataset (2,192 rows): `backend/sample_data/demo_bank_transactions.csv`
+- Large 10,000+ row dataset with all PRD typologies: `backend/sample_data/demo_bank_transactions_10k.csv`
+- Generator CLI: `python -m scripts.generate_demo_data --customers 160 --csv-name demo_bank_transactions_10k.csv`
+
 ## Run locally (full stack)
 
 Prerequisites: Python 3.11, Node 20+, [Ollama](https://ollama.com/download), a Supabase project.

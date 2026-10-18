@@ -1,0 +1,1 @@
+Everything starts with governed data. TraceLayer runs twenty automated data-quality rules on raw feeds, catching schema drift and malformed amounts. Bad batches are quarantined, and every transaction keeps an immutable link to its source CSV row.

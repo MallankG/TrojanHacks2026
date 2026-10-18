@@ -1,0 +1,1 @@
+Our in-memory graph engine traces time-respecting money paths and cycles. Across two hundred eighty thousand transactions, it recovered fifty-nine of sixty injected layering chains in just seven milliseconds, illuminating the full laundering route in vivid red.

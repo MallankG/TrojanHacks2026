@@ -343,13 +343,34 @@ export function GraphWorkbench() {
               {view.view === "graph" ? (
                 <>
                   <GraphCanvas model={model} fixed={fixed} />
-                  <div className="flex flex-wrap gap-3.5 text-xs font-semibold text-ink-2">
-                    <span>■ Business account</span>
-                    <span>● Personal account (amber ring = seed)</span>
-                    <span>◆ Prepaid wallet</span>
-                    <span>○ External bank</span>
-                    <span>⬢ Device token</span>
-                    <span>Dashed amber = on hold or round-trip lead</span>
+                  <div className="flex flex-wrap items-center gap-3 rounded-lg border border-red-500/15 bg-red-50/40 px-3 py-2 text-xs font-semibold text-ink-2">
+                    <span className="flex items-center gap-1.5 font-bold text-red-700">
+                      <span className="inline-block h-2.5 w-6 rounded-full bg-red-600 shadow-sm" />
+                      Detected Laundering Path
+                    </span>
+                    <span className="flex items-center gap-1 text-amber-800">
+                      <span className="inline-block h-3 w-3 rounded-full bg-amber-600 ring-2 ring-red-500" />
+                      Seed (ACC-2208)
+                    </span>
+                    <span className="flex items-center gap-1 text-red-800">
+                      <span className="inline-block h-3 w-3 rounded bg-red-600" />
+                      Layering Hops (1-3)
+                    </span>
+                    <span className="flex items-center gap-1 text-red-950">
+                      <span className="inline-block h-3 w-3 rounded-full border-2 border-red-700 bg-red-50" />
+                      Cross-border Exit (EXT-CB-77)
+                    </span>
+                    <span className="flex items-center gap-1 text-purple-800">
+                      <span className="inline-block h-3 w-3 rounded-full bg-purple-600" />
+                      Device Link (ACC-3391)
+                    </span>
+                    <span className="flex items-center gap-1 text-amber-700">
+                      <span className="inline-block h-3 w-3 rounded bg-amber-500" />
+                      Device Token (DV-77)
+                    </span>
+                    <span className="text-muted">
+                      Dashed amber = on hold / round-trip lead
+                    </span>
                   </div>
                 </>
               ) : (

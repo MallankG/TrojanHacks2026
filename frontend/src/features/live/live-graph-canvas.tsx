@@ -5,7 +5,7 @@ import type { GraphEdge, GraphNode, WorkbenchGraph } from "@/lib/live/api-graph"
 import { money } from "@/lib/live/format";
 import { useMaskers } from "@/lib/privacy/store";
 
-const COLORS = { edge: "#9aa7b9", highlight: "#B8860B", selected: "#1F4F8F", focus: "#F2B84B" };
+const COLORS = { edge: "#9aa7b9", highlight: "#DC2626", selected: "#2563EB", focus: "#F59E0B" };
 const COL_W = 180;
 const ROW_H = 66;
 const PAD_X = 70;
@@ -212,7 +212,8 @@ export function LiveGraphCanvas({ graph, focus, selection, onSelect, highlight, 
               onKeyDown={onActivate(() => onSelect({ kind: "node", id: n.id }))}
             >
               {isFocus ? <circle cx={p.x} cy={p.y} r={21} fill="none" stroke={COLORS.focus} strokeWidth={3} /> : null}
-              {marked?.has(n.id) && !isFocus ? <circle cx={p.x} cy={p.y} r={21} fill="none" stroke={COLORS.highlight} strokeWidth={2} strokeDasharray="3 3" /> : null}
+              {highlightedNodes.has(n.id) && !isFocus ? <circle cx={p.x} cy={p.y} r={20} fill="none" stroke={COLORS.highlight} strokeWidth={2.5} /> : null}
+              {marked?.has(n.id) && !isFocus ? <circle cx={p.x} cy={p.y} r={23} fill="none" stroke={COLORS.highlight} strokeWidth={2} strokeDasharray="3 3" /> : null}
               {selected ? <circle cx={p.x} cy={p.y} r={25} fill="none" stroke={COLORS.selected} strokeWidth={2} strokeDasharray="4 4" /> : null}
               <circle cx={p.x} cy={p.y} r={15} fill={n.is_internal === false ? "#FFFFFF" : "#0E1A2B"} stroke="#0E1A2B" strokeWidth={n.is_internal === false ? 3 : 1.5} />
               <text x={p.x} y={p.y + 32} textAnchor="middle" className="pointer-events-none fill-ink font-mono text-[11.5px] font-bold" paintOrder="stroke" stroke="#fbfcfd" strokeWidth={3}>

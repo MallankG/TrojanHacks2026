@@ -78,9 +78,9 @@ class Generator:
             day += timedelta(days=1)
 
     # --- normal activity ------------------------------------------------------------------------
-    def background(self) -> None:
+    def background(self, num_customers: int = 30) -> None:
         rng = self.rng
-        self.customers = [self.account(f"CUST-{i:03d}", f"Synthetic Customer {i:03d}") for i in range(1, 31)]
+        self.customers = [self.account(f"CUST-{i:03d}", f"Synthetic Customer {i:03d}") for i in range(1, num_customers + 1)]
         grocery = self.account("MER-GROCERY", "Northside Grocery LLC", "EXTBANK-NY")
         fuel = self.account("MER-FUEL", "Route 9 Fuel Inc", "EXTBANK-NJ")
         online = self.account("MER-ONLINE", "Parcelhub Online Inc", "EXTBANK-CA")
@@ -272,7 +272,7 @@ class Generator:
                  "fan_out", raw={"timestamp": "2026-10-02 09:30:00"})
 
     # --- output ---------------------------------------------------------------------------------
-    def write(self, out_dir: Path = OUT_DIR) -> tuple[Path, Path]:
+    def write(self, out_dir: Path = OUT_DIR, csv_name: str = CSV_NAME, manifest_name: str = MANIFEST_NAME) -> tuple[Path, Path]:
         self.rows.sort(key=lambda r: (r.when, r.origin, r.destination, r.amount))
         records, manifest_txns = [], {}
         for i, r in enumerate(self.rows, start=1):
@@ -308,13 +308,13 @@ class Generator:
         manifest_txns.setdefault("S-J", []).append(dup["transaction_id"] + " (second occurrence)")
 
         out_dir.mkdir(parents=True, exist_ok=True)
-        csv_path = out_dir / CSV_NAME
+        csv_path = out_dir / (csv_name or CSV_NAME)
         with csv_path.open("w", newline="", encoding="utf-8") as fh:
             writer = csv.DictWriter(fh, fieldnames=COLUMNS, lineterminator="\n")
             writer.writeheader()
             writer.writerows(records)
         manifest = {
-            "dataset": CSV_NAME,
+            "dataset": csv_name or CSV_NAME,
             "seed": SEED,
             "rows": len(records),
             "accounts": len({r["origin_account"] for r in records} | {r["destination_account"] for r in records}),
@@ -322,7 +322,7 @@ class Generator:
             "note": "Synthetic data. Labels are for evaluation only; detectors never read them.",
             "scenarios": {sid: {**SCENARIOS[sid], "transaction_ids": manifest_txns.get(sid, [])} for sid in SCENARIOS},
         }
-        manifest_path = out_dir / MANIFEST_NAME
+        manifest_path = out_dir / (manifest_name or MANIFEST_NAME)
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         return csv_path, manifest_path
 
@@ -359,12 +359,19 @@ SCENARIOS = {
 
 
 def main() -> None:
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--customers", type=int, default=30, help="Number of synthetic customers (default: 30)")
+    parser.add_argument("--csv-name", default=CSV_NAME, help="Output CSV filename")
+    parser.add_argument("--manifest-name", default=MANIFEST_NAME, help="Output manifest filename")
+    args = parser.parse_args()
+
     gen = Generator()
-    gen.background()
+    gen.background(num_customers=max(30, args.customers))
     gen.scenarios()
     gen.malformed()
-    csv_path, manifest_path = gen.write()
-    print(f"wrote {csv_path} and {manifest_path}")
+    csv_path, manifest_path = gen.write(csv_name=args.csv_name, manifest_name=args.manifest_name)
+    print(f"wrote {csv_path} and {manifest_path} ({len(gen.rows)} rows)")
 
 
 if __name__ == "__main__":
