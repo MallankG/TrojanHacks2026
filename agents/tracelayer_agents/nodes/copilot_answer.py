@@ -5,6 +5,7 @@ the `policy_qa` prompt. `verify_citations` runs next and drops any claim it can'
 from collections.abc import Mapping
 from typing import Any
 
+from tracelayer_agents import precomputed
 from tracelayer_agents.llm import client as llm
 from tracelayer_agents.llm.templates import TEMPLATES
 from tracelayer_agents.nodes.retrieve_policy import format_sources
@@ -18,6 +19,10 @@ PROMPT_NAME = "policy_qa"
 async def copilot_answer(state: Mapping[str, Any], ctx: NodeContext) -> CopilotAnswerOutput:
     question = state["question"]
     chunks = state.get("retrieved_sources") or []
+    if ctx.config.use_precomputed and chunks:
+        served = precomputed.golden_answer(question, [c.chunk_id for c in chunks])
+        if served is not None:
+            return CopilotAnswerOutput(answer=served, precomputed=True)
     variables = {
         "question": question,
         "sources": format_sources(chunks),

@@ -77,6 +77,7 @@ class CaseState(_TracedState, total=False):
     verifier_errors: list[VerifierError]
     flagged_claims: list[int]
     decision: Decision | None
+    precomputed: bool
 
 
 class CopilotState(_TracedState, total=False):
@@ -86,3 +87,4 @@ class CopilotState(_TracedState, total=False):
     retrieved_sources: list[RetrievedChunk]
     answer: PolicyAnswer | None
     verifier_errors: list[VerifierError]
+    precomputed: bool

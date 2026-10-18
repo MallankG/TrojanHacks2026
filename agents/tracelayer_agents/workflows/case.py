@@ -134,6 +134,7 @@ async def start_case(
         llm_meta=state["llm_meta"],
         case_status=state["case_status"],
         trace=state.get("trace_events", []),
+        precomputed=bool(state.get("precomputed")),
     )
 
 

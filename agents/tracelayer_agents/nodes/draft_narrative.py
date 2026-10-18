@@ -18,6 +18,7 @@ from typing import Any, Literal
 
 from pydantic import Field, create_model
 
+from tracelayer_agents import precomputed
 from tracelayer_agents.llm import client as llm
 from tracelayer_agents.llm.templates import build_narrative, narrative_fact_claims
 from tracelayer_agents.schemas import (
@@ -89,6 +90,18 @@ async def draft_narrative(state: Mapping[str, Any], ctx: NodeContext) -> DraftNa
     bundle = state["evidence_bundle"]
     chunks = state.get("retrieved_sources") or []
     derived = state.get("derived_facts") or []
+    attempts = (state.get("draft_attempts") or 0) + 1
+    if ctx.config.use_precomputed:
+        served = precomputed.golden_draft(
+            state.get("alert_id"),
+            {t.transaction_id for t in bundle.transactions},
+            {c.chunk_id for c in chunks},
+        )
+        if served is not None:
+            draft, meta = served
+            return DraftNarrativeOutput(
+                draft_narrative=draft, draft_attempts=attempts, llm_meta=meta, precomputed=True
+            )
     # Raw evidence for the deterministic builders and the template (not in the prompt).
     variables: dict[str, Any] = {
         "transactions": [t.model_dump(mode="json") for t in bundle.transactions],
@@ -132,6 +145,6 @@ async def draft_narrative(state: Mapping[str, Any], ctx: NodeContext) -> DraftNa
     )
     return DraftNarrativeOutput(
         draft_narrative=draft,
-        draft_attempts=(state.get("draft_attempts") or 0) + 1,
+        draft_attempts=attempts,
         llm_meta=meta,
     )
