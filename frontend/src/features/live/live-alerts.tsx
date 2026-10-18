@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/cn";
-import { errorMessage, invalidateLive, liveApi, useLive, type Alert } from "@/lib/live/api";
+import { errorMessage, invalidateLive, liveApi, useLive, type Alert, type AlertDetail } from "@/lib/live/api";
 import { BAND_LABEL, BAND_TONE, alertLabel, caseLabel, money, utc, words } from "@/lib/live/format";
 import { LIVE_ROLES } from "@/lib/live/roles";
 import { useLiveProfile } from "@/lib/live/session";
@@ -74,6 +74,12 @@ export function LiveAlertEntries({ selectedId }: { selectedId: string }) {
       <span className="eyebrow mt-1">Sample alerts</span>
     </div>
   );
+}
+
+/** The graph workbench focused on the alert's subject account (else its first linked account). */
+function graphWorkbenchHref(a: AlertDetail): string {
+  const subject = a.accounts.find((x) => x.role === "subject") ?? a.accounts[0];
+  return `${ROUTES.graph}?account=${subject.accounts.id}&alert=${a.id}`;
 }
 
 /** A live backend alert: why it ranked, component signals, money-flow graph, timeline and lineage. */
@@ -214,7 +220,17 @@ export function LiveAlertDetail({ alertId }: { alertId: string }) {
                 </Panel>
               </div>
               <Panel>
-                <CardHeader title="Money flow" description="Select an edge for its details. Path tracing is investigative context; commingled balances cannot always be traced exactly." />
+                <CardHeader
+                  title="Money flow"
+                  description="Select an edge for its details. Path tracing is investigative context; commingled balances cannot always be traced exactly."
+                  actions={
+                    a.accounts.length > 0 ? (
+                      <Link className="font-semibold text-brand-link underline underline-offset-2" href={graphWorkbenchHref(a)}>
+                        Open in graph workbench
+                      </Link>
+                    ) : null
+                  }
+                />
                 <LiveData query={graph} label="graph">
                   {(g) => <LiveGraph graph={g} />}
                 </LiveData>
