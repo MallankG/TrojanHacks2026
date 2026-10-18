@@ -11,7 +11,7 @@ export type PatternOperation = "cycles" | "fan_in" | "fan_out" | "pass_through";
 export const RAILS: Rail[] = ["ach", "wire", "p2p", "card", "cash", "check", "internal_transfer", "crypto", "other"];
 
 /** Server caps, mirrored so the controls never offer a value the API would reject with 422. */
-export const GRAPH_CAPS = { neighborhoodHops: 3, pathHops: 6, cycleHops: 10, patternWindowDays: 31, windowDays: 366 } as const;
+export const GRAPH_CAPS = { neighborhoodHops: 3, pathHops: 6, cycleHops: 10, patternWindowDays: 31, windowDays: 120 } as const;
 
 export interface GraphAccount {
   id: string;
@@ -60,6 +60,7 @@ export interface GraphEdge {
 
 export interface WorkbenchGraph extends Omit<GraphPayload, "nodes" | "edges"> {
   nodes: GraphNode[];
+  source_window?: { start: string | null; end: string | null };
   edges: GraphEdge[];
   limits?: { hops: number; direction: GraphDirection; max_nodes: number; max_edges: number; timeout_s: number; stopped_by: string | null };
 }
@@ -142,11 +143,15 @@ function withRails(base: string, rails: Rail[]): string {
 
 export const graphApi = {
   accounts: (q?: string, limit = 25) => call<AccountSearch>(`/graph/accounts${query({ q, limit })}`),
-  neighborhood: (accountId: string, p: GraphFilters & { hops: number; direction: GraphDirection }) =>
-    call<WorkbenchGraph>(
-      `/graph/accounts/${accountId}/neighborhood${withRails(query({ hops: p.hops, direction: p.direction, start: p.start, end: p.end, min_amount: p.minAmount || undefined }), p.rails)}`,
-      { timeoutMs: 30_000 },
-    ),
+  neighborhood: async (accountId: string, p: GraphFilters & { hops: number; direction: GraphDirection }) => {
+    const result = await call<{ workbench_graph: WorkbenchGraph }>("/graph/engine/analysis", {
+      method: "POST",
+      body: { operation: "neighborhood", account_id: accountId, hops: p.hops, graph_direction: p.direction,
+        start: p.start, end: p.end, channels: p.rails, min_amount: p.minAmount || undefined },
+      timeoutMs: 30_000,
+    });
+    return result.workbench_graph;
+  },
   paths: (p: GraphFilters & { source: string; target: string; maxHops: number; maxGapHours: number }) =>
     call<PathResult>(
       `/graph/paths${withRails(

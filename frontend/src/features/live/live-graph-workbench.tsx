@@ -217,7 +217,7 @@ export function LiveGraphWorkbench() {
           ) : null}
         </div>
         <span className="basis-full font-mono text-[11.5px] text-muted">
-          Query guard: max_hops {hops} of {GRAPH_CAPS.neighborhoodHops} · window {windowStart || windowEnd ? `${windowStart || "start"} to ${windowEnd || "end"} UTC` : "all time"} (max {GRAPH_CAPS.windowDays} days) ·{" "}
+          Query guard: max_hops {hops} of {GRAPH_CAPS.neighborhoodHops} · window {hood.data?.source_window?.start && hood.data.source_window.end ? `${hood.data.source_window.start} to ${hood.data.source_window.end}` : windowStart || windowEnd ? `${windowStart || "start"} to ${windowEnd || "end"} UTC` : "14 days around latest activity"} (max {GRAPH_CAPS.windowDays} days) ·{" "}
           {hood.data?.limits ? `max ${hood.data.limits.max_nodes} nodes · ${hood.data.limits.max_edges} edges · timeout ${hood.data.limits.timeout_s} s` : "server caps apply"}
         </span>
       </Card>

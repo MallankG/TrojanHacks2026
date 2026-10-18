@@ -18,7 +18,7 @@ from app.core.db import PAGE_SIZE, fetch_by_ids, get_db
 
 TXN_FIELDS = (
     "id, transaction_ref, occurred_at, amount, currency, amount_usd, channel, origin_account_id, "
-    "destination_account_id, source_row_id"
+    "destination_account_id, source_row_id, ingestion_run_id, transaction_status"
 )
 ACCOUNT_FIELDS = "id, account_ref, institution_ref, is_internal, status"
 MAX_EDGES = 5000
@@ -160,6 +160,7 @@ def graph_payload(tenant_id: str, edges: list[dict], roles: dict[str, str] | Non
             "transaction_ref": e.get("transaction_ref"), "occurred_at": e["occurred_at"], "amount": e["amount"],
             "currency": e["currency"], "amount_usd": e.get("amount_usd"), "channel": e["channel"],
             "source_row_id": e.get("source_row_id"),
+            "ingestion_run_id": e.get("ingestion_run_id"), "transaction_status": e.get("transaction_status"),
         }
         for e in sorted(edges, key=lambda e: (e["occurred_at"], e["id"]))
     ]
