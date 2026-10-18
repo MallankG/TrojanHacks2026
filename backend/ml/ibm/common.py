@@ -108,20 +108,22 @@ def build_cache(data, cache, groups=GROUPS):
     t0 = time.time()
     c = Path(cache)
     c.mkdir(parents=True, exist_ok=True)
+    # Cheap check first (before the HI-Small load): groups kept from an earlier build must share this order.
+    stale = [p.name for p in c.glob("ibm_feat_*.parquet")
+             if p.stem[len("ibm_feat_"):] not in groups and _group_order(p) != ORDER_VERSION]
+    if stale:
+        raise ValueError(f"cache {c} has groups {stale} in another edge order than {ORDER_VERSION!r}; "
+                         "rebuild the cache with every group")
     e, y, (tr, va, te), safe, node_tr = load_edges(data)
     node_tr.rename_axis("account").reset_index().to_parquet(c / "ibm_node_features_train.parquet")  # serving needs it
     print(f"edges {len(e):,} | train {len(tr):,} val {len(va):,} test {len(te):,} ({time.time() - t0:.0f}s)", flush=True)
-    # parquets with no split file are legacy (unstamped) too, so they count as order None
-    old = npz_order(np.load(c / "ibm_split.npz")) if (c / "ibm_split.npz").exists() else None
-    stale = [p.name for p in c.glob("ibm_feat_*.parquet") if p.stem[len("ibm_feat_"):] not in groups]
-    if old != ORDER_VERSION and stale:
-        raise ValueError(f"cache {c} was built in edge order {old!r}, not {ORDER_VERSION!r}; rebuild the cache "
-                         f"(its other groups {stale} would no longer line up)")
     np.savez(c / "ibm_split.npz", y=y, tr=tr, va=va, te=te, amt=e["amt_paid"].to_numpy(), order=ORDER_VERSION)
     make = {"safe39": lambda: safe, "temporal": lambda: temporal_features(e), "graph": lambda: graph_features(e, tr),
             "cycles": lambda: cycle_features(e, (tr, va, te))}
     for g in groups:
-        make[g]().to_parquet(c / f"ibm_feat_{g}.parquet")
+        f = make[g]()
+        f.attrs["order"] = ORDER_VERSION  # each group carries its own stamp, so a half-finished rebuild is caught
+        f.to_parquet(c / f"ibm_feat_{g}.parquet")
         print(f"{g} done ({time.time() - t0:.0f}s)", flush=True)
 
 
@@ -132,6 +134,9 @@ def load_cache(cache, groups, as_array=False):
     c = Path(cache)
     z = np.load(c / "ibm_split.npz")
     split = z["y"], (z["tr"], z["va"], z["te"]), z["amt"], npz_order(z)
+    mixed = {g: _group_order(c / f"ibm_feat_{g}.parquet") for g in groups}
+    if any(o != split[-1] for o in mixed.values()):
+        raise ValueError(f"cache {c}: feature groups {mixed} don't match the split's edge order {split[-1]!r}; rebuild it")
     if not as_array:
         return (pd.concat([pd.read_parquet(c / f"ibm_feat_{g}.parquet") for g in groups], axis=1), *split)
     names, X, j = [], None, 0
@@ -144,6 +149,13 @@ def load_cache(cache, groups, as_array=False):
         j += f.shape[1]
         del f
     return (X, names), *split
+
+
+def _group_order(path):
+    """Edge-order stamp a feature group was written with (None for a legacy, unstamped parquet)."""
+    import pyarrow.parquet as pq
+    attrs = (pq.read_schema(path).metadata or {}).get(b"PANDAS_ATTRS")
+    return json.loads(attrs).get("order") if attrs else None
 
 
 def _ncols(c, g):

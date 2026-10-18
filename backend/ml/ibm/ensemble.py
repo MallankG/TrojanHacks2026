@@ -38,7 +38,12 @@ def blend_scores(ref_a, ref_b, w, s_a, s_b):
     """Blend pure percentiles, then add ONE raw-score tie-break, so it only orders exact blend ties (e.g. rows
     beyond both models' val extremes) and can never override a real percentile difference."""
     s_a, s_b = np.asarray(s_a, dtype=np.float64), np.asarray(s_b, dtype=np.float64)
-    return w * pct(ref_a, s_a) + (1 - w) * pct(ref_b, s_b) + TIE_EPS * (w * s_a + (1 - w) * s_b)
+    return _blend(w, pct(ref_a, s_a), pct(ref_b, s_b), s_a, s_b)
+
+
+def _blend(w, p_a, p_b, s_a, s_b):
+    """The serving formula on precomputed percentiles (the weight search reuses them across the grid)."""
+    return w * p_a + (1 - w) * p_b + TIE_EPS * (w * s_a + (1 - w) * s_b)
 
 
 class EnsembleScorer:
@@ -57,9 +62,12 @@ class EnsembleScorer:
 def calibration(models, out):
     """Clears EnsembleScorer's caveat only when every temporal GNN input was written by the per-target re-eval
     (gnn.main stamps calibration="per-target")."""
-    for m in models:
-        r = json.loads((Path(out) / f"ibm_{m}_results.json").read_text())
-        if r.get("hparams", {}).get("temporal") and r.get("calibration") != "per-target":
+    temporal = [m for m in models
+                if json.loads((Path(out) / f"ibm_{m}_results.json").read_text()).get("hparams", {}).get("temporal")]
+    if not temporal:
+        return "per-protocol threshold"  # no temporal GNN input, so per-target caps don't apply
+    for m in temporal:
+        if json.loads((Path(out) / f"ibm_{m}_results.json").read_text()).get("calibration") != "per-target":
             return f"{m} has batch-cap GNN scores; rebuild after gnn_temporal per-target re-eval"
     return "per-target"
 
@@ -77,7 +85,9 @@ if __name__ == "__main__":
     if not all((x["y_val"] == z[0]["y_val"]).all() and (x["y_test"] == z[0]["y_test"]).all() for x in z):
         raise ValueError("row order mismatch between score files")
     ref = [np.sort(x["s_val"]) for x in z]
-    blend = lambda w, part: blend_scores(ref[0], ref[1], w, z[0][part], z[1][part])  # the serving formula
+    raw = {part: [x[part].astype(np.float64) for x in z] for part in ("s_val", "s_test")}
+    P = {part: [pct(r, s) for r, s in zip(ref, raw[part])] for part in raw}  # percentiles once per model
+    blend = lambda w, part: _blend(w, *P[part], *raw[part])  # same formula as blend_scores
     grid = np.round(np.arange(0, 1.01, 0.1), 2)
     ap_val = {float(w): float(average_precision_score(z[0]["y_val"], blend(w, "s_val"))) for w in grid}
     w = max(ap_val, key=ap_val.get)

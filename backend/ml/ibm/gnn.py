@@ -71,7 +71,7 @@ def hash_uniforms(seed, target, hop, node, k):
     t = target.cpu().numpy().astype(np.int64).view(np.uint64)
     n = node.cpu().numpy().astype(np.int64).view(np.uint64)
     with np.errstate(over="ignore"):
-        x = _mix(_U(seed & 0xFFFFFFFFFFFFFFFF) ^ (t * _GOLD) ^ (_U(hop) << _U(32))) ^ n
+        x = _mix(_U(int(seed) & 0xFFFFFFFFFFFFFFFF) ^ (t * _GOLD) ^ (_U(hop) << _U(32))) ^ n
         x = _mix(x[:, None] ^ (np.arange(k, dtype=np.uint64) * _GOLD)[None, :])
     return (x >> _U(11)).astype(np.float64) / float(1 << 53)
 
@@ -371,6 +371,8 @@ class IBMGNNScorer:
         # surfaced in every score() row so the API/UI can show it
         self.calibration = res.get("calibration") or ("batch-cap threshold; per-target re-eval pending"
                                                       if ck.get("temporal") else "per-protocol threshold")
+        if self.calibration == "per-target":  # the re-eval sampled from the full edge set (see score())
+            self.calibration = "per-target; threshold assumes scoring with the full edge history"
 
     def score(self, edges, accounts, rows=None):
         e = edges.reset_index(drop=True).assign(ts=lambda d: pd.to_datetime(d["ts"]))
