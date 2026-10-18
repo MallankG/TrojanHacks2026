@@ -15,9 +15,9 @@ try {
     grant usage on schema auth,public to authenticated,service_role;
   `);
   await db.exec(read('migrations/20261017000001_foundation_tenancy.sql').replace(/create extension[^;]+;/g, ''));
-  // Minimal ingestion fixture; tenant identity and audit functions below are actual migrations.
-  await db.exec(`create table public.ingestion_runs(id uuid primary key, tenant_id uuid not null references public.tenants(id));
-    grant all on public.ingestion_runs to service_role;`);
+  // Use real ingestion constraints so contract pins also exercise source-file tenancy.
+  await db.exec(read('migrations/20261017000002_ingestion_governance.sql'));
+  await db.exec(`grant all on public.ingestion_runs to service_role;`);
   await db.exec(read('migrations/20261017000006_audit.sql').split('create function private.actor_kind')[0]);
   await db.exec(read('migrations/20261018000001_governance_superpowers.sql'));
   await db.exec(read('migrations/20261018000003_source_contract_versions.sql'));

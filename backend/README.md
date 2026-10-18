@@ -156,7 +156,17 @@ Apply `20261018000003_source_contract_versions.sql` before enabling this operati
 Run the contract migration regression suite against disposable PostgreSQL with
 `node scripts/test-contract-db.mjs /path/to/@electric-sql/pglite/dist/index.js`
 from `backend/` (omit the runtime path when PGlite is locally installed). It applies
-the actual tenancy, audit and governance SQL with only the ingestion table stubbed,
+the actual tenancy, ingestion, audit and governance SQL,
 and checks replacement/audit atomicity, stale edits, immutable history and pins,
 cross-tenant isolation, and RPC execution grants. The SQL assertions also live in
 `supabase/tests/contract_versions.sql` for disposable migrated databases.
+
+Validate every application migration, including vector indexes and Realtime setup, with
+`node scripts/test-migrations-db.mjs /path/to/node_modules` from `backend/`.
+The runtime directory must contain `@electric-sql/pglite` and
+`@electric-sql/pglite-pgvector` (or omit the argument when both are locally installed).
+The runner applies all migrations in filename order unchanged, then executes the
+enterprise access-control and source-contract SQL regression suites. Only
+Supabase-owned auth/storage schemas, helper functions, roles and platform grants
+are fixtures; all application tables, functions, triggers and both extensions are
+real PostgreSQL. This checks database behavior without contacting Supabase.

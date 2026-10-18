@@ -11,8 +11,10 @@ on conflict(id) do update set tenant_id=excluded.tenant_id,role=excluded.role;
 insert into public.governance_products(id,tenant_id,source_system,definition,created_by) values
  ('a2000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000001','payments','{"source_system":"payments","contract":{"version":"v1"}}','a1000000-0000-4000-8000-000000000001'),
  ('a2000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000002','payments','{"source_system":"payments","contract":{"version":"v1"}}','a1000000-0000-4000-8000-000000000002');
-insert into public.ingestion_runs(id,tenant_id,governance_product_id) values
- ('a3000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000001','a2000000-0000-4000-8000-000000000001');
+insert into public.source_files(id,tenant_id,filename,storage_path,checksum_sha256,source_system,data_owner,schema_version) values
+ ('a4000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000001','payments.csv','contract-test/payments.csv',repeat('a',64),'payments','steward','v1');
+insert into public.ingestion_runs(id,tenant_id,governance_product_id,file_id,schema_version) values
+ ('a3000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000001','a2000000-0000-4000-8000-000000000001','a4000000-0000-4000-8000-000000000001','v1');
 set local role service_role;
 do $$ declare replacement jsonb; old_id uuid := 'a2000000-0000-4000-8000-000000000001';
  tid uuid := 'a0000000-0000-4000-8000-000000000001'; actor uuid := 'a1000000-0000-4000-8000-000000000001';
@@ -57,7 +59,7 @@ begin
   raise exception 'Historical ingestion pin cleared';
  exception when check_violation then null; end;
  begin
-  insert into public.ingestion_runs values('a3000000-0000-4000-8000-000000000002',tid,'a2000000-0000-4000-8000-000000000002');
+  insert into public.ingestion_runs(id,tenant_id,governance_product_id,file_id,schema_version) values('a3000000-0000-4000-8000-000000000002',tid,'a2000000-0000-4000-8000-000000000002','a4000000-0000-4000-8000-000000000001','v1');
   raise exception 'Cross tenant ingestion pin accepted';
  exception when foreign_key_violation then null; end;
 end $$;
