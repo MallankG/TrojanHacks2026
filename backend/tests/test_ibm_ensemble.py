@@ -21,3 +21,15 @@ def test_tie_break_never_overrides_a_real_blended_difference():
 def test_dtype_is_cast_to_reference():
     s = np.random.default_rng(1).random(2000)
     assert np.array_equal(pct(REF, s), pct(REF, s.astype(np.float32)))
+
+
+def test_calibration_clears_only_after_per_target_gnn(tmp_path):
+    import json
+    from ml.ibm.ensemble import calibration
+    (tmp_path / "ibm_x_results.json").write_text(json.dumps({"model": "x"}))
+    (tmp_path / "ibm_g_results.json").write_text(json.dumps({"hparams": {"temporal": True}}))
+    assert calibration(["g", "x"], tmp_path) != "per-target"
+    (tmp_path / "ibm_g_results.json").write_text(json.dumps({"hparams": {"temporal": True}, "calibration": "per-target"}))
+    assert calibration(["g", "x"], tmp_path) == "per-target"
+    from ml.ibm.order import calibration_text
+    assert calibration_text("per-target") == calibration_text("per-target", temporal=False) != "per-target"

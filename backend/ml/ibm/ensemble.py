@@ -21,7 +21,7 @@ import numpy as np
 from sklearn.metrics import average_precision_score
 
 from .common import evaluate_and_save
-from .order import npz_order
+from .order import calibration_text, npz_order
 
 ART = Path(__file__).parent.parent / "artifacts" / "ibm"
 
@@ -38,7 +38,12 @@ def blend_scores(ref_a, ref_b, w, s_a, s_b):
     """Blend pure percentiles, then add ONE raw-score tie-break, so it only orders exact blend ties (e.g. rows
     beyond both models' val extremes) and can never override a real percentile difference."""
     s_a, s_b = np.asarray(s_a, dtype=np.float64), np.asarray(s_b, dtype=np.float64)
-    return w * pct(ref_a, s_a) + (1 - w) * pct(ref_b, s_b) + TIE_EPS * (w * s_a + (1 - w) * s_b)
+    return _blend(w, pct(ref_a, s_a), pct(ref_b, s_b), s_a, s_b)
+
+
+def _blend(w, p_a, p_b, s_a, s_b):
+    """The serving formula on precomputed percentiles (the weight search reuses them across the grid)."""
+    return w * p_a + (1 - w) * p_b + TIE_EPS * (w * s_a + (1 - w) * s_b)
 
 
 class EnsembleScorer:
@@ -48,10 +53,32 @@ class EnsembleScorer:
         ref = np.load(d / f"ibm_ensemble_{a}_{b}_ref.npz")
         self.ref_a, self.ref_b, self.w = ref["ref_a"], ref["ref_b"], res[f"weight_{a}"]
         self.threshold = res["val"]["best_threshold"]
-        self.calibration = res.get("calibration", "batch-cap GNN scores; rebuild after gnn_temporal per-target re-eval")
+        self.calibration = calibration_text(res.get("calibration"),
+                                            temporal=any(_is_temporal_gnn(d, m) for m in res.get("models", [a, b])))
 
     def blend(self, s_a, s_b):
         return blend_scores(self.ref_a, self.ref_b, self.w, s_a, s_b)
+
+
+def _is_temporal_gnn(out, model):
+    """From the model's own results.json (hparams.temporal); unreadable counts as temporal, keeping the caveat."""
+    try:
+        return bool(json.loads((Path(out) / f"ibm_{model}_results.json").read_text()).get("hparams", {}).get("temporal"))
+    except (OSError, ValueError):
+        return True
+
+
+def calibration(models, out):
+    """Clears EnsembleScorer's caveat only when every temporal GNN input was written by the per-target re-eval
+    (gnn.main stamps calibration="per-target")."""
+    res = {m: json.loads((Path(out) / f"ibm_{m}_results.json").read_text()) for m in models}
+    temporal = [m for m, r in res.items() if r.get("hparams", {}).get("temporal")]
+    if not temporal:
+        return "per-protocol threshold"  # no temporal GNN input, so per-target caps don't apply
+    for m in temporal:
+        if res[m].get("calibration") != "per-target":
+            return f"{m} has batch-cap GNN scores; rebuild after gnn_temporal per-target re-eval"
+    return "per-target"
 
 
 if __name__ == "__main__":
@@ -61,13 +88,15 @@ if __name__ == "__main__":
     a = ap.parse_args()
     files = [np.load(Path(a.out) / f"ibm_{m}_scores.npz") for m in a.models]
     orders = {npz_order(f) for f in files}
-    assert len(orders) == 1, f"score files were written in different edge orders: {orders}"
+    if len(orders) != 1:  # ValueError, not assert: asserts vanish under python -O
+        raise ValueError(f"score files were written in different edge orders: {orders}; rebuild the older one (RUNS.md queue)")
     z = [{k: f[k] for k in f.files} for f in files]  # load each array once
-    assert all((x["y_val"] == z[0]["y_val"]).all() and (x["y_test"] == z[0]["y_test"]).all() for x in z), "row order mismatch"
+    if not all((x["y_val"] == z[0]["y_val"]).all() and (x["y_test"] == z[0]["y_test"]).all() for x in z):
+        raise ValueError("row order mismatch between score files")
     ref = [np.sort(x["s_val"]) for x in z]
-    P = {part: [pct(r, x[part]) for r, x in zip(ref, z)] for part in ("s_val", "s_test")}  # percentiles once per model
-    blend = lambda w, part: (w * P[part][0] + (1 - w) * P[part][1]
-                             + TIE_EPS * (w * z[0][part].astype(np.float64) + (1 - w) * z[1][part].astype(np.float64)))
+    raw = {part: [x[part].astype(np.float64) for x in z] for part in ("s_val", "s_test")}
+    P = {part: [pct(r, s) for r, s in zip(ref, raw[part])] for part in raw}  # percentiles once per model
+    blend = lambda w, part: _blend(w, *P[part], *raw[part])  # same formula as blend_scores
     grid = np.round(np.arange(0, 1.01, 0.1), 2)
     ap_val = {float(w): float(average_precision_score(z[0]["y_val"], blend(w, "s_val"))) for w in grid}
     w = max(ap_val, key=ap_val.get)
@@ -76,8 +105,10 @@ if __name__ == "__main__":
     s = np.r_[blend(w, "s_val"), blend(w, "s_test")]
     va, te = np.arange(n_val), np.arange(n_val, len(y))
     name = f"ensemble_{a.models[0]}_{a.models[1]}"
+    stamp = calibration(a.models, a.out)  # reads inputs; fail before overwriting anything EnsembleScorer serves
     np.savez_compressed(Path(a.out) / f"ibm_{name}_ref.npz", ref_a=ref[0], ref_b=ref[1])
     evaluate_and_save(name, y, s, va, te, a.out, {"models": a.models, f"weight_{a.models[0]}": w, "val_auprc_by_weight": ap_val,
-                                                  "ranking": "percentile vs stored val score distributions (servable)"},
+                                                  "ranking": "percentile vs stored val score distributions (servable)",
+                                                  "calibration": stamp},
                       order=orders.pop())
     print(f"weight on {a.models[0]}: {w}  (val AUPRC by weight: {ap_val})")

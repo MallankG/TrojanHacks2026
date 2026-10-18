@@ -52,16 +52,16 @@ def hits(fired, y, te):
 
 if __name__ == "__main__":
     a = cli(__doc__)
-    f, y, (tr, va, te), amt = load_cache(a.cache, ["temporal"])
+    f, y, (tr, va, te), amt, order = load_cache(a.cache, ["temporal"])
     sig = {k: s(f).to_numpy(float) for k, (s, _) in SIGNALS.items()}
     tie = 1e-3 * np.log1p(amt) / np.log1p(amt).max()  # amount breaks ties, never outranks a rule
 
     fired = {k: (sig[k] >= thr).astype(int) for k, (_, thr) in SIGNALS.items()}
-    evaluate_and_save("rules", y, sum(fired.values()) + tie, va, te, a.out, {"rule_hits": hits(fired, y, te)})
+    evaluate_and_save("rules", y, sum(fired.values()) + tie, va, te, a.out, {"rule_hits": hits(fired, y, te)}, order=order)
 
     cal = {k: calibrate(sig[k][tr], y[tr]) for k in SIGNALS}
     fired = {k: (sig[k] >= c["threshold"]).astype(int) for k, c in cal.items()}
     score = sum(cal[k]["train_precision"] * fired[k] for k in SIGNALS) + tie
-    evaluate_and_save("rules_calibrated", y, score, va, te, a.out, {"calibration": cal, "rule_hits": hits(fired, y, te)})
+    evaluate_and_save("rules_calibrated", y, score, va, te, a.out, {"calibration": cal, "rule_hits": hits(fired, y, te)}, order=order)
     for k, c in cal.items():
         print(f"  {k:22s} thr {c['threshold']:.4g}  train F1 {100 * c['train_f1']:.2f}  train precision {100 * c['train_precision']:.2f}")
