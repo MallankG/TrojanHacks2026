@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useBackendHealth } from "@/lib/api/use-backend-health";
 import { cn } from "@/lib/cn";
+import { call, useLive } from "@/lib/live/api";
 import { useDashboardSummary } from "@/lib/live/api-command";
 import { useLiveProfile } from "@/lib/live/session";
 import { NAV_GROUPS, ROUTES, type NavItem } from "@/lib/routes";
@@ -24,6 +25,9 @@ export function Sidebar() {
   const role = useRole();
   const backend = useBackendHealth();
   const profile = useLiveProfile();
+  const graphHealth = useLive(() => profile
+    ? call<{ status: string }>("/graph/engine/health")
+    : Promise.resolve(null), "graph-engine-health");
   const fixed = state.data.driftFixed;
   const pendingForOfficer = state.caseWork.status === "Pending approval" && role.canApproveEscalation;
 
@@ -53,7 +57,7 @@ export function Sidebar() {
           status: !summary ? "Checking" : !latestRun ? "No uploads yet" : summary.ingestion.failed_runs ? "Last run failed" : `${summary.ingestion.open_issues_total} open issues`,
           tone: !latestRun ? "mute" : summary?.ingestion.failed_runs ? "bad" : summary?.ingestion.open_issues_total ? "warn" : "ok",
         },
-        { label: "GraphBase", status: "Not connected (graph service)", tone: "mute" },
+        { label: "GraphBase", status: graphHealth.loading ? "Checking" : graphHealth.data?.status === "ok" ? "Engine ready" : "Unavailable", tone: graphHealth.data?.status === "ok" ? "ok" : graphHealth.error ? "bad" : "mute" },
         { label: "Scoring", status: !summary ? "Checking" : ranker ? `Ranked ${ranker.completed_at ? ranker.completed_at.slice(5, 16).replace("T", " ") : ""}` : "Not run yet", tone: ranker ? "ok" : "mute" },
         { label: "LLM", status: "Not connected (agents)", tone: "mute" },
       ]
@@ -131,7 +135,7 @@ export function Sidebar() {
       </ul>
 
       <div className="min-h-3 flex-1" />
-      <div className="flex flex-col gap-1.5 rounded-xl border border-dashed border-[#34506f] p-2.5">
+      {!profile && <div className="flex flex-col gap-1.5 rounded-xl border border-dashed border-[#34506f] p-2.5">
         <div className="font-mono text-[10.5px] tracking-[0.14em] text-sidebar-muted">PROTOTYPE CONTROLS</div>
         <button type="button" className={SIDE_BUTTON} onClick={() => toggleSimulation("llm")}>
           {state.sim.llm ? "Restore LLM" : "Simulate LLM outage"}
@@ -152,7 +156,7 @@ export function Sidebar() {
         >
           Reset demo
         </button>
-      </div>
+      </div>}
       <div className="mt-2.5 flex items-center gap-2.5 border-t border-[#1e3350] px-1.5 py-2">
         <span aria-hidden="true" className="inline-flex size-[34px] items-center justify-center rounded-full bg-sidebar-active text-[13px] font-bold text-brand-light">
           {roleInitials(role)}

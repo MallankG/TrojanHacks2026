@@ -55,8 +55,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
-        <Banners />
-        <CaseContextBar />
+        {!liveId && <><Banners /><CaseContextBar /></>}
         <main id="main" className="flex w-full max-w-[1320px] flex-col gap-5 px-7 pb-12 pt-6">
           {children}
         </main>

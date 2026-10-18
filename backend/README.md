@@ -170,3 +170,7 @@ enterprise access-control and source-contract SQL regression suites. Only
 Supabase-owned auth/storage schemas, helper functions, roles and platform grants
 are fixtures; all application tables, functions, triggers and both extensions are
 real PostgreSQL. This checks database behavior without contacting Supabase.
+
+## Graph engine
+
+The live graph canvas is backed by authenticated `/graph/engine/analysis` operations. See [graph engine HTTP integration](../docs/graph_engine_http.md) for setup, limits and real HTTP verification.
