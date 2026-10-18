@@ -24,7 +24,7 @@ export function DataHeader() {
           <div className="flex flex-col items-end gap-1.5">
             <div className="flex gap-2.5">
               <Button variant="ghost" disabled={!role.canUpload} onClick={open}>
-                Onboard a source
+                {live ? "Onboard a source (guided sample)" : "Onboard a source"}
               </Button>
               <Button disabled={!role.canUpload} onClick={upload}>
                 Upload CSV batch

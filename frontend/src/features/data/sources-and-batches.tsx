@@ -14,6 +14,7 @@ import { Pill } from "@/components/ui/pill";
 import { DataTable, Td, Th, Tr } from "@/components/ui/table";
 import { useLiveBatches } from "@/lib/live/adapters";
 import { LiveRunChecks } from "@/features/live/live-data";
+import { LiveBatchFacts, LiveSourceCards } from "@/features/live/live-sources";
 import { CheckRow } from "./check-row";
 
 export function SourcesAndBatches() {
@@ -33,11 +34,16 @@ export function SourcesAndBatches() {
   return (
     <>
       <section aria-label="Sources" className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
+        {/* Live source feeds (from uploads) first; the seeded feeds follow as the sample scenario. */}
+        <LiveSourceCards />
         {sources.map((source) => (
           <Card key={source.name} className="flex flex-col gap-2 px-4 py-3.5">
             <div className="flex items-start justify-between gap-2">
               <b>{source.name}</b>
-              <Pill tone={source.tone}>{source.status}</Pill>
+              <span className="flex shrink-0 gap-1">
+                {liveRuns.live ? <Pill>Sample</Pill> : null}
+                <Pill tone={source.tone}>{source.status}</Pill>
+              </span>
             </div>
             <span className="text-xs text-muted">Owner: {source.owner}</span>
             <span className="text-xs text-muted">
@@ -110,10 +116,13 @@ export function SourcesAndBatches() {
           <div>
             <div className="eyebrow">Selected batch</div>
             <h2 className="mt-1 font-mono text-[15px] font-semibold">{selected.name}</h2>
-            <span className="text-xs text-muted">
-              {selected.schema} · file hash {selected.hash} · {selected.owner}
-            </span>
+            {selected.runId ? null : (
+              <span className="text-xs text-muted">
+                {selected.schema} · file hash {selected.hash} · {selected.owner}
+              </span>
+            )}
           </div>
+          {selected.runId ? <LiveBatchFacts runId={selected.runId} /> : null}
           {isHeld && !fixed ? (
             <Callout
               tone="warn"

@@ -10,6 +10,7 @@ import { LIVE_ROLES } from "@/lib/live/roles";
 import { useLiveProfile } from "@/lib/live/session";
 import { ROUTES } from "@/lib/routes";
 import { closeModal, selectBatch, toast } from "@/lib/store/actions";
+import { useDemoState } from "@/lib/store/hooks";
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { CardHeader, Panel } from "@/components/ui/card";
@@ -44,106 +45,17 @@ export function LiveRunChecks({ runId }: { runId: string }) {
   );
 }
 
-/** Real CSV upload to the backend (`POST /ingestion/upload`), opened from "Upload CSV batch". */
-export function LiveUploadDialog() {
-  const [file, setFile] = useState<File | null>(null);
-  const [sourceSystem, setSourceSystem] = useState("core-banking-ach");
-  const [owner, setOwner] = useState("Payments ops");
-  const [synthetic, setSynthetic] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<UploadResult | null>(null);
-
-  const missing = [!file && "choose a CSV file", !sourceSystem.trim() && "enter a source system", !owner.trim() && "enter a data owner"].filter(Boolean);
-
-  const submit = async (event?: FormEvent) => {
-    event?.preventDefault();
-    if (!file || missing.length > 0) return;
-    const form = new FormData();
-    form.set("file", file);
-    form.set("source_system", sourceSystem.trim());
-    form.set("data_owner", owner.trim());
-    form.set("is_synthetic", String(synthetic));
-    setBusy(true);
-    setError(null);
-    try {
-      const uploaded = await liveApi.upload(form);
-      setResult(uploaded);
-      invalidateLive("runs");
-      invalidateLive("issues");
-      selectBatch(runToBatch(uploaded.run).name);
-      toast(`Run ${words(uploaded.run.status).toLowerCase()}: ${uploaded.run.accepted_count ?? 0} accepted, ${uploaded.run.rejected_count ?? 0} rejected.`);
-    } catch (problem) {
-      setError(
-        problem instanceof ApiError && problem.status === 409
-          ? "This exact file was already ingested (same checksum), so it was not loaded twice. Its run is in the Batches table; change the file to upload it again."
-          : errorMessage(problem),
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Dialog
-      eyebrow="Live backend"
-      title="Upload CSV batch"
-      onClose={closeModal}
-      footer={
-        result ? (
-          <Button onClick={closeModal}>Done</Button>
-        ) : (
-          <>
-            <Button variant="ghost" onClick={closeModal}>
-              Cancel
-            </Button>
-            <Button disabled={busy || missing.length > 0} onClick={() => void submit()}>
-              {busy ? "Validating" : "Upload and validate"}
-            </Button>
-          </>
-        )
-      }
-    >
-      <form className="flex flex-col gap-3" onSubmit={submit}>
-        <p className="text-[13.5px] text-muted">
-          Columns are mapped to the canonical schema automatically, then every row runs the data-quality rules. Rejected rows never reach the transaction table. Synthetic data only.
-        </p>
-        <Field label="CSV file">{(props) => <TextInput {...props} type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />}</Field>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Source system">{(props) => <TextInput {...props} value={sourceSystem} onChange={(e) => setSourceSystem(e.target.value)} />}</Field>
-          <Field label="Data owner">{(props) => <TextInput {...props} value={owner} onChange={(e) => setOwner(e.target.value)} />}</Field>
-        </div>
-        <Checkbox label="This file contains synthetic data only" checked={synthetic} onChange={(e) => setSynthetic(e.target.checked)} />
-        {missing.length > 0 && !busy && !result ? <p className="text-xs text-muted">To upload, {missing.join(", ")}.</p> : null}
-      </form>
-      {error ? (
-        <Callout tone="bad" role="alert" className="mt-3">
-          {error}
-        </Callout>
-      ) : null}
-      {result ? (
-        <Callout tone={result.run.status === "completed" ? "ok" : "warn"} role="status" title={`Run ${words(result.run.status).toLowerCase()}.`} className="mt-3">
-          {result.run.accepted_count ?? 0} accepted, {result.run.warning_count ?? 0} with warnings, {result.run.rejected_count ?? 0} rejected of {result.run.row_count ?? 0} rows.
-          {Object.keys(result.issue_counts_by_type).length > 0
-            ? ` Issues: ${Object.entries(result.issue_counts_by_type)
-                .map(([type, n]) => `${words(type)} ${n}`)
-                .join(", ")}.`
-            : " No data-quality issues."}
-        </Callout>
-      ) : null}
-    </Dialog>
-  );
-}
-
 /** Row-level exceptions for live ingestion runs, shown above the seeded sample exceptions. */
 export function LiveExceptions() {
   const profile = useLiveProfile();
   const runs = useLiveBatches();
   const [runId, setRunId] = useState<string | null>(null);
   const [rowId, setRowId] = useState<string | null>(null);
+  const selectedBatch = useDemoState().data.selectedBatch;
   if (!profile) return null;
   const canSteward = LIVE_ROLES[profile.role].canSteward;
-  const active = runId ?? runs.data?.[0]?.runId ?? null;
+  // Opening this tab from a live batch ("Quality exceptions for this batch") starts on that batch's run.
+  const active = runId ?? runs.data?.find((b) => b.name === selectedBatch)?.runId ?? runs.data?.[0]?.runId ?? null;
 
   return (
     <Panel>
