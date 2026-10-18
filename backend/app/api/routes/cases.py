@@ -167,15 +167,32 @@ def record_decision(case_id: UUID, body: DecisionIn, user: CurrentUser = Depends
     case = _case_or_404(user, case_id, "id, status, escalation_requested_by")
     if case["status"] == "closed":
         raise HTTPException(409, "Case is already closed")
+    active=get_db().table('agent_runs').select('id').eq('tenant_id',user.tenant_id).eq('case_id',str(case_id)).eq('managed',True).in_(
+        'status',['running','queued','awaiting_review']).limit(1).execute().data
+    if active and (body.decision!='edit' or body.disposition):
+        raise HTTPException(409,'Finish the active agent review or save a human revision before the final case decision')
     case_service.check_four_eyes(case, user, body.decision, body.disposition)
     if body.decision != "edit" and user.role not in ("reviewer", "admin"):
         raise HTTPException(403, "Only reviewers can accept, reject or escalate")
     if body.disposition and user.role not in ("reviewer", "admin"):
         raise HTTPException(403, "Only reviewers can record a disposition")
+    # A caller cannot bypass a failed receipt by omitting the narrative selection.
+    latest=get_db().table('case_narratives').select('id,verification_status').eq('tenant_id',user.tenant_id).eq(
+        'case_id',str(case_id)).order('version',desc=True).limit(1).execute().data
+    final=body.decision in ('accept','escalate') or bool(body.disposition)
+    if final and latest:
+        if latest[0]['verification_status']!='passed':
+            raise HTTPException(422,'The latest narrative must pass verification before acceptance or disposition')
+        if body.narrative_id and str(body.narrative_id)!=latest[0]['id']:
+            raise HTTPException(409,'Review the latest narrative revision before deciding')
+        body=body.model_copy(update={'narrative_id':UUID(latest[0]['id'])})
     if body.narrative_id:
-        narrative = get_one("case_narratives", user.tenant_id, str(body.narrative_id), "id, case_id")
+        narrative = get_one("case_narratives", user.tenant_id, str(body.narrative_id), "id, case_id, verification_status")
         if not narrative or narrative["case_id"] != str(case_id):
             raise HTTPException(422, "Narrative does not belong to this case")
+    if body.narrative_id and (body.decision in ('accept','escalate') or body.disposition):
+        if narrative['verification_status']!='passed':
+            raise HTTPException(422,'A passed verifier receipt is required to accept or dispose this narrative')
     row = {**body.model_dump(), "tenant_id": user.tenant_id, "case_id": str(case_id), "decided_by": user.id}
     decision = insert_many("case_decisions", [row], actor=user)[0]
     updated = get_one("cases", user.tenant_id, str(case_id), "id, status, disposition, disposed_by, disposed_at")

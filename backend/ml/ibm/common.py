@@ -147,14 +147,15 @@ def at_threshold(y, s, thr):
     p = s >= thr
     tp, fp, fn = int((p & (y == 1)).sum()), int((p & (y == 0)).sum()), int((~p & (y == 1)).sum())
     return {"threshold": float(thr), "precision": 100 * tp / max(tp + fp, 1), "recall": 100 * tp / max(tp + fn, 1),
-            "f1": 100 * 2 * tp / max(2 * tp + fp + fn, 1), "false_alerts_per_1k": 1000 * fp / len(y), "tp": tp, "fp": fp, "fn": fn}
+            "f1": 100 * 2 * tp / max(2 * tp + fp + fn, 1), "false_alerts_per_1k": 1000 * fp / len(y), "tp": tp, "fp": fp, "fn": fn, "tn": int((~p & (y == 0)).sum())}
 
 
 def evaluate_and_save(name, y, s, va, te, out, extra=None):
     """Val/test metrics, test @ val threshold, P@K; writes ibm_<name>_results.json and ibm_<name>_scores.npz."""
     v, t = metrics(y[va], s[va]), metrics(y[te], s[te])
-    k = np.argsort(-s[te])
+    k = np.argsort(-s[te],kind="stable")
     t.update({f"precision@{K}": 100 * float(y[te][k[:K]].mean()) for K in (100, 1000)})
+    t.update({f"recall@{K}": 100 * float(y[te][k[:K]].sum()) / max(int(y[te].sum()),1) for K in (100,1000)})
     res = {"model": name, "val": v, "test": t, "test_at_val_threshold": at_threshold(y[te], s[te], v["best_threshold"]), **(extra or {})}
     o = Path(out)
     o.mkdir(parents=True, exist_ok=True)

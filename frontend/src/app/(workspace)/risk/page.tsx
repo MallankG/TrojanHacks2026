@@ -1,7 +1,2 @@
-import { redirect } from "next/navigation";
-import { ROUTES } from "@/lib/routes";
-import { DEFAULT_ALERT } from "@/lib/seed/alerts";
-
-export default function RiskIndexPage() {
-  redirect(ROUTES.riskAlert(DEFAULT_ALERT));
-}
+import { RiskLanding } from '@/features/risk/risk-landing';
+export default function RiskIndexPage(){return <RiskLanding/>;}

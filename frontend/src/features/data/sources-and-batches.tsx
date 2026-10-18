@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ROUTES } from "@/lib/routes";
 import { batchChecks, BLAST_RADIUS, HELD_BATCH, seededBatches, sourceFeeds } from "@/lib/seed/data-ops";
 import { addCheckFeedToScope, openModal, selectBatch } from "@/lib/store/actions";
@@ -15,9 +15,17 @@ import { DataTable, Td, Th, Tr } from "@/components/ui/table";
 import { useLiveBatches } from "@/lib/live/adapters";
 import { LiveRunChecks } from "@/features/live/live-data";
 import { LiveBatchFacts, LiveSourceCards } from "@/features/live/live-sources";
+import { useLiveProfile } from "@/lib/live/session";
+import { liveApi, useLive } from "@/lib/live/api";
+import { LiveData } from "@/features/live/live-state";
 import { CheckRow } from "./check-row";
 
 export function SourcesAndBatches() {
+  const profile=useLiveProfile();
+  return profile ? <LiveSourcesAndBatches/> : <SampleSourcesAndBatches/>;
+}
+
+function SampleSourcesAndBatches() {
   const state = useDemoState();
   const role = useRole();
   const { driftFixed: fixed, checkScope, extraBatches, selectedBatch } = state.data;
@@ -157,4 +165,17 @@ export function SourcesAndBatches() {
       </div>
     </>
   );
+}
+
+
+function LiveSourcesAndBatches() {
+  const query=useLive(()=>liveApi.runs(),"runs:live-only");
+  const [chosen,setChosen]=useState("");
+  return <><section aria-label="Sources" className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4"><LiveSourceCards/></section>
+    <LiveData query={query} label="ingestion batches">{page=>{
+      const selected=page.items.find(r=>r.id===chosen) ?? page.items[0];
+      return <div className="flex flex-wrap items-start gap-4"><Panel className="min-w-0 flex-[2_1_520px]"><h2 className="font-semibold">Uploaded batches</h2>
+        {page.items.length?<DataTable caption="Live ingestion batches"><thead><tr><Th>File</Th><Th>Accepted</Th><Th>Rejected</Th><Th>Status</Th></tr></thead><tbody>{page.items.map(r=><Tr key={r.id} selected={selected?.id===r.id}><Td><Button variant="link" onClick={()=>setChosen(r.id)}>{r.source_files?.filename ?? r.id}</Button></Td><Td>{r.accepted_count}</Td><Td>{r.rejected_count}</Td><Td>{r.status.replaceAll("_"," ")}</Td></Tr>)}</tbody></DataTable>:<p>No uploaded batches yet. Upload a CSV to get started.</p>}
+      </Panel>{selected?<Panel className="min-w-0 flex-[1_1_360px]"><h2 className="font-semibold">Selected batch</h2><LiveBatchFacts runId={selected.id}/><LiveRunChecks runId={selected.id}/></Panel>:null}</div>;
+    }}</LiveData></>;
 }

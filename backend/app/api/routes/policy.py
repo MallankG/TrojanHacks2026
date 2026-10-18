@@ -33,6 +33,17 @@ def ingest_document(body: PolicyDocumentCreate, user: CurrentUser = Depends(CAN_
     Re-ingesting the same source_url revises the document in place: chunks are upserted by chunk_index so
     their ids (and any citations of them) stay valid; stale chunks are removed unless something cites them.
     """
+    # Only the configured local model generates live vectors; uploaded precomputed vectors remain supported.
+    if body.embedding_model and not any(c.embedding for c in body.chunks):
+        import os
+        if body.embedding_model != os.getenv('POLICY_EMBEDDING_MODEL', 'nomic-embed-text'):
+            raise HTTPException(422, 'Use the configured local embedding model')
+        from app.services.policy_retrieval import embed
+        try:
+            vectors = embed([c.content for c in body.chunks])
+        except Exception:
+            raise HTTPException(503, 'Local embedding model unavailable; install it before indexing') from None
+        body = body.model_copy(update={'chunks':[c.model_copy(update={'embedding':v}) for c,v in zip(body.chunks,vectors,strict=True)]})
     for chunk in body.chunks:
         if chunk.embedding is not None and len(chunk.embedding) != EMBEDDING_DIMENSIONS:
             raise HTTPException(422, f"Embeddings must have {EMBEDDING_DIMENSIONS} dimensions")
@@ -119,6 +130,9 @@ def search(body: PolicySearch, user: CurrentUser = Depends(ANY_CALLER)) -> dict:
     """Hybrid keyword + vector retrieval (reciprocal rank fusion) over shared and tenant guidance."""
     if body.query_embedding is not None and len(body.query_embedding) != EMBEDDING_DIMENSIONS:
         raise HTTPException(422, f"query_embedding must have {EMBEDDING_DIMENSIONS} dimensions")
+    if body.query_embedding is None and body.query_text:
+        from app.services.policy_retrieval import search as retrieve
+        return retrieve(user.tenant_id, body.query_text, body.match_count)
     result = get_db().rpc("match_policy_chunks", {
         "query_embedding": _vector(body.query_embedding) if body.query_embedding else None,
         "query_text": body.query_text,

@@ -304,7 +304,7 @@ class IBMGNNScorer:
         D = Data(ids.get_indexer(e["src"]), ids.get_indexer(e["dst"]), node_x, edge_x, self.device, tuple(self.ck["fanout"]), self.ck.get("ego", False), self.ck.get("temporal", False),
                  e["ts"].to_numpy() if self.ck.get("temporal", False) else None)
         g = SplitGraph(D.src, D.dst, D.n_nodes, np.arange(len(e)), self.device)
-        p = predict(self.model, D, g, rows)
+        p = predict(self.model, D, g, rows, bs=1 if self.ck.get("temporal", False) else 4096)
         return pd.DataFrame({"row": orig[rows], "gnn_score": p, "gnn_flagged": p >= self.threshold}).set_index("row")
 
 

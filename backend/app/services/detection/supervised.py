@@ -38,10 +38,10 @@ def _load(artifact_dir: Path):
     return xgb, ml_features, card, booster
 
 
-def score(ledger: Ledger, keep_ids: set[str], cfg: dict | None = None) -> SupervisedResult:
+def synthetic_score(ledger: Ledger, keep_ids: set[str], cfg: dict | None = None) -> SupervisedResult:
     """Score every transaction; return signals for those at or above the review threshold, plus keep_ids."""
     cfg = cfg or config.SUPERVISED
-    artifact_dir = BACKEND_DIR / cfg["artifact_dir"]
+    artifact_dir = BACKEND_DIR / "ml/artifacts/tracelayer"
     try:
         import numpy as np  # noqa: PLC0415
         import pandas as pd  # noqa: PLC0415
@@ -105,3 +105,9 @@ def score(ledger: Ledger, keep_ids: set[str], cfg: dict | None = None) -> Superv
     needed = [f for f in findings if f.transaction_id in keep_ids]
     rest = [f for f in findings if f.transaction_id not in keep_ids][: max(0, cfg["max_signals"] - len(needed))]
     return SupervisedResult(needed + rest, card, None, scored=len(ledger.txns))
+
+
+def score(ledger: Ledger, keep_ids: set[str], cfg: dict | None = None) -> SupervisedResult:
+    from .benchmarks import score as benchmark_score
+    result=benchmark_score(ledger,keep_ids,names=('xgb_temporal',))['xgb_temporal']
+    return SupervisedResult(result.findings,result.card,result.skipped_reason,result.scored)

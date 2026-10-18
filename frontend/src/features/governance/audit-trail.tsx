@@ -20,7 +20,7 @@ export function AuditTrail() {
   const seeded = useDemoState().events;
   // Live backend events first (real, append-only log), then the events from the seeded sample flows.
   const live = useLiveAuditEvents();
-  const events = useMemo(() => [...(live.data ?? []), ...seeded], [live.data, seeded]);
+  const events = useMemo(() => live.live ? (live.data ?? []) : seeded, [live.data,live.live, seeded]);
   const [filter, setFilter] = useState<Filter>("all");
   const rows = events.filter((event) => filter === "all" || event.type === filter);
 
@@ -34,14 +34,19 @@ export function AuditTrail() {
             </Chip>
           ))}
         </div>
-        <Button variant="ghost" size="sm" onClick={exportAuditTrail}>
+        <Button variant="ghost" size="sm" onClick={()=>{
+          if(!live.live){exportAuditTrail();return;}
+          const cell=(v:string)=>'"'+(/^[=+@-]/.test(v)?"'":"")+v.replaceAll('"','""')+'"';
+          const content=[['Time','Actor','Type','Action','Object','Request','Hash'],...rows.map(e=>[e.at,e.actor,e.type,e.action,e.object,e.requestId,e.hash])].map(r=>r.map(v=>cell(String(v))).join(',')).join('\r\n');
+          const url=URL.createObjectURL(new Blob([content],{type:'text/csv'}));const a=document.createElement('a');a.href=url;a.download='tracelayer-audit.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+        }}>
           Export CSV
         </Button>
       </div>
       <Card className="overflow-hidden">
         <p className="px-5 py-3.5 text-xs text-muted">
           {rows.length} events · append-only style · actor, action, object, time, request ID and payload hash
-          {live.live ? ` · ${live.loading ? "loading live events" : live.error ? `live events unavailable: ${live.error}` : `${live.data?.length ?? 0} live from the backend, the rest from sample flows`}` : ""}
+          {live.live ? ` · ${live.loading ? "loading live events" : live.error ? `live events unavailable: ${live.error}` : `${live.data?.length ?? 0} live from the backend`}` : ""}
         </p>
         {rows.length === 0 ? (
           <EmptyState title="No events of this type yet." action={<Button variant="ghost" size="sm" onClick={() => setFilter("all")}>Show all events</Button>} />

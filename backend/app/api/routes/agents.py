@@ -1,6 +1,7 @@
 """Authenticated, persisted multi-agent jobs. Browser callers never choose actors or services."""
 from typing import Literal
 from uuid import UUID
+from tracelayer_agents import api as agent_api
 
 from fastapi import APIRouter, BackgroundTasks, Depends
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -89,3 +90,76 @@ def verify_audit(run_id:UUID,user:CurrentUser=Depends(ANY_USER)):
     if response.count>1000 or len(response.data)!=response.count:
         raise HTTPException(422,'Audit chain exceeds the interactive verification cap')
     return api.verify_events([api.contracts.AuditEvent.model_validate(r['event']) for r in response.data]).model_dump(mode='json')
+
+
+class DraftReview(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    draft: agent_api.contracts.NarrativeDraft
+    request_key:UUID | None=None
+
+
+def _review_material(user,run_id,body):
+    from app.core.db import get_db
+    from tracelayer_agents import api
+    from app.services.orchestration.adapters import Context,Cases
+    row=runs.read(user,str(run_id))
+    if row['graph_name']!='case_workflow' or not row['case_id']:
+        from fastapi import HTTPException
+        raise HTTPException(422,'Choose a case narrative workflow')
+    saved=get_db().table('case_narratives').select('id,verification_report').eq('tenant_id',user.tenant_id).eq(
+        'agent_run_id',str(run_id)).order('version',desc=True).limit(1).execute().data
+    if not saved:
+        from app.core.errors import NotFound
+        raise NotFound('Saved draft')
+    sources=[api.contracts.RetrievedChunk.model_validate(s) for s in saved[0]['verification_report'].get('sources',[])]
+    bundle=Cases(Context(user,row,None)).get_evidence(row['alert_id'])
+    draft=body.draft.model_copy(update={'provider':'template','model':'human-reviewed',
+        'prompt_version':'human-edit-v1','fallback_used':False})
+    errors=api.verify_narrative(draft,bundle,sources)
+    return row,saved[0],draft,bundle,sources,errors
+
+
+@router.post('/runs/{run_id}/verify-draft')
+def verify_draft(run_id:UUID,body:DraftReview,user:CurrentUser=Depends(CAN_INVESTIGATE)):
+    from app.core import audit
+    row,_,_,bundle,_,errors=_review_material(user,run_id,body)
+    audit.record(user,'case.draft_preview_verified','case',row['case_id'],{'errors':len(errors),'saved':False})
+    return {'passed':not errors,'verifier_errors':[e.model_dump(mode='json') for e in errors],
+            'bundle_hash':bundle.bundle_hash,'saved':False}
+
+
+@router.post('/runs/{run_id}/revisions',status_code=201)
+def save_revision(run_id:UUID,body:DraftReview,user:CurrentUser=Depends(CAN_INVESTIGATE)):
+    """Save an append-only human revision. Reverify server-side, preserving the original workflow receipt."""
+    from fastapi import HTTPException
+    from app.core.db import get_db,with_actor
+    row,parent,draft,bundle,sources,errors=_review_material(user,run_id,body)
+    runs.authorize_case(user,row['case_id'],'write')
+    if not body.request_key: raise HTTPException(422,'request_key is required to save an idempotent revision')
+    old=get_db().table('case_narratives').select('id,version,verification_status,authored_by,agent_run_id').eq(
+        'tenant_id',user.tenant_id).eq('verification_report->>revision_key',str(body.request_key)).limit(1).execute().data
+    if old:
+        if old[0]['authored_by']!=user.id or old[0]['agent_run_id']!=str(run_id):raise HTTPException(409,'Request key already used')
+        return {k:v for k,v in old[0].items() if k in ('id','version','verification_status')}
+    if errors: raise HTTPException(422,{'message':'Resolve verifier errors before saving','verifier_errors':[e.model_dump(mode='json') for e in errors]})
+    if row['status']!='awaiting_review':raise HTTPException(409,'Wait for a draft awaiting human review')
+    claimed=runs.claim(user,str(run_id),resume=True)
+    receipt={'parent_id':parent['id'],'content':draft.summary,'draft':draft.model_dump(mode='json'),
+        'errors':[],'bundle_hash':bundle.bundle_hash,'sources':[s.model_dump(mode='json') for s in sources],
+        'claims':[{'text':c.text,'kind':'hypothesis' if c.claim_type=='hypothesis' else 'fact',
+            'transactions':c.transaction_ids,'accounts':c.account_ids,'citations':c.citation_chunk_ids,
+            'values':{'amounts':[str(x) for x in c.amounts],'dates':[str(x) for x in c.dates]}}
+            for c in draft.observed_facts]}
+    try:
+        narrative=with_actor(get_db().rpc('save_workflow_revision',{'p_tenant':user.tenant_id,'p_run':str(run_id),
+            'p_token':claimed[1],'p_actor':user.id,'p_key':str(body.request_key),'p_receipt':receipt}),user).execute().data
+    except Exception:
+        # A network failure after a committed RPC is safe to retry with the request key.  Do not let a
+        # best-effort lease release hide the original error.
+        try:
+            with_actor(get_db().rpc('finish_workflow_run',{'p_tenant':user.tenant_id,'p_run':str(run_id),'p_token':claimed[1],
+                'p_changes':{'status':'awaiting_review','lease_token':None,'lease_expires_at':None}}),user).execute()
+        except Exception:
+            pass
+        raise
+    return narrative

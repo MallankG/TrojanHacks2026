@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { cn } from "@/lib/cn";
-import { errorMessage, invalidateLive, liveApi, useLive, type CaseDecision, type CaseDetail, type Disposition } from "@/lib/live/api";
+import { call, errorMessage, invalidateLive, liveApi, useLive, type CaseDecision, type CaseDetail, type Disposition } from "@/lib/live/api";
 import { BAND_LABEL, BAND_TONE, CASE_TONE, alertLabel, caseLabel, utc, words } from "@/lib/live/format";
 import { LIVE_ROLES, type LiveRole } from "@/lib/live/roles";
 import { useLiveProfile } from "@/lib/live/session";
@@ -182,6 +182,7 @@ export function LiveCaseDetail({ caseId }: { caseId: string }) {
                         <b>Revision {n.version}</b>
                         <span className="text-muted">{words(n.author_type)}</span>
                         <Pill tone={n.verification_status === "passed" ? "ok" : n.verification_status === "pending" ? "mute" : "warn"}>Verifier: {words(n.verification_status)}</Pill>
+                        <NarrativeReceipt narrativeId={n.id}/>
                       </li>
                     ))}
                   </ul>
@@ -277,7 +278,7 @@ function DecisionPanel({ detail, role, onDecided }: { detail: CaseDetail; role: 
     setBusy(true);
     setError(null);
     try {
-      await liveApi.decide(detail.id, { decision, disposition: disposition || null, notes: notes.trim() || undefined });
+      await liveApi.decide(detail.id, { decision, narrative_id: detail.narratives[0]?.id, disposition: disposition || null, notes: notes.trim() || undefined });
       setNotes("");
       setDisposition("");
       onDecided();
@@ -525,4 +526,13 @@ function ExportPanel({ caseId, role, onExported }: { caseId: string; role: LiveR
       </LiveData>
     </Panel>
   );
+}
+
+
+function NarrativeReceipt({narrativeId}:{narrativeId:string}) {
+  const [open,setOpen]=useState(false);
+  const query=useLive(()=>open?call<{content:string;claims:Array<{claim_index:number;claim_text:string;verification:string;referenced_transaction_ids:string[];cited_chunk_ids:string[]}>;citations:Array<{quoted_text:string;policy_chunks:{id:string;policy_documents:{title:string;source_url:string}}}>}>(`/narratives/${narrativeId}`):Promise.resolve(null),`narrative:${narrativeId}:${open}`);
+  return <details className="w-full" onToggle={e=>setOpen(e.currentTarget.open)}><summary className="cursor-pointer text-xs font-semibold">Read saved narrative and claims</summary>
+    {open?<LiveData query={query} label="narrative">{n=>n?<div className="mt-2 flex flex-col gap-2"><p>{n.content}</p><ol className="list-decimal pl-5">{n.claims.map(c=><li key={c.claim_index}>{c.claim_text}<p className="break-all text-xs text-muted">{c.verification} · Transactions: {c.referenced_transaction_ids.join(", ")} · Policy: {c.cited_chunk_ids.join(", ")}</p></li>)}</ol>{n.citations.map((c,i)=><blockquote key={i} className="border-l-2 border-line pl-3"><a className="text-brand-link underline" href={c.policy_chunks.policy_documents.source_url} target="_blank" rel="noreferrer">{c.policy_chunks.policy_documents.title}</a><p>{c.quoted_text}</p><span className="break-all text-xs">{c.policy_chunks.id}</span></blockquote>)}</div>:null}</LiveData>:null}
+  </details>;
 }

@@ -12,7 +12,7 @@ from app.core.db import fetch_by_ids, get_db, get_one, insert_many, with_actor
 from app.schemas import AlertBatch
 from ml.graph import GraphLimits, NetworkXGraphAdapter
 from app.services import alerts, cases
-from app.services.detection import anomaly, config, supervised
+from app.services.detection import anomaly, config, supervised, benchmarks
 from app.services.detection.detectors import run_rules
 from app.services.detection.fusion import fuse
 from app.services.detection.ledger import Ledger, Txn
@@ -34,6 +34,17 @@ class Context:
         self.excluded_no_usd = 0
         self.engine = None
         self.lock = RLock()
+        self.model_results = None
+
+    def benchmark_results(self):
+        with self.lock:
+            if self.model_results is None:
+                rows=self.transactions()
+                eligible=[r for r in rows if r['currency']=='USD' or r.get('amount_usd') is not None]
+                ledger=Ledger([Txn.from_row(r) for r in eligible])
+                # All rows are retained in the small interactive scope for reproducible cross-model fusion.
+                self.model_results=benchmarks.score(ledger,{t.id for t in ledger.txns})
+            return self.model_results
 
     def rpc(self, name, **params):
         return with_actor(get_db().rpc(name, {'p_tenant': self.tid, 'p_run': self.rid,
@@ -125,6 +136,7 @@ class Graph:
             window_end=max(x['occurred_at'] for x in rows), built_at=datetime.now(UTC))
 
     def get_transactions(self, tx_ids):
+        tx_ids=C.EvidenceLookup(transaction_ids=tx_ids).transaction_ids
         rows = {r['id']: r for r in self.ctx.transactions()}
         if set(tx_ids) - rows.keys(): raise ValueError('Transaction is outside this workflow evidence scope')
         return [C.EvidenceTransaction(transaction_id=r['id'], source_row_ref=r['source_row_id'],
@@ -149,9 +161,22 @@ class Graph:
 
 
 class GraphRisk:
+    def __init__(self,ctx): self.ctx=ctx
+
     def score(self, snapshot_id):
-        return C.DetectorOutput(detector_name='graph_risk', model_version='unavailable',
-                                status='unavailable', feature_snapshot_id=snapshot_id)
+        result=self.ctx.benchmark_results()['gnn_temporal']
+        if result.skipped_reason:
+            return C.DetectorOutput(detector_name='gnn_temporal',model_version='unavailable',status='unavailable',feature_snapshot_id=snapshot_id)
+        model=_start_run(self.ctx.user,'gnn_temporal','graph_model',result.card['model_version'],snapshot_id,
+                         {**result.card,'agent_run_id':self.ctx.rid})
+        try:
+            _write_signals(self.ctx.user,model['id'],result.findings)
+            _finish_run(self.ctx.user,model['id'],'completed',{'signals':len(result.findings),'scored':result.scored,**result.card})
+        except Exception:
+            _finish_run(self.ctx.user,model['id'],'failed',{},'Graph model stage failed')
+            raise
+        return C.DetectorOutput(detector_name='gnn_temporal',model_version=result.card['model_version'],
+            scores={f.transaction_id:f.score for f in result.findings},feature_snapshot_id=snapshot_id)
 
 
 class Behavior:
@@ -165,15 +190,18 @@ class Behavior:
         ctx.excluded_no_usd = ledger.excluded_no_usd
         ctx.rules = run_rules(ledger)
         ctx.anomalies = anomaly.amount_deviation(ledger)
-        scored = supervised.score(ledger, {t for f in ctx.rules for t in f.evidence})
-        ctx.sup = scored.findings
+        models=ctx.benchmark_results()
+        scored=models['xgb_temporal']
+        ctx.sup = [f for r in models.values() for f in r.findings]
         groups = [('typology-rules', 'rule_engine', config.RULES_VERSION, ctx.rules),
                   ('robust-amount-baseline','anomaly',config.ANOMALY_VERSION,ctx.anomalies)]
         if scored.skipped_reason is None:
-            groups.append(('xgboost','supervised',str(scored.model_card.get('model_version','unknown')),ctx.sup))
+            groups.append(('xgb_temporal','supervised',str(scored.card['model_version']),scored.findings))
+        if 'ensemble' in models:
+            groups.append(('ibm-fixed-reference-ensemble','supervised',models['ensemble'].card['model_version'],models['ensemble'].findings))
         outputs = []
         for name, kind, version, findings in groups:
-            model = _start_run(ctx.user, name, kind, version, snapshot_id, {'agent_run_id':ctx.rid})
+            model = _start_run(ctx.user, name, kind, version, snapshot_id, {'agent_run_id':ctx.rid, 'model_metadata':models.get('ensemble' if name=='ibm-fixed-reference-ensemble' else name, benchmarks.Result()).card})
             try:
                 _write_signals(ctx.user, model['id'], findings)
                 _finish_run(ctx.user, model['id'], 'completed', {'signals':len(findings), 'excluded_no_usd':ledger.excluded_no_usd})
@@ -233,7 +261,8 @@ class Flows:
         truncated=False
         evidence=set(alert.tx_ids)
         for seed in seeds:
-            result=engine.find_time_respecting_paths(self.ctx.tid,seed,hops=3,max_gap_hours=72,limit=10)
+            args=C.PathSearch(account_id=seed)
+            result=engine.find_time_respecting_paths(self.ctx.tid,args.account_id,hops=args.hops,max_gap_hours=args.max_gap_hours,limit=args.limit)
             caveats.extend(result.get('caveats',[]))
             truncated |= result.get('truncated',False)
             if result.get('truncation_reason'):caveats.append('Path search limited by '+result['truncation_reason'])
@@ -260,8 +289,9 @@ class Policy:
     def __init__(self, ctx): self.ctx = ctx
 
     def search(self, query, filters, top_k):
-        rows = get_db().rpc('match_policy_chunks', {'query_embedding':None, 'query_text':query,
-            'match_count':min(top_k, 8), 'filter_tenant_id':self.ctx.tid}).execute().data or []
+        from app.services.policy_retrieval import search
+        args=C.PolicyLookup(query=query,filters=filters,top_k=top_k)
+        rows = search(self.ctx.tid, args.query, args.top_k)['results']
         return [C.RetrievedChunk(chunk_id=r['chunk_id'], doc_title=r['title'], section=r['section'],
             source_uri=r['source_url'], excerpt=r['content'], score=r['rrf_score']) for r in rows]
 
@@ -394,5 +424,5 @@ class Cases:
 
 
 def services(ctx):
-    return api.Services(ingestion=Ingestion(ctx),quality=Quality(ctx),graph=Graph(ctx),graph_risk=GraphRisk(),
+    return api.Services(ingestion=Ingestion(ctx),quality=Quality(ctx),graph=Graph(ctx),graph_risk=GraphRisk(ctx),
         behavior=Behavior(ctx),fusion=Fusion(ctx),flows=Flows(ctx),policy=Policy(ctx),cases=Cases(ctx),audit=Audit(ctx))
