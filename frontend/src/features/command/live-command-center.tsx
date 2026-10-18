@@ -19,8 +19,8 @@ import { LiveData } from "@/features/live/live-state";
 
 /**
  * Screen 1 on live backend data: the same layout as the seeded command center, with every number
- * from `GET /dashboard/summary`. Services the backend does not run yet (graph store, LLM, policy
- * index) are shown as not connected rather than with sample numbers.
+ * from `GET /dashboard/summary`. Graph readiness comes from the engine endpoint; model provider
+ * and fallback details are recorded on individual workflow receipts.
  */
 
 export const FLAG_TONE: Record<FlagStatus, Tone> = { ok: "ok", attention: "warn", failed: "bad", not_run: "mute" };
@@ -377,7 +377,7 @@ function PlatformHealth({ summary }: { summary: DashboardSummary }) {
     live: true,
   });
   rows.push({ label: "Graph engine", detail: "Authenticated graph queries load current transactions from Postgres on request.", tag: graphHealth.loading ? "Checking" : graphHealth.data?.status === "ok" ? "Engine ready" : "Unavailable", tone: graphHealth.data?.status === "ok" ? "ok" : graphHealth.error ? "bad" : "mute", href: ROUTES.graph, live: true });
-  rows.push({ label: "LLM provider", detail: "Not connected to a live service in this prototype. Review continues without drafting.", tag: "Not connected", tone: notConnected, href: ROUTES.governance("pipelines"), live: false });
+  rows.push({ label: "LLM provider", detail: "Drafting and policy answers record their model provider and fallback on each saved workflow. Open Pipelines and agents to inspect runs.", tag: "See run receipts", tone: notConnected, href: ROUTES.governance("pipelines"), live: false });
 
   return (
     <Panel>
