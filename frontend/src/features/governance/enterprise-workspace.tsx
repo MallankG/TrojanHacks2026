@@ -3,6 +3,8 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import sample from "@/lib/seed/enterprise-demo.json";
 import { ApiError, apiRequest } from "@/lib/api/client";
+import { call } from "@/lib/live/api";
+import { getSession, useLiveSession } from "@/lib/live/session";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { CardHeader, Panel } from "@/components/ui/card";
 import { Field, Select, TextArea, TextInput } from "@/components/ui/field";
@@ -20,6 +22,13 @@ type Handoff = { verified_developments: { text: string; evidence_refs: string[] 
 const modes = ["Investigation room", "Operations", "Release and residency"] as const;
 
 export function EnterpriseWorkspace() {
+  const session = useLiveSession();
+  // Changing identity (including sign-out) discards the entire sensitive workspace.
+  const identity = session ? `${session.profile?.tenant?.id ?? ""}:${session.profile?.id ?? "signed-in"}` : "demo";
+  return <EnterpriseWorkspaceContent key={identity} signedIn={Boolean(session)} />;
+}
+
+function EnterpriseWorkspaceContent({ signedIn }: { signedIn: boolean }) {
   const [mode, setMode] = useState<(typeof modes)[number]>(modes[0]);
   const [room, setRoom] = useState<Room>(newDemo);
   const [live, setLive] = useState(false);
@@ -41,7 +50,20 @@ export function EnterpriseWorkspace() {
   const [release, setRelease] = useState<null | { status: string; signature: string; caveat?: string; verified_files?: number }>(null);
   const pending = useRef<{ signature: string; key: string } | null>(null);
   useLayoutEffect(() => () => { setToken(""); setLive(false); setRoom(newDemo()); setBriefing(null); setEnvironment(null); setRelease(null); setMetrics(sample.operations); setOperationsLive(false); }, []);
-  const headers = { Authorization: `Bearer ${token}` };
+  const headers: Record<string, string> = signedIn ? {} : { Authorization: `Bearer ${token}` };
+  const hasCredentials = signedIn || Boolean(token);
+  async function request<T>(path: string, options: Parameters<typeof apiRequest>[1] = {}): Promise<T> {
+    const before = getSession();
+    const identity = before?.profile?.id;
+    const tenant = before?.profile?.tenant?.id;
+    if (signedIn && !before) throw new ApiError("Your session has ended. Sign in again.", 401);
+    const result = signedIn ? await call<T>(path, options) : await apiRequest<T>(path, { cache: "no-store", ...options });
+    const after = getSession();
+    if (Boolean(before) !== Boolean(after) || identity !== after?.profile?.id || tenant !== after?.profile?.tenant?.id) {
+      throw new ApiError("Your session changed. Reload the workspace.", 401);
+    }
+    return result;
+  }
   const writable = room.case_role !== "observer";
   const targets = room.events.filter(e => e.kind === (kind === "vote" ? "hypothesis" : "conflict"));
 
@@ -50,11 +72,12 @@ export function EnterpriseWorkspace() {
     try { await task(); }
     catch (error) {
       const status = error instanceof ApiError ? error.status : 0;
+      if (status === 401 && !signedIn) { setToken(""); reset(); }
       setMessage(status === 409 ? "This room changed or the retry key conflicts. Reload before resolving and trying again. Your note is preserved." : status === 403 ? "Access denied. Check case role, permitted purpose, region, clearance and step-up authentication." : error instanceof Error ? error.message : "Request failed.");
     } finally { setBusy(false); }
   }
   async function load() {
-    const result = await apiRequest<Room>(`/enterprise/cases/${caseId}/room`, { headers });
+    const result = await request<Room>(`/enterprise/cases/${caseId}/room`, { headers });
     setRoom(result); setLive(true); setBriefing(null); setTargetEvent("");
     setTargetUser(result.members[0]?.user_id ?? ""); setEvidenceId(result.evidence[0]?.id ?? ""); setMention("");
     setMessage("Case room loaded. Only authorized members can read or contribute.");
@@ -65,7 +88,7 @@ export function EnterpriseWorkspace() {
     const signature = JSON.stringify(payload);
     if (pending.current?.signature !== signature) pending.current = { signature, key: crypto.randomUUID() };
     if (live) {
-      await apiRequest(`/enterprise/cases/${room.case.id}/room/events`, { method: "POST", headers, body: { ...payload, client_id: pending.current.key, expected_revision: room.revision } });
+      await request(`/enterprise/cases/${room.case.id}/room/events`, { method: "POST", headers, body: { ...payload, client_id: pending.current.key, expected_revision: room.revision } });
       await load();
     } else {
       const event: Event = { id: crypto.randomUUID(), revision: room.revision + 1, actor_id: sample.lead_id, kind, payload, created_at: new Date().toISOString() };
@@ -77,7 +100,7 @@ export function EnterpriseWorkspace() {
   const canPost = writable && !busy && (!(["comment", "hypothesis", "review_request", "conflict", "resolution"] as Kind[]).includes(kind) || text.trim().length >= 5) && (kind !== "bookmark" || Boolean(evidenceId)) && (!["vote", "resolution"].includes(kind) || Boolean(targetEvent)) && (kind !== "assignment" || Boolean(targetUser));
   async function handoff() {
     if (live) {
-      setBriefing(await apiRequest<Handoff>(`/enterprise/cases/${room.case.id}/handoff`, { method: "POST", headers, body: { recipient_id: targetUser } }));
+      setBriefing(await request<Handoff>(`/enterprise/cases/${room.case.id}/handoff`, { method: "POST", headers, body: { recipient_id: targetUser } }));
     } else {
       const unresolved = room.events.filter(e => ["hypothesis", "review_request", "conflict"].includes(e.kind) && !room.events.some(r => r.kind === "resolution" && r.payload.target_id === e.id));
       setBriefing({ verified_developments: [], pending_questions: unresolved.map(e => ({ note: e.payload.text, kind: e.kind })), review_at: room.policy.review_at, caveats: ["No verified claims are loaded in this synthetic room. Collaborator notes remain unverified."] });
@@ -89,9 +112,9 @@ export function EnterpriseWorkspace() {
       <CardHeader title="Enterprise investigation workspace" description="Coordinate case work, inspect service health and verify release boundaries." actions={<Pill tone={live ? "ok" : "info"}>{live ? "Authenticated case room" : "Synthetic session demo"}</Pill>} />
       <Callout tone="mute">{live ? "Case access is enforced by the backend. Sensitive exports require stronger authentication." : "Demo actions stay in this page session. No messages are sent and no tenant records are changed."}</Callout>
       <details><summary className="cursor-pointer text-sm font-semibold">Connect an authorized case</summary><form className="mt-3 flex flex-col gap-3" onSubmit={e => { e.preventDefault(); void work(load); }}>
-        <Field label="Supabase access token" hint="Kept only in page memory; prototype sign-in does not issue a backend token.">{p => <TextInput {...p} type="password" autoComplete="off" value={token} onChange={e => { setToken(e.target.value); setLive(false); setRoom(newDemo()); setBriefing(null); setEnvironment(null); setRelease(null); setMetrics(sample.operations); setOperationsLive(false); }} />}</Field>
+        {signedIn ? <p className="text-sm text-muted">Using your signed-in account. Access tokens refresh automatically; sensitive exports still require step-up authentication.</p> : <Field label="Supabase access token" hint="Optional manual connection for this demo session. Sign in to use your account automatically.">{p => <TextInput {...p} type="password" autoComplete="off" value={token} onChange={e => { setToken(e.target.value); setLive(false); setRoom(newDemo()); setBriefing(null); setEnvironment(null); setRelease(null); setMetrics(sample.operations); setOperationsLive(false); }} />}</Field>}
         <Field label="Backend case UUID">{p => <TextInput {...p} value={caseId} onChange={e => { setCaseId(e.target.value); setLive(false); setRoom(newDemo()); }} />}</Field>
-        <div className="flex flex-wrap gap-2"><Button type="submit" disabled={busy || !token}>Load case room</Button><Button variant="ghost" disabled={busy} onClick={reset}>Reset synthetic session</Button></div>
+        <div className="flex flex-wrap gap-2"><Button type="submit" disabled={busy || !hasCredentials}>Load case room</Button><Button variant="ghost" disabled={busy} onClick={reset}>Reset synthetic session</Button></div>
       </form></details>
       <p role="status" aria-live="polite" className="text-sm">{busy ? "Working…" : message}</p>
     </Panel>
@@ -118,18 +141,18 @@ export function EnterpriseWorkspace() {
         {briefing && <div className="flex flex-col gap-3 text-sm"><h3 className="font-semibold">Verified developments</h3>{briefing.verified_developments.length ? briefing.verified_developments.map((d, i) => <p key={i}>{d.text} <span className="text-xs">Evidence: {d.evidence_refs.join(", ")}</span></p>) : <p>No supported factual claims available.</p>}<h3 className="font-semibold">Pending questions and review</h3>{briefing.pending_questions.map((q, i) => <p key={i}>{q.kind}: {q.note} <Pill tone="warn">Unverified note</Pill></p>)}<p>Review date: {briefing.review_at ?? "Not set"}</p><p className="text-xs text-muted">{briefing.caveats.join(" ")}</p></div>}
       </Panel>
       <Panel><CardHeader title="Open evidence and interoperability" description="Versioned JSON preserves canonical IDs, source references, supported claims and dispositions. No vendor integration is implied." /><Button variant="ghost" disabled={busy || !live} className="self-start" onClick={() => work(async () => {
-        const result = await apiRequest<unknown>(`/enterprise/cases/${room.case.id}/evidence/v1?purpose=${encodeURIComponent(room.policy.purpose)}`, { headers });
+        const result = await request<unknown>(`/enterprise/cases/${room.case.id}/evidence/v1?purpose=${encodeURIComponent(room.policy.purpose)}`, { headers });
         const url = URL.createObjectURL(new Blob([JSON.stringify(result, null, 2)], { type: "application/json" })); const a = document.createElement("a"); a.href = url; a.download = "evidence-bundle-v1.json"; a.click(); URL.revokeObjectURL(url); setMessage("Versioned evidence exported under your case permissions.");
       })}>Export evidence v1 (step-up required)</Button><p className="text-xs text-muted">Graph paths are explicitly unavailable in v1. Live exports require an authorized case lead or reviewer, permitted purpose and an aal2 token.</p></Panel>
     </>}
     {mode === "Operations" && <>
-      <Panel><CardHeader title="Operational SLO dashboard" description={operationsLive ? "Last 24 hours of measured operation samples." : `Synthetic operation samples as of ${sample.as_of}. Unmeasured services remain unknown.`} actions={<Button variant="ghost" size="sm" disabled={busy || !live} onClick={() => work(async () => { const response = await apiRequest<{ metrics: typeof metrics }>("/enterprise/operations", { headers }); setMetrics(response.metrics); setOperationsLive(true); setMessage("Measured service samples loaded. Window: last 24 hours, capped at 5,000 samples."); })}>Refresh measured operations</Button>} /><p className="text-sm">At least ten samples are required for a health status. Samples older than one hour are stale. Targets are prototype settings.</p></Panel>
+      <Panel><CardHeader title="Operational SLO dashboard" description={operationsLive ? "Last 24 hours of measured operation samples." : `Synthetic operation samples as of ${sample.as_of}. Unmeasured services remain unknown.`} actions={<Button variant="ghost" size="sm" disabled={busy || !live} onClick={() => work(async () => { const response = await request<{ metrics: typeof metrics }>("/enterprise/operations", { headers }); setMetrics(response.metrics); setOperationsLive(true); setMessage("Measured service samples loaded. Window: last 24 hours, capped at 5,000 samples."); })}>Refresh measured operations</Button>} /><p className="text-sm">At least ten samples are required for a health status. Samples older than one hour are stale. Targets are prototype settings.</p></Panel>
       <div className="grid gap-4 md:grid-cols-2">{metrics.map(m => <Panel key={m.operation}><CardHeader title={m.operation.replaceAll("_", " ")} actions={<Pill tone={m.status === "within_target" ? "ok" : m.status === "unknown" ? "mute" : "warn"}>{m.status.replaceAll("_", " ")}</Pill>} /><p className="text-sm">{m.samples} observations · p95 {m.p95_ms === null ? "unknown" : `${m.p95_ms.toFixed(0)} ms`}</p><p className="text-sm">Good operations: {m.good_ratio === null ? "unknown" : `${(m.good_ratio * 100).toFixed(1)}%`} · target {(m.success_target * 100).toFixed(1)}% within {m.max_ms} ms</p><p className="text-xs text-muted">Fallback: {m.fallback}</p></Panel>)}</div>
       <Panel><CardHeader title="Data drift, model drift and quality" description="Keep input changes separate from actual model performance and service failures." /><ButtonLink href="/governance/drift" className="self-start">Open monitoring checklist and comparisons</ButtonLink></Panel>
     </>}
     {mode === "Release and residency" && <>
-      <Panel><CardHeader title="Signed configuration and reproducible releases" description="Pin source, prompts, schemas, rules, artifacts and policies. Verify against a separately trusted Ed25519 public key." /><Pill tone="mute">{release ? `${release.status} · ${release.signature}` : "No verified release loaded"}</Pill><p className="text-sm">The release tool hashes pinned files and can sign the manifest. An unsigned hash is labeled unsigned. Missing dataset or hosted-policy snapshots stay visible.</p><Button variant="ghost" disabled={busy || !live} className="self-start" onClick={() => work(async () => setRelease(await apiRequest("/enterprise/release", { headers })))}>Verify deployed release manifest</Button>{release?.caveat && <p className="text-xs text-muted">{release.caveat}</p>}<p className="text-xs text-muted">One-command reset/smoke instructions are in the enterprise runbook. Reset regenerates synthetic fixtures and never deletes tenant records.</p></Panel>
-      <Panel><CardHeader title="Data residency and environment boundaries" description={environment ? `Declared region: ${environment.declared_region}. Approved destinations: ${environment.approved_destinations.join(", ")}.` : "Default policy: local host and Supabase only. Deployment regions must be verified separately."} actions={<Button variant="ghost" size="sm" disabled={busy || !live} onClick={() => work(async () => setEnvironment(await apiRequest("/enterprise/environment", { headers })))}>Load declared environment</Button>} />{(environment ? Object.entries(environment.locations).map(([asset, location]) => ({ asset, location })) : sample.residency).map(r => <div className="flex flex-wrap justify-between gap-2 border-t border-line py-2 text-sm" key={r.asset}><b>{r.asset.replaceAll("_", " ")}</b><span>{r.location}</span></div>)}<p className="text-xs text-muted">{environment?.caveat ?? "This is a declared deployment policy, not a cloud residency attestation. Enterprise export routes enforce it; independent agent processes require their own egress controls."}</p></Panel>
+      <Panel><CardHeader title="Signed configuration and reproducible releases" description="Pin source, prompts, schemas, rules, artifacts and policies. Verify against a separately trusted Ed25519 public key." /><Pill tone="mute">{release ? `${release.status} · ${release.signature}` : "No verified release loaded"}</Pill><p className="text-sm">The release tool hashes pinned files and can sign the manifest. An unsigned hash is labeled unsigned. Missing dataset or hosted-policy snapshots stay visible.</p><Button variant="ghost" disabled={busy || !live} className="self-start" onClick={() => work(async () => setRelease(await request("/enterprise/release", { headers })))}>Verify deployed release manifest</Button>{release?.caveat && <p className="text-xs text-muted">{release.caveat}</p>}<p className="text-xs text-muted">One-command reset/smoke instructions are in the enterprise runbook. Reset regenerates synthetic fixtures and never deletes tenant records.</p></Panel>
+      <Panel><CardHeader title="Data residency and environment boundaries" description={environment ? `Declared region: ${environment.declared_region}. Approved destinations: ${environment.approved_destinations.join(", ")}.` : "Default policy: local host and Supabase only. Deployment regions must be verified separately."} actions={<Button variant="ghost" size="sm" disabled={busy || !live} onClick={() => work(async () => setEnvironment(await request("/enterprise/environment", { headers })))}>Load declared environment</Button>} />{(environment ? Object.entries(environment.locations).map(([asset, location]) => ({ asset, location })) : sample.residency).map(r => <div className="flex flex-wrap justify-between gap-2 border-t border-line py-2 text-sm" key={r.asset}><b>{r.asset.replaceAll("_", " ")}</b><span>{r.location}</span></div>)}<p className="text-xs text-muted">{environment?.caveat ?? "This is a declared deployment policy, not a cloud residency attestation. Enterprise export routes enforce it; independent agent processes require their own egress controls."}</p></Panel>
     </>}
   </div>;
 }
