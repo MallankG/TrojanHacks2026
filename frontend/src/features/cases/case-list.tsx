@@ -8,12 +8,15 @@ import { CASES, PRIMARY_CASE } from "@/lib/seed/governance";
 import { useDemoState } from "@/lib/store/hooks";
 import type { CaseId } from "@/lib/types";
 import { Pill } from "@/components/ui/pill";
+import { LiveCaseEntries } from "@/features/live/live-cases";
 
 /** Case navigator. Each entry is a link, so cases are deep-linkable and keyboard reachable. */
-export function CaseList({ selectedId }: { selectedId: CaseId }) {
+export function CaseList({ selectedId }: { selectedId: CaseId | string }) {
   const status = useDemoState().caseWork.status;
   return (
     <nav aria-label="Cases" className="flex w-full flex-col gap-2 rounded-[14px] border border-line bg-white p-3 lg:max-w-[340px] lg:flex-[1_1_280px]">
+      {/* Live backend cases (nothing without a live session), then the seeded sample cases. */}
+      <LiveCaseEntries selectedId={selectedId} />
       {CASES.map((item) => {
         const isPrimary = item.id === PRIMARY_CASE;
         const itemStatus = isPrimary ? status : (item.status ?? "In review");

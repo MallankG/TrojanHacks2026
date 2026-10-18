@@ -1,0 +1,26 @@
+transaction_id,timestamp,amount,currency,channel,direction,origin_account,destination_account,transaction_status,description
+TX-90001,2026-10-01T09:05:00Z,48500.00,USD,wire,inbound,ACC-7001,ACC-7002,posted,Invoice settlement
+TX-90002,2026-10-01T11:40:00Z,47900.00,USD,ach,outbound,ACC-7002,ACC-7003,posted,Vendor payment
+TX-90003,2026-10-01T15:10:00Z,47200.00,USD,wire,outbound,ACC-7003,ACC-7004,posted,Consulting fee
+TX-90004,2026-10-02T08:30:00Z,46600.00,USD,wire,outbound,ACC-7004,ACC-7005,posted,Transfer
+TX-90005,2026-10-02T12:15:00Z,46000.00,USD,p2p,outbound,ACC-7005,ACC-7006,posted,Transfer
+TX-90006,2026-10-03T10:00:00Z,9800.00,USD,cash,inbound,ACC-7010,ACC-7011,posted,Cash deposit
+TX-90007,2026-10-03T13:20:00Z,9750.00,USD,cash,inbound,ACC-7010,ACC-7011,posted,Cash deposit
+TX-90008,2026-10-04T09:45:00Z,9900.00,USD,cash,inbound,ACC-7010,ACC-7011,posted,Cash deposit
+TX-90009,2026-10-04T16:05:00Z,9600.00,USD,cash,inbound,ACC-7010,ACC-7011,posted,Cash deposit
+TX-90010,2026-10-05T10:30:00Z,38500.00,USD,wire,outbound,ACC-7011,ACC-7012,posted,Property deposit
+TX-90011,2026-10-05T09:00:00Z,1200.00,USD,ach,inbound,ACC-7020,ACC-7021,posted,Payroll
+TX-90012,2026-10-05T09:00:00Z,1250.00,USD,ach,inbound,ACC-7020,ACC-7022,posted,Payroll
+TX-90013,2026-10-05T09:00:00Z,1180.00,USD,ach,inbound,ACC-7020,ACC-7023,posted,Payroll
+TX-90014,2026-10-06T14:00:00Z,15000.00,USD,wire,outbound,ACC-7030,ACC-7031,posted,Loop leg 1
+TX-90015,2026-10-06T18:30:00Z,14800.00,USD,wire,outbound,ACC-7031,ACC-7032,posted,Loop leg 2
+TX-90016,2026-10-07T09:10:00Z,14650.00,USD,wire,outbound,ACC-7032,ACC-7030,posted,Loop leg 3
+TX-90017,2026-10-07T11:00:00Z,520.00,EUR,card,outbound,ACC-7021,ACC-7040,posted,Card purchase
+TX-90018,2026-10-07T12:00:00Z,75.50,USD,card,outbound,ACC-7022,ACC-7040,posted,Card purchase
+TX-90019,2026-13-45 99:99,2500.00,USD,ach,outbound,ACC-7023,ACC-7041,posted,Malformed timestamp
+TX-90020,2026-10-08T10:00:00Z,3100.00,USX,wire,outbound,ACC-7021,ACC-7041,posted,Unknown currency code
+TX-90021,2026-10-08T11:00:00Z,-450.00,USD,ach,outbound,ACC-7022,ACC-7041,posted,Negative amount
+TX-90018,2026-10-08T12:00:00Z,75.50,USD,card,outbound,ACC-7022,ACC-7040,posted,Duplicate transaction id
+TX-90022,2026-10-08T13:00:00Z,880.00,USD,carrier pigeon,outbound,ACC-7023,ACC-7040,posted,Unknown channel
+TX-90023,2026-10-08T14:00:00Z,640.00,USD,p2p,outbound,,ACC-7040,posted,Missing origin account
+TX-90024,2026-10-08 15:00:00,410.00,USD,p2p,outbound,ACC-7021,ACC-7022,posted,No timezone given

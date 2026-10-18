@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useLiveAuditEvents } from "@/lib/live/adapters";
 import { exportAuditTrail } from "@/lib/store/actions";
 import { useDemoState } from "@/lib/store/hooks";
 import type { AuditType } from "@/lib/types";
@@ -16,7 +17,10 @@ type Filter = "all" | AuditType;
 const FILTERS: Filter[] = ["all", "Data", "Model", "AI", "Case", "Graph", "Access", "Export", "Policy", "Entity"];
 
 export function AuditTrail() {
-  const events = useDemoState().events;
+  const seeded = useDemoState().events;
+  // Live backend events first (real, append-only log), then the events from the seeded sample flows.
+  const live = useLiveAuditEvents();
+  const events = useMemo(() => [...(live.data ?? []), ...seeded], [live.data, seeded]);
   const [filter, setFilter] = useState<Filter>("all");
   const rows = events.filter((event) => filter === "all" || event.type === filter);
 
@@ -37,6 +41,7 @@ export function AuditTrail() {
       <Card className="overflow-hidden">
         <p className="px-5 py-3.5 text-xs text-muted">
           {rows.length} events · append-only style · actor, action, object, time, request ID and payload hash
+          {live.live ? ` · ${live.loading ? "loading live events" : live.error ? `live events unavailable: ${live.error}` : `${live.data?.length ?? 0} live from the backend, the rest from sample flows`}` : ""}
         </p>
         {rows.length === 0 ? (
           <EmptyState title="No events of this type yet." action={<Button variant="ghost" size="sm" onClick={() => setFilter("all")}>Show all events</Button>} />
@@ -54,12 +59,15 @@ export function AuditTrail() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((event) => (
-                <tr key={event.requestId}>
+              {rows.map((event, index) => (
+                <tr key={`${event.live ? "live" : "seed"}-${event.requestId}-${index}`}>
                   <Td className="whitespace-nowrap text-xs text-muted">{event.at}</Td>
                   <Td className="whitespace-nowrap">{event.actor}</Td>
                   <Td>
-                    <Pill tone="info">{event.type}</Pill>
+                    <span className="inline-flex gap-1">
+                      <Pill tone="info">{event.type}</Pill>
+                      {live.live ? <Pill tone={event.live ? "ok" : "mute"}>{event.live ? "Live" : "Sample"}</Pill> : null}
+                    </span>
                   </Td>
                   <Td>{event.action}</Td>
                   <Td className="font-mono">{event.object}</Td>

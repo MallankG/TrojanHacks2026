@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useState, type FormEvent } from "react";
+import { LIVE_ROLES } from "@/lib/live/roles";
+import { LIVE_CONFIGURED, liveSignIn, liveSignOut } from "@/lib/live/session";
 import { ROUTES } from "@/lib/routes";
 import { signIn } from "@/lib/store/actions";
 import { useDemoState, useHydrated } from "@/lib/store/hooks";
@@ -28,6 +30,7 @@ export function SignInForm() {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [attempts, setAttempts] = useState(0);
+  const [busy, setBusy] = useState(false);
   const locked = attempts >= MAX_ATTEMPTS;
   const hydrated = useHydrated();
   const authed = useDemoState().authed;
@@ -54,11 +57,28 @@ export function SignInForm() {
     setError(locked ? "Too many attempts. Sign-in is locked for 15 minutes. Contact your administrator." : null);
   };
 
-  const submitCredentials = (event: FormEvent) => {
+  const submitCredentials = async (event: FormEvent) => {
     event.preventDefault();
     const problem = emailError(email) ?? (password.length < 8 ? "Password must be at least 8 characters." : null);
     setError(problem);
-    if (!problem) setStep("code");
+    if (problem) return;
+    if (!LIVE_CONFIGURED) {
+      setStep("code");
+      return;
+    }
+    // Live backend: Supabase Auth checks the password; the role comes from the user's profile.
+    setBusy(true);
+    try {
+      const profile = await liveSignIn(email.trim(), password);
+      clearCredentials();
+      setAttempts(0);
+      signIn(LIVE_ROLES[profile.role].uiRole);
+      router.replace(ROUTES.command);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "Sign-in failed.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const submitCode = (event: FormEvent) => {
@@ -88,6 +108,8 @@ export function SignInForm() {
           <Button
             variant="ghost"
             onClick={() => {
+              // The SSO path is the seeded demo; drop any leftover live session so data stays consistent.
+              void liveSignOut();
               setEmail("");
               setError(null);
               setStep("code");
@@ -107,7 +129,12 @@ export function SignInForm() {
               {error}
             </Callout>
           ) : null}
-          <Button type="submit">Continue</Button>
+          <Button type="submit" disabled={busy}>
+            {busy ? "Signing in" : "Continue"}
+          </Button>
+          <p className="text-center text-xs text-muted">
+            {LIVE_CONFIGURED ? "Email sign-in uses your live backend account. Company SSO opens the seeded demo." : "Prototype sign-in on seeded demo data."}
+          </p>
         </form>
       ) : (
         <form className="flex flex-col gap-4" onSubmit={submitCode} noValidate>

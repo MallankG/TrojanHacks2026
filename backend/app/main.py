@@ -26,6 +26,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type", "X-Request-Id"],
+    # Lets the UI show the request ID next to an error so it can be matched to the audit trail.
+    expose_headers=["X-Request-Id"],
 )
 
 

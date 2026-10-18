@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ROUTES, SCREEN_TITLES, screenForPath } from "@/lib/routes";
 import { openModal, selectBatch, setRole, updateGraph } from "@/lib/store/actions";
+import { useLiveProfile } from "@/lib/live/session";
 import { useDemoState, useRole } from "@/lib/store/hooks";
 import { ROLE_ORDER, ROLES } from "@/lib/seed/roles";
 import type { RoleId } from "@/lib/types";
@@ -194,6 +195,7 @@ function Notifications() {
 export function Topbar() {
   const pathname = usePathname();
   const state = useDemoState();
+  const live = useLiveProfile() !== null;
   const screen = SCREEN_TITLES[screenForPath(pathname)];
   return (
     <header className="flex flex-wrap items-center gap-3 border-b border-line bg-white px-7 py-3">
@@ -203,12 +205,13 @@ export function Topbar() {
       </div>
       <GlobalSearch />
       <Pill tone="warn">Synthetic data</Pill>
-      <label className="flex items-center gap-2 text-[12.5px] text-muted">
+      <label className="flex items-center gap-2 text-[12.5px] text-muted" title={live ? "Your role comes from your account" : undefined}>
         Role
         <select
           value={state.role}
+          disabled={live}
           onChange={(event) => setRole(event.target.value as RoleId)}
-          className="min-h-10 rounded-[10px] border border-[#b9c3d1] bg-white px-2.5 py-1.5 text-sm text-ink"
+          className="min-h-10 rounded-[10px] border border-[#b9c3d1] bg-white px-2.5 py-1.5 text-sm text-ink disabled:bg-subtle"
         >
           {ROLE_ORDER.map((id) => (
             <option key={id} value={id}>

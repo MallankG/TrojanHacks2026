@@ -93,7 +93,7 @@ def _parse_mapping(raw: str | None) -> dict[str, str] | None:
 @router.get("/runs")
 def list_runs(limit: Limit = 50, offset: Offset = 0, user: CurrentUser = Depends(ANY_USER)) -> dict:
     query = (
-        get_db().table("ingestion_runs").select("*, source_files(filename, source_system, data_owner)", count="exact")
+        get_db().table("ingestion_runs").select("*, source_files(filename, source_system, data_owner, checksum_sha256)", count="exact")
         .eq("tenant_id", user.tenant_id).order("started_at", desc=True)
     )
     return page(query, limit, offset)

@@ -3,6 +3,7 @@
 import { ROUTES } from "@/lib/routes";
 import { deniedMessage } from "@/lib/seed/roles";
 import { openModal } from "@/lib/store/actions";
+import { useLiveProfile } from "@/lib/live/session";
 import { useRole } from "@/lib/store/hooks";
 import { Button } from "@/components/ui/button";
 import { TabNav } from "@/components/ui/controls";
@@ -10,7 +11,10 @@ import { PageHeader } from "@/components/ui/page-header";
 
 export function DataHeader() {
   const role = useRole();
+  const live = useLiveProfile() !== null;
   const open = () => openModal({ kind: "onboard" });
+  // With a live session, uploads go to the backend; onboarding a new source stays a guided mock.
+  const upload = () => openModal(live ? { kind: "liveUpload" } : { kind: "onboard" });
   return (
     <>
       <PageHeader
@@ -22,7 +26,7 @@ export function DataHeader() {
               <Button variant="ghost" disabled={!role.canUpload} onClick={open}>
                 Onboard a source
               </Button>
-              <Button disabled={!role.canUpload} onClick={open}>
+              <Button disabled={!role.canUpload} onClick={upload}>
                 Upload CSV batch
               </Button>
             </div>

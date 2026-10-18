@@ -26,22 +26,36 @@ export async function apiRequest<T>(path: string, { body, timeoutMs = 8000, head
   if (!API_BASE_URL) throw new ApiError("API base URL is not configured", 0);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const isForm = body instanceof FormData;
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", "X-Request-Id": crypto.randomUUID(), ...headers },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      // Multipart uploads let the browser set the boundary header itself.
+      headers: { ...(isForm ? {} : { "Content-Type": "application/json" }), "X-Request-Id": crypto.randomUUID(), ...headers },
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
       signal: controller.signal,
     });
     const requestId = response.headers.get("x-request-id") ?? undefined;
     if (!response.ok) {
-      // The backend returns safe error codes, never stack traces.
-      throw new ApiError(`Request failed with status ${response.status}`, response.status, requestId);
+      // The backend returns safe error codes and a short `detail`, never stack traces.
+      throw new ApiError(await errorDetail(response), response.status, requestId);
     }
     return (await response.json()) as T;
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function errorDetail(response: Response): Promise<string> {
+  try {
+    const data = (await response.json()) as { detail?: unknown };
+    if (typeof data.detail === "string") return data.detail;
+    // FastAPI validation errors: [{loc, msg}, ...]
+    if (Array.isArray(data.detail)) return data.detail.map((d: { msg?: string }) => d.msg ?? "Invalid input").join("; ");
+  } catch {
+    // Non-JSON body; fall through to the status code.
+  }
+  return `Request failed with status ${response.status}`;
 }
 
 export type HealthStatus = "unconfigured" | "checking" | "online" | "offline";

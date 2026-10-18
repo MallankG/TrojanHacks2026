@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useBackendHealth } from "@/lib/api/use-backend-health";
 import { cn } from "@/lib/cn";
+import { useLiveProfile } from "@/lib/live/session";
 import { NAV_GROUPS, ROUTES, type NavItem } from "@/lib/routes";
 import { openModal, resetDemo, signOut, toggleSimulation } from "@/lib/store/actions";
 import { useDemoState, useRole } from "@/lib/store/hooks";
@@ -21,6 +22,7 @@ export function Sidebar() {
   const state = useDemoState();
   const role = useRole();
   const backend = useBackendHealth();
+  const profile = useLiveProfile();
   const fixed = state.data.driftFixed;
   const pendingForOfficer = state.caseWork.status === "Pending approval" && role.canApproveEscalation;
 
@@ -38,8 +40,9 @@ export function Sidebar() {
     { label: "LLM", status: state.sim.llm ? "Down, drafting paused" : "Healthy, Groq", tone: state.sim.llm ? "bad" : "ok" },
     {
       label: "API",
-      status: backend === "online" ? "Connected" : backend === "checking" ? "Checking" : backend === "offline" ? "Offline, demo data" : "Demo data",
-      tone: backend === "online" ? "ok" : backend === "offline" ? "warn" : "mute",
+      status:
+        backend === "online" ? (profile ? "Live data" : "Connected, demo sign-in") : backend === "checking" ? "Checking" : backend === "offline" ? (profile ? "Offline" : "Offline, demo data") : "Demo data",
+      tone: backend === "online" ? "ok" : backend === "offline" ? (profile ? "bad" : "warn") : "mute",
     },
   ];
 
@@ -54,7 +57,7 @@ export function Sidebar() {
       </Link>
       <div className="mx-1 mb-0.5 mt-2 rounded-[10px] border border-sidebar-line px-2.5 py-2">
         <div className="text-[11px] text-sidebar-muted">Tenant</div>
-        <div className="text-[13px] font-semibold text-white">Lakeview Community Bank</div>
+        <div className="text-[13px] font-semibold text-white">{profile?.tenant?.name ?? "Lakeview Community Bank"}</div>
         <div className="text-[11px] text-attention">Synthetic data only</div>
       </div>
 
