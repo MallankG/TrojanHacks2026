@@ -23,7 +23,7 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 from torch import nn
 from torch_geometric.nn import GATv2Conv
 
-from .order import canonical, canonical_order
+from .order import ORDER_VERSION, canonical, canonical_order
 from .xgb import ENTITY_TYPES, PAPER_CUTOFFS, edge_features, load, metrics, split
 
 PAPER_GNN = {"auprc": 64.85, "best_f1": 68.42}
@@ -64,15 +64,16 @@ def _mix(x):
     return x ^ (x >> _U(31))
 
 
-def hash_uniforms(seed, target, hop, node, k, device):
-    """[len(node), k] uniforms in [0, 1), a pure function of (seed, target edge id, hop, node, slot).
-    Computed on CPU in numpy uint64, so results are identical on CPU, CUDA and MPS."""
+def hash_uniforms(seed, target, hop, node, k):
+    """[len(node), k] numpy float64 uniforms in [0, 1), a pure function of (seed, target edge id, hop, node, slot).
+    Computed on CPU in numpy uint64 (defined wraparound); callers turn them into int64 offsets before moving
+    anything to the device, so no float64 tensor ever reaches MPS."""
     t = target.cpu().numpy().astype(np.int64).view(np.uint64)
     n = node.cpu().numpy().astype(np.int64).view(np.uint64)
     with np.errstate(over="ignore"):
         x = _mix(_U(seed) ^ (t * _GOLD) ^ (_U(hop) << _U(32))) ^ n
         x = _mix(x[:, None] ^ (np.arange(k, dtype=np.uint64) * _GOLD)[None, :])
-    return torch.from_numpy((x >> _U(11)).astype(np.float64) / float(1 << 53)).to(device)
+    return (x >> _U(11)).astype(np.float64) / float(1 << 53)
 
 
 class SplitGraph:
@@ -105,21 +106,23 @@ class SplitGraph:
         return torch.stack([torch.log1p((tot - out).float()), torch.log1p(out.float())], 1) / 5
 
     def sample_rows(self, nodes, k, gen, caps, salt=None):
-        # salt: None (shared generator, training) or (seed, target_eids, hop) for deterministic eval/serve draws
         """k incident edges per node (with replacement), each node with its own cap (edge id < caps[i]).
 
-        With `salt` (one int64 per node), draws are a pure function of (salt, slot) instead of the shared
-        generator, so a node's sample does not depend on what else is in the batch.
+        salt=None draws from the shared generator (training). salt=(seed, target_eids, hop) makes each draw a
+        pure function of (seed, target edge, hop, node, slot) for eval/serve, so a node's sample does not
+        depend on what else is in the batch.
         Returns (edge ids, row index into `nodes` that each edge was sampled for)."""
         start = self.rowptr[nodes]
         deg = torch.searchsorted(self.key, nodes * self.n_edges + caps) - start
         rows = torch.nonzero(deg > 0).flatten()
         if salt is None:
-            u = torch.rand(len(rows), k, device=nodes.device, generator=gen)
+            off = (torch.rand(len(rows), k, device=nodes.device, generator=gen) * deg[rows, None]).long()
         else:
+            # ponytail: one device->CPU->device round trip (a sync) per hop in eval/serve; move the hash on-device
+            # (masked int64 / uint64 torch kernels) once those wrap portably on CUDA and MPS
             seed, target, hop = salt
-            u = hash_uniforms(seed, target[rows], hop, nodes[rows], k, nodes.device)
-        off = (u * deg[rows, None]).long()
+            u = hash_uniforms(seed, target[rows], hop, nodes[rows], k)
+            off = torch.from_numpy((u * deg[rows].cpu().numpy()[:, None]).astype(np.int64)).to(nodes.device)
         return self.inc[(start[rows, None] + off).flatten()], rows.repeat_interleave(k)
 
     def sample(self, nodes, k, gen):
@@ -333,7 +336,8 @@ def main(data_dir, out=None, epochs=30, patience=5, bs=None, neg_frac=0.25, seed
         torch.save({"state_dict": {k: v.cpu() for k, v in model.state_dict().items()}, "config": model.config,
                     "edge_mu": mu.to_dict(), "edge_sd": sd.to_dict(), "edge_features": list(ef.columns),
                     "fanout": D.fanout, "ego": ego, "temporal": temporal, "entity_types": ENTITY_TYPES}, o / f"ibm_{tag}.pt")
-        np.savez_compressed(o / f"ibm_{tag}_scores.npz", y_val=y[va], s_val=pv, y_test=y[te], s_test=pt)  # for conformal.py
+        np.savez_compressed(o / f"ibm_{tag}_scores.npz", y_val=y[va], s_val=pv, y_test=y[te], s_test=pt,
+                            order=ORDER_VERSION)  # for conformal.py / ensemble.py / typology_recall.py
         (o / f"ibm_{tag}_results.json").write_text(json.dumps(
             {"paper": PAPER_GNN, "split_cutoffs": PAPER_CUTOFFS, "results": res, "history": history,
              "hparams": dict(epochs=epochs, bs=bs, neg_frac=neg_frac, seed=seed, hidden=hidden, lr=lr, pos_weight=pos_weight, fanout=list(fanout), ego=ego, temporal=temporal),
@@ -346,7 +350,8 @@ class IBMGNNScorer:
 
         scorer = IBMGNNScorer(name="gnn_temporal")
         scorer.score(edges, accounts, rows=[...])  # rows = positions in `edges`, as in IBMScorer / TraceLayerScorer
-    edges: ts, src, dst, amt_paid, amt_recv, cur_paid, cur_recv, fmt (any order; sorted by time internally).
+    edges: ts, from_bank, src, to_bank, dst, amt_paid, amt_recv, cur_paid, cur_recv, fmt (any row order; ordered
+    canonically by ml/ibm/order.py, which raises if a column is missing).
     Temporal checkpoints score each row from strictly earlier edges only (per-row cap), so a row's score does
     not depend on which other rows are scored with it.
     """
@@ -365,6 +370,8 @@ class IBMGNNScorer:
 
     def score(self, edges, accounts, rows=None):
         e = edges.reset_index(drop=True).assign(ts=lambda d: pd.to_datetime(d["ts"]))
+        if rows is not None and np.asarray(rows).dtype == bool:
+            raise ValueError("rows must be positions, not a boolean mask; pass e.g. np.flatnonzero(mask)")
         rows = np.arange(len(e)) if rows is None else np.asarray(rows, dtype=float).ravel()
         if len(rows) == 0:
             return pd.DataFrame({"gnn_score": [], "gnn_flagged": [], "calibration": []}, index=pd.Index([], name="row", dtype=np.int64))

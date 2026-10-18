@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 from .explain import parse_patterns
-from .order import canonical
+from .order import npz_order, order_edges
 from .xgb import load, split
 
 
@@ -25,24 +25,31 @@ def threshold_of(res):
 def main(data, out):
     o = Path(out)
     tx, _ = load(data)
-    e = canonical(tx[tx["src"] != tx["dst"]])
-    _, _, te, _ = split(e["ts"])
+    raw = tx[tx["src"] != tx["dst"]]
     pat = parse_patterns(Path(data) / "HI-Small_Patterns.txt")
     key = lambda df: df["ts"].dt.floor("min").astype(str) + "|" + df["src"] + "|" + df["dst"] + "|" + df["amt_paid"].round(2).astype(str)
     typ = pd.Series(pat["typology"].to_numpy(), index=key(pat))
     typ = typ[~typ.index.duplicated()]
-    t_test = typ.reindex(key(e.iloc[te])).to_numpy()
-    y = e["y"].to_numpy()[te]
-    t_test = np.where((y == 1) & pd.isna(t_test), "UNLISTED", t_test)  # illicit edges not in any listed pattern
-    rows = {}
+    labels = {}
+
+    def test_labels(version):  # (y, typology) of test edges in the row order that score file was written in
+        if version not in labels:
+            e = order_edges(raw, version)
+            _, _, te, _ = split(e["ts"])
+            t, yy = typ.reindex(key(e.iloc[te])).to_numpy(), e["y"].to_numpy()[te]
+            labels[version] = (yy, np.where((yy == 1) & pd.isna(t), "UNLISTED", t))  # illicit, in no listed pattern
+        return labels[version]
+
+    rows, y, t_test = {}, None, None
     for f in sorted(o.glob("ibm_*_scores.npz")):
         name = f.name[4:-11]
         rj = o / f"ibm_{name}_results.json"
         if not rj.exists():
             continue
         z = np.load(f)
-        if len(z["s_test"]) != len(te):
-            print(f"skip {name}: {len(z['s_test'])} test scores != {len(te)} test edges")
+        y, t_test = test_labels(npz_order(z))
+        if len(z["s_test"]) != len(y) or not np.array_equal(z["y_test"], y):
+            print(f"skip {name}: test rows don't line up with the {npz_order(z) or 'legacy'} edge order")
             continue
         pred = z["s_test"] >= threshold_of(json.loads(rj.read_text()))
         rows[name] = {t: float(pred[(y == 1) & (t_test == t)].mean()) for t in sorted(set(t_test[y == 1]))}

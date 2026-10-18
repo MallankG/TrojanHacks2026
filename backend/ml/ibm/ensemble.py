@@ -21,6 +21,7 @@ import numpy as np
 from sklearn.metrics import average_precision_score
 
 from .common import evaluate_and_save
+from .order import npz_order
 
 ART = Path(__file__).parent.parent / "artifacts" / "ibm"
 
@@ -58,10 +59,15 @@ if __name__ == "__main__":
     ap.add_argument("--models", nargs=2, required=True)
     ap.add_argument("--out", default="ml/artifacts/ibm")
     a = ap.parse_args()
-    z = [np.load(Path(a.out) / f"ibm_{m}_scores.npz") for m in a.models]
+    files = [np.load(Path(a.out) / f"ibm_{m}_scores.npz") for m in a.models]
+    orders = {npz_order(f) for f in files}
+    assert len(orders) == 1, f"score files were written in different edge orders: {orders}"
+    z = [{k: f[k] for k in f.files} for f in files]  # load each array once
     assert all((x["y_val"] == z[0]["y_val"]).all() and (x["y_test"] == z[0]["y_test"]).all() for x in z), "row order mismatch"
     ref = [np.sort(x["s_val"]) for x in z]
-    blend = lambda w, part: blend_scores(ref[0], ref[1], w, z[0][part], z[1][part])
+    P = {part: [pct(r, x[part]) for r, x in zip(ref, z)] for part in ("s_val", "s_test")}  # percentiles once per model
+    blend = lambda w, part: (w * P[part][0] + (1 - w) * P[part][1]
+                             + TIE_EPS * (w * z[0][part].astype(np.float64) + (1 - w) * z[1][part].astype(np.float64)))
     grid = np.round(np.arange(0, 1.01, 0.1), 2)
     ap_val = {float(w): float(average_precision_score(z[0]["y_val"], blend(w, "s_val"))) for w in grid}
     w = max(ap_val, key=ap_val.get)
@@ -72,5 +78,6 @@ if __name__ == "__main__":
     name = f"ensemble_{a.models[0]}_{a.models[1]}"
     np.savez_compressed(Path(a.out) / f"ibm_{name}_ref.npz", ref_a=ref[0], ref_b=ref[1])
     evaluate_and_save(name, y, s, va, te, a.out, {"models": a.models, f"weight_{a.models[0]}": w, "val_auprc_by_weight": ap_val,
-                                                  "ranking": "percentile vs stored val score distributions (servable)"})
+                                                  "ranking": "percentile vs stored val score distributions (servable)"},
+                      order=orders.pop())
     print(f"weight on {a.models[0]}: {w}  (val AUPRC by weight: {ap_val})")

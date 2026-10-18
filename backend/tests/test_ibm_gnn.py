@@ -49,22 +49,27 @@ def test_target_context_does_not_depend_on_batch_mates():
 def test_hash_uniforms_are_uniform_and_deterministic():
     from ml.ibm.gnn import hash_uniforms
     t, n = torch.arange(50_000, dtype=torch.int64), torch.arange(50_000, dtype=torch.int64) % 97
-    u = hash_uniforms(7, t, 1, n, 2, torch.device("cpu"))
-    assert torch.equal(u, hash_uniforms(7, t, 1, n, 2, torch.device("cpu"))) and float(u.min()) >= 0 and float(u.max()) < 1
-    assert abs(float(u.mean()) - 0.5) < 0.01 and abs(float((u < 0.1).double().mean()) - 0.1) < 0.01
-    assert not torch.equal(u, hash_uniforms(8, t, 1, n, 2, torch.device("cpu")))
+    u = hash_uniforms(7, t, 1, n, 2)
+    assert np.array_equal(u, hash_uniforms(7, t, 1, n, 2)) and u.min() >= 0 and u.max() < 1
+    assert abs(u.mean() - 0.5) < 0.01 and abs((u < 0.1).mean() - 0.1) < 0.01
+    assert not np.array_equal(u, hash_uniforms(8, t, 1, n, 2))
 
 
 def test_canonical_order_is_nan_safe_and_input_order_independent():
     from ml.ibm.order import canonical_order
     e = pd.DataFrame({"ts": pd.to_datetime(["2022-09-01 00:01"] * 4 + ["2022-09-01 00:00"]),
                       "src": ["b", None, "a", float("nan"), "z"], "dst": ["x", "y", 3, "x", "x"],
-                      "amt_paid": [1.0, 2.0, np.nan, 4.0, 5.0], "fmt": ["ACH"] * 5})
+                      "amt_paid": [1.0, 2.0, np.nan, 4.0, 5.0], "amt_recv": [1.0] * 5, "cur_paid": ["USD"] * 5,
+                      "cur_recv": ["USD", None, "EUR", "USD", "USD"], "from_bank": ["1"] * 5, "to_bank": [2, 2, 2, "2", 2],
+                      "fmt": ["ACH"] * 5})
     o = canonical_order(e)
     assert o[0] == 4  # earliest timestamp first
     perm = np.array([3, 0, 4, 2, 1])
     assert (e.iloc[perm].reset_index(drop=True).iloc[canonical_order(e.iloc[perm].reset_index(drop=True))].to_numpy().astype(str)
             == e.iloc[o].to_numpy().astype(str)).all()
+    import pytest
+    with pytest.raises(ValueError):  # a missing ordering column must fail loudly, not be skipped
+        canonical_order(e.drop(columns="to_bank"))
 
 
 def test_predict_restores_previous_sample_seed():

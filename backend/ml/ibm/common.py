@@ -22,7 +22,7 @@ import scipy.sparse as sp
 from scipy.sparse.linalg import svds
 
 from ..tracelayer.features import _account_state, _distinct_cp_to_date, _pair_counts
-from .order import canonical
+from .order import ORDER_VERSION, canonical, npz_order
 from .xgb import build, edge_features, load, metrics, split
 
 HUB_DEGREE = 1000  # ponytail: hubs dropped from 3-cycle counting to keep A@A sparse; raise if RAM allows
@@ -111,7 +111,13 @@ def build_cache(data, cache, groups=GROUPS):
     e, y, (tr, va, te), safe, node_tr = load_edges(data)
     node_tr.rename_axis("account").reset_index().to_parquet(c / "ibm_node_features_train.parquet")  # serving needs it
     print(f"edges {len(e):,} | train {len(tr):,} val {len(va):,} test {len(te):,} ({time.time() - t0:.0f}s)", flush=True)
-    np.savez(c / "ibm_split.npz", y=y, tr=tr, va=va, te=te, amt=e["amt_paid"].to_numpy())
+    if (c / "ibm_split.npz").exists():
+        old = npz_order(np.load(c / "ibm_split.npz"))
+        stale = [p.name for p in c.glob("ibm_feat_*.parquet") if p.stem[len("ibm_feat_"):] not in groups]
+        if old != ORDER_VERSION and stale:
+            raise ValueError(f"cache {c} was built in edge order {old!r}, not {ORDER_VERSION!r}; rebuild the cache "
+                             f"(its other groups {stale} would no longer line up)")
+    np.savez(c / "ibm_split.npz", y=y, tr=tr, va=va, te=te, amt=e["amt_paid"].to_numpy(), order=ORDER_VERSION)
     make = {"safe39": lambda: safe, "temporal": lambda: temporal_features(e), "graph": lambda: graph_features(e, tr),
             "cycles": lambda: cycle_features(e, (tr, va, te))}
     for g in groups:
@@ -151,7 +157,7 @@ def at_threshold(y, s, thr):
             "f1": 100 * 2 * tp / max(2 * tp + fp + fn, 1), "false_alerts_per_1k": 1000 * fp / len(y), "tp": tp, "fp": fp, "fn": fn}
 
 
-def evaluate_and_save(name, y, s, va, te, out, extra=None):
+def evaluate_and_save(name, y, s, va, te, out, extra=None, order=ORDER_VERSION):
     """Val/test metrics, test @ val threshold, P@K; writes ibm_<name>_results.json and ibm_<name>_scores.npz."""
     v, t = metrics(y[va], s[va]), metrics(y[te], s[te])
     k = np.argsort(-s[te])
@@ -160,7 +166,7 @@ def evaluate_and_save(name, y, s, va, te, out, extra=None):
     o = Path(out)
     o.mkdir(parents=True, exist_ok=True)
     (o / f"ibm_{name}_results.json").write_text(json.dumps(res, indent=2, default=float))
-    np.savez_compressed(o / f"ibm_{name}_scores.npz", y_val=y[va], s_val=s[va].astype(np.float32), y_test=y[te], s_test=s[te].astype(np.float32))
+    np.savez_compressed(o / f"ibm_{name}_scores.npz", y_val=y[va], s_val=s[va].astype(np.float32), y_test=y[te], s_test=s[te].astype(np.float32), **({"order": order} if order else {}))
     print(f"{name}: val AUPRC {v['auprc']:.2f} | test AUPRC {t['auprc']:.2f} AUROC {t['auroc']:.2f} best F1 {t['best_f1']:.2f} "
           f"| F1@val-thr {res['test_at_val_threshold']['f1']:.2f} alerts/1k {res['test_at_val_threshold']['false_alerts_per_1k']:.2f}", flush=True)
     return res

@@ -84,13 +84,13 @@ if __name__ == "__main__":  # self-check: serving path reproduces the Colab test
 
     from sklearn.metrics import average_precision_score
 
+    from .order import canonical
     from .xgb import load, split
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", required=True)
     tx, _ = load(ap.parse_args().data)
-    tx = tx.sort_values("ts", kind="stable")
-    e = tx[tx["src"] != tx["dst"]].reset_index(drop=True)
+    e = canonical(tx[tx["src"] != tx["dst"]])  # the same edge order as load_edges / EnsembleScorer
     _, _, te, _ = split(e["ts"])
     sc = IBMScorer()
     X, _ = sc.matrix(e)
