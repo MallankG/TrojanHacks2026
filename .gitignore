@@ -7,3 +7,11 @@
 !.env.example
 node_modules/
 __pycache__/
+
+# ndemo: generated narration, recordings and the rehearsal browser profile
+.ndemo/
+demo/*/audio/
+demo/*/video-raw/
+demo/*/*.mp4
+demo/*/*.srt
+demo/*/error-*.png
