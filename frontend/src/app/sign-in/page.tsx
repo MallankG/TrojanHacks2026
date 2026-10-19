@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { BRAND_DISCLAIMER, BRAND_HEADLINE, BRAND_LEAD } from "@/components/shell/brand-copy";
 import { LogoMark } from "@/components/shell/logo";
 import { SignInForm } from "@/features/auth/sign-in-form";
@@ -9,10 +10,10 @@ export default function SignInPage() {
   return (
     <div className="flex min-h-screen flex-wrap bg-canvas">
       <section className="flex min-h-[420px] flex-[1_1_460px] flex-col justify-between gap-8 bg-sidebar p-10 text-white sm:p-14">
-        <div className="flex items-center gap-3">
+        <Link href="/" aria-label="TraceLayer home" className="flex w-fit items-center gap-3">
           <LogoMark size={48} />
           <span className="text-[26px] font-bold">TraceLayer</span>
-        </div>
+        </Link>
         <div className="flex max-w-[520px] flex-col gap-4">
           <h1 className="text-[38px] font-semibold leading-[1.15] tracking-[-0.015em]">{BRAND_HEADLINE}</h1>
           <p className="text-base leading-relaxed text-hero-text">
