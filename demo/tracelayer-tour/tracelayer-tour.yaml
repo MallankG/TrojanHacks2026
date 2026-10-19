@@ -1,0 +1,281 @@
+titleCard:
+  title: "TraceLayer"
+  subtitle: "Governed financial-crime investigation · product tour"
+  duration: 3000
+app:
+  url: "https://tracelayer-five.vercel.app/"
+  viewport:
+    width: 1920
+    height: 1080
+  scale: 1
+  zoom: 1.25
+  colorScheme: "light"
+tts:
+  provider: "edge"
+  voice: "en-US-AndrewMultilingualNeural"
+  speed: 1.12
+recording:
+  outputDir: "."
+  fps: 30
+segments:
+  - id: "intro"
+    narration: "This is TraceLayer, an investigation layer for community banks. Clean data goes in, ranked and explained leads come out, and every claim traces back to its source row."
+    intent: "landing page"
+    actions:
+      - type: "wait"
+        duration: 2000
+      - type: "hover"
+        target:
+          text: "AI drafts, people decide"
+      - type: "wait"
+        duration: 2000
+    timing: "parallel"
+    audioDuration: 10344
+    videoDuration: 10347
+  - id: "sign-in"
+    narration: "Anyone can explore it. The sign-in page lists demo accounts for each role. Pick one, and the login fills in. We'll be the investigator."
+    intent: "open sign-in, fill the investigator account, continue"
+    actions:
+      - type: "click"
+        target:
+          role: "link"
+          name: "Explore the live demo"
+        done:
+          url: "**/sign-in"
+          timeout: 20000
+      - type: "wait"
+        duration: 1800
+      - type: "click"
+        target:
+          role: "button"
+          name: "Fill in the Investigator demo account"
+      - type: "wait"
+        duration: 1200
+      - type: "click"
+        target:
+          selector: "button:text-is('Continue')"
+        done:
+          url: "**/command"
+          timeout: 60000
+    timing: "parallel"
+    audioDuration: 7920
+    videoDuration: 7921
+  - id: "command-center"
+    narration: "The command center is the daily briefing: open alerts, cases, overdue reviews and data-quality issues, plus live system health, including the Groq language model."
+    intent: "command center KPIs and system health"
+    actions:
+      - type: "wait"
+        duration: 3000
+      - type: "hover"
+        target:
+          text: "Groq configured"
+      - type: "wait"
+        duration: 2500
+    timing: "parallel"
+    audioDuration: 9984
+    videoDuration: 9986
+  - id: "data-quality"
+    narration: "It starts with governed data. Every upload is checked against a data contract, row by row. Errors keep a row out entirely, warnings travel with it as a caveat, and rejected rows are kept as evidence."
+    intent: "data operations, then quality exceptions"
+    actions:
+      - type: "click"
+        target:
+          selector: "a[href='/data'] >> nth=0"
+        done:
+          url: "**/data"
+          timeout: 30000
+      - type: "wait"
+        duration: 2500
+      - type: "click"
+        target:
+          selector: "a[href='/data/quality'] >> nth=0"
+        done:
+          url: "**/data/quality"
+          timeout: 30000
+      - type: "wait"
+        duration: 3000
+    timing: "parallel"
+    audioDuration: 12144
+    videoDuration: 12146
+  - id: "risk"
+    narration: "Risk intelligence ranks alerts and explains why: the priority score, amounts and connected accounts, then each detector on its own. Typology rules, anomaly detection, and trained XGBoost and graph neural network models."
+    intent: "risk alert detail: why ranked, component signals"
+    actions:
+      - type: "click"
+        target:
+          selector: "a[href='/risk'] >> nth=0"
+        done:
+          url: "**/risk"
+          timeout: 30000
+      - type: "wait"
+        duration: 2500
+      - type: "scroll"
+        target:
+          text: "Why it was ranked"
+      - type: "wait"
+        duration: 2500
+      - type: "scroll"
+        target:
+          text: "Component signals"
+      - type: "wait"
+        duration: 2000
+    timing: "parallel"
+    audioDuration: 14304
+    videoDuration: 14306
+  - id: "graph"
+    narration: "The graph workbench follows the money. Choose hops, direction and rails, and it draws only time-respecting paths, so each hop happens after the last. The path tracer finds routes and cycles."
+    intent: "graph workbench, 3 hops, path tracer"
+    actions:
+      - type: "click"
+        target:
+          selector: "a[href='/graph'] >> nth=0"
+        done:
+          url: "**/graph"
+          timeout: 30000
+      - type: "wait"
+        duration: 2000
+      - type: "click"
+        target:
+          role: "button"
+          name: "3 hops"
+        done:
+          stable: 1000
+          timeout: 30000
+      - type: "wait"
+        duration: 2000
+      - type: "scroll"
+        target:
+          text: "Path tracer"
+      - type: "wait"
+        duration: 2500
+    timing: "parallel"
+    audioDuration: 12000
+    videoDuration: 12002
+  - id: "copilot"
+    narration: "The AI copilot answers policy questions for a case. Answers cite retrieved guidance, and the receipt shows which model wrote them."
+    intent: "ask the copilot a policy question"
+    actions:
+      - type: "click"
+        target:
+          selector: "a[href='/copilot'] >> nth=0"
+        done:
+          url: "**/copilot"
+          timeout: 30000
+      - type: "select"
+        target:
+          label: "Copilot case"
+        option: "Structuring lead from AL-26"
+      - type: "type"
+        target:
+          label: "Policy question"
+        text: "What about monitoring unusual activity?"
+        delay: 25
+      - type: "click"
+        target:
+          role: "button"
+          name: "Ask investigation copilot"
+        done:
+          visible: "text=/Policy passages retrieved|No supported policy answer/"
+          timeout: 120000
+      - type: "wait"
+        duration: 4000
+    timing: "parallel"
+    audioDuration: 7680
+    videoDuration: 13667
+  - id: "case"
+    narration: "Cases bring it together. Agents draft the narrative, and a verifier checks every ID, amount and date against the evidence before anyone sees it. Then a person decides, with four-eyes review and a hash-chained receipt."
+    intent: "case overview, narrative tab, disposition tab"
+    actions:
+      - type: "click"
+        target:
+          selector: "a[href^='/cases'] >> nth=0"
+        done:
+          url: "**/cases**"
+          timeout: 30000
+      - type: "wait"
+        duration: 2500
+      - type: "click"
+        target:
+          selector: "a[href$='/narrative'] >> nth=0"
+        done:
+          stable: 800
+          timeout: 30000
+      - type: "wait"
+        duration: 3000
+      - type: "click"
+        target:
+          selector: "a[href$='/disposition'] >> nth=0"
+        done:
+          stable: 800
+          timeout: 30000
+      - type: "wait"
+        duration: 2500
+    timing: "parallel"
+    audioDuration: 12912
+    videoDuration: 12912
+  - id: "lineage"
+    narration: "Governance proves how each decision was built. Lineage traces a transaction from source file to reviewer decision in eleven steps. A missing link is shown as a gap, never invented."
+    intent: "governance lineage"
+    actions:
+      - type: "click"
+        target:
+          selector: "a[href='/governance'] >> nth=0"
+        done:
+          url: "**/governance"
+          timeout: 30000
+      - type: "wait"
+        duration: 2000
+      - type: "scroll"
+        target:
+          text: "From source file to reviewer decision"
+      - type: "wait"
+        duration: 3500
+    timing: "parallel"
+    audioDuration: 11016
+    videoDuration: 11017
+  - id: "governance"
+    narration: "There's a model registry, drift monitoring, a replay of pinned runs, a what-if sandbox for policy changes, and an append-only audit trail."
+    intent: "models, sandbox, audit"
+    actions:
+      - type: "click"
+        target:
+          selector: "a[href='/governance/models'] >> nth=0"
+        done:
+          url: "**/governance/models"
+          timeout: 30000
+      - type: "wait"
+        duration: 2200
+      - type: "click"
+        target:
+          selector: "a[href='/governance/sandbox'] >> nth=0"
+        done:
+          url: "**/governance/sandbox"
+          timeout: 30000
+      - type: "wait"
+        duration: 2200
+      - type: "click"
+        target:
+          selector: "a[href='/governance/audit'] >> nth=0"
+        done:
+          url: "**/governance/audit"
+          timeout: 30000
+      - type: "wait"
+        duration: 2000
+    timing: "parallel"
+    audioDuration: 8064
+    videoDuration: 8372
+  - id: "outro"
+    narration: "That's TraceLayer: governed data, explained risk, and AI that drafts while people decide. Try it with any demo account."
+    intent: "close on the command center"
+    actions:
+      - type: "click"
+        target:
+          selector: "a[href='/command'] >> nth=0"
+        done:
+          url: "**/command"
+          timeout: 30000
+      - type: "wait"
+        duration: 3000
+    timing: "parallel"
+    audioDuration: 7512
+    videoDuration: 7513
